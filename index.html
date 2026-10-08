@@ -130,6 +130,8 @@ async function quoteShipping(id){
   const response=await fetch(url);
   const data=await response.json();
   if(!response.ok||!data.ok)throw new Error(data.error||'送料を取得できません');
+  if(!Array.isArray(data.options)||!data.options.some(option=>Number.isFinite(Number(option.usd))&&Number(option.usd)>=0))throw new Error('利用可能な配送方法がありません。配送先・商品バリエーションを確認してください');
+  data.options=data.options.filter(option=>option&&Number.isFinite(Number(option.usd))&&Number(option.usd)>=0).map(option=>({...option,usd:Number(option.usd)}));
   if(!result||!result.isConnected||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant)){return;}
   result.replaceChildren();
   const title=document.createElement('div');
