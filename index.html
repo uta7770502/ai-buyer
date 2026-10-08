@@ -131,7 +131,7 @@ async function quoteShipping(id){
   const response=await fetch(url);
   const data=await response.json();
   if(!response.ok||!data.ok)throw new Error(data.error||'送料を取得できません');
-  if(!Array.isArray(data.options)||!data.options.some(option=>Number.isFinite(Number(option.usd))&&Number(option.usd)>=0))throw new Error('利用可能な配送方法がありません。配送先・商品バリエーションを確認してください');
+  if(!Array.isArray(data.options)||!data.options.some(option=>option&&Number.isFinite(Number(option.usd))&&Number(option.usd)>=0&&Number(option.usd)*fx<=10000000))throw new Error('利用可能な配送方法がありません。配送先・商品バリエーションを確認してください');
   data.options=data.options.filter(option=>option&&Number.isFinite(Number(option.usd))&&Number(option.usd)>=0&&Number(option.usd)*fx<=10000000).map(option=>({...option,usd:Number(option.usd)}));
   if(!data.options.length)throw new Error('有効な送料がありません。配送先・商品バリエーションを確認してください');
   if(!result||!result.isConnected||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant)){return;}
@@ -153,7 +153,7 @@ async function quoteShipping(id){
   saveButton.onclick=()=>{
    const option=data.options[Number(select.value)];
    if(!option)return;
-   if(document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant)){alert('配送先またはバリエーションが変更されました。送料を再見積してください。');return;}
+   if(findActive(id)!==x||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant)){alert('商品または配送条件が変更されました。送料を再見積してください。');return;}
    x.shippingJpy=Math.round(option.usd*fx);
    x.shippingSource='CJ';
    x.shippingMethod=option.name;
