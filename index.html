@@ -109,7 +109,7 @@ async function quoteShipping(id){
  const destination=document.getElementById('shipDest-'+id)?.value||'JP';
  if(result)result.textContent='CJ送料を照会中…';
  try{
-  const url='/api/cj-freight?id='+encodeURIComponent(id)+'&destination='+encodeURIComponent(destination)+'&origin=CN';
+  const selectedVariant=x.shippingVariantChoice||'';const url='/api/cj-freight?id='+encodeURIComponent(id)+'&destination='+encodeURIComponent(destination)+'&origin=CN'+(selectedVariant?'&vid='+encodeURIComponent(selectedVariant):'');
   const response=await fetch(url);
   const data=await response.json();
   if(!response.ok||!data.ok)throw new Error(data.error||'送料を取得できません');
@@ -140,7 +140,23 @@ async function quoteShipping(id){
    x.shippingQuotedAt=new Date().toISOString();
    save();renderAll();showCandidateToast('CJ送料見積を保存しました');
   };
-  result.append(title,select,saveButton);
+  const variantLabel=document.createElement('div');
+  variantLabel.textContent='商品バリエーション（変更すると再見積）';
+  const variantSelect=document.createElement('select');
+  variantSelect.style.width='100%';
+  (data.variants||[]).forEach(v=>{
+   const item=document.createElement('option');
+   item.value=v.vid;
+   item.textContent=v.name||v.sku||v.vid;
+   if(v.vid===data.vid)item.selected=true;
+   variantSelect.appendChild(item);
+  });
+  variantSelect.onchange=()=>{
+   x.shippingVariantChoice=variantSelect.value;
+   save();
+   if(result)result.textContent='バリエーションを変更しました。「CJ送料を見積」を再度押してください。';
+  };
+  result.append(variantLabel,variantSelect,title,select,saveButton);
  }catch(error){if(result)result.textContent='送料を取得できません: '+error.message+'。手入力もできます。'}
 }
 function changeShipping(id,v){const x=findActive(id);if(!x)return;if(String(v).trim()===''){delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingDestination;delete x.shippingVariant;delete x.shippingQuotedAt}else{x.shippingJpy=Math.max(0,Math.round(Number(v)||0));x.shippingSource='manual';delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt}save();renderAll()}
