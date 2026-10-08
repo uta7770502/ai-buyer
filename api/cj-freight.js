@@ -12,12 +12,12 @@ export default async function handler(req,res){
  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
  try{
   const id=String(req.query.id||'').trim(),destination=String(req.query.destination||'JP').toUpperCase(),origin=String(req.query.origin||'CN').toUpperCase();
-  if(!/^[a-zA-Z0-9:-]{1,100}$/.test(id)||!/^[A-Z]{2}$/.test(destination)||!/^[A-Z]{2}$/.test(origin))return res.status(400).json({ok:false,error:'Invalid product or country code'});
+  if(!/^[a-zA-Z0-9:-]{1,100}$/.test(id)||!['JP','US','GB','AU','DE'].includes(destination)||origin!=='CN')return res.status(400).json({ok:false,error:'Invalid product or shipping country'});
   const access=await token(),headers={'CJ-Access-Token':access};
   const detailUrl=new URL(BASE+'/product/query');detailUrl.searchParams.set('pid',id);
   const detailResponse=await fetch(detailUrl,{headers});const detail=await detailResponse.json();
   if(!detailResponse.ok||detail.result!==true)return res.status(502).json({ok:false,error:detail.message||'Product detail unavailable'});
-  const p=detail.data||{},variants=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
+  const p=detail.data||{},variants=(Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[]).filter(v=>v&&typeof v==='object');
   const variantId=String(req.query.vid||'').trim();if(variantId&&!/^[a-zA-Z0-9:-]{1,100}$/.test(variantId))return res.status(400).json({ok:false,error:'Invalid variant ID'});const v=variantId?variants.find(v=>String(v.vid||v.id||v.variantId)===variantId):variants.find(v=>v.vid||v.id||v.variantId);
   if(!v)return res.status(422).json({ok:false,error:'CJの商品バリエーションIDを取得できません。送料は手入力してください。'});
   const vid=String(v.vid||v.id||v.variantId);
