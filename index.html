@@ -121,10 +121,10 @@ async function quoteShipping(id){
   const response=await fetch(url);
   const data=await response.json();
   if(!response.ok||!data.ok)throw new Error(data.error||'送料を取得できません');
-  if(!result)return;
+  if(!result||!result.isConnected||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant)){return;}
   result.replaceChildren();
   const title=document.createElement('div');
-  title.textContent='CJ送料の見積（'+destination+'向け・最初のバリエーション）';
+  title.textContent='CJ送料の見積（'+destination+'向け・選択バリエーション）';
   const select=document.createElement('select');
   select.style.width='100%';
   data.options.forEach((option,index)=>{
@@ -140,6 +140,7 @@ async function quoteShipping(id){
   saveButton.onclick=()=>{
    const option=data.options[Number(select.value)];
    if(!option)return;
+   if(document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant)){alert('配送先またはバリエーションが変更されました。送料を再見積してください。');return;}
    x.shippingJpy=Math.round(option.usd*fx);
    x.shippingSource='CJ';
    x.shippingMethod=option.name;
