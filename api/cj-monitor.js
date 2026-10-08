@@ -49,7 +49,7 @@ async function fetchOne(id, token) {
   }
 
   const p = detailJson.data || {};
-  if (!inventoryRes.ok || inventoryJson?.result !== true || !Array.isArray(inventoryJson?.data?.inventories)) {
+  if (!inventoryRes.ok || (inventoryJson?.result !== true && inventoryJson?.success !== true) || !Array.isArray(inventoryJson?.data?.inventories)) {
     throw new Error(inventoryJson?.message || 'CJ在庫情報を確認できません');
   }
   const inventories = inventoryJson.data.inventories;
