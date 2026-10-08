@@ -31,24 +31,28 @@ function pick(obj, keys, fallback = '') {
   return fallback;
 }
 
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function fetchOne(id, token) {
   const detailUrl = new URL(`${CJ_BASE}/product/query`);
   detailUrl.searchParams.set('pid', id);
   const inventoryUrl = new URL(`${CJ_BASE}/product/stock/getInventoryByPid`);
   inventoryUrl.searchParams.set('pid', id);
 
-  const [detailRes, inventoryRes] = await Promise.all([
-    fetch(detailUrl, { headers: { 'CJ-Access-Token': token } }),
-    fetch(inventoryUrl, { headers: { 'CJ-Access-Token': token } }),
-  ]);
-  const [detailJson, inventoryJson] = await Promise.all([detailRes.json(), inventoryRes.json()]);
+  const detailRes = await fetch(detailUrl, { headers: { 'CJ-Access-Token': token } });
+  const detailJson = await detailRes.json();
+  await pause(1200);
+  const inventoryRes = await fetch(inventoryUrl, { headers: { 'CJ-Access-Token': token } });
+  const inventoryJson = await inventoryRes.json();
 
   if (!detailRes.ok || detailJson?.result !== true) {
     throw new Error(detailJson?.message || `Product detail failed: ${id}`);
   }
 
   const p = detailJson.data || {};
-  const inventories = inventoryJson?.data?.inventories || [];
+  if (!inventoryRes.ok || inventoryJson?.result !== true || !Array.isArray(inventoryJson?.data?.inventories)) {
+    throw new Error(inventoryJson?.message || 'CJ在庫情報を確認できません');
+  }
+  const inventories = inventoryJson.data.inventories;
   const stockTotal = inventories.reduce((s, x) => s + Number(x?.totalInventoryNum || 0), 0);
   const cjInventory = inventories.reduce((s, x) => s + Number(x?.cjInventoryNum || 0), 0);
   const factoryInventory = inventories.reduce((s, x) => s + Number(x?.factoryInventoryNum || 0), 0);
@@ -85,7 +89,12 @@ export default async function handler(req, res) {
       .slice(0, 10);
     if (!ids.length) return res.status(400).json({ error: 'ids is required' });
     const token = await getAccessToken();
-    const settled = await Promise.allSettled(ids.map(id => fetchOne(id, token)));
+    const settled = [];
+    for (const id of ids) {
+      await pause(1200);
+      try { settled.push({ status: 'fulfilled', value: await fetchOne(id, token) }); }
+      catch (reason) { settled.push({ status: 'rejected', reason }); }
+    }
     const products = [];
     const errors = [];
     settled.forEach((r, i) => {
