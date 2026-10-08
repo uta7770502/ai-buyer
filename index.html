@@ -161,8 +161,9 @@ async function quoteShipping(id){
   });
   variantSelect.onchange=()=>{
    x.shippingVariantChoice=variantSelect.value;
-   save();
-   if(result)result.textContent='バリエーションを変更しました。「CJ送料を見積」を再度押してください。';
+   if(x.shippingSource==='CJ'){delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingDestination;delete x.shippingVariant;delete x.shippingQuotedAt;}
+   save();renderAll();
+   alert('バリエーションを変更しました。新しい送料を見積もってください。');
   };
   result.append(variantLabel,variantSelect,title,select,saveButton);
  }catch(error){if(result)result.textContent='送料を取得できません: '+error.message+'。手入力もできます。'}
