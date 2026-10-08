@@ -113,16 +113,34 @@ async function quoteShipping(id){
   const response=await fetch(url);
   const data=await response.json();
   if(!response.ok||!data.ok)throw new Error(data.error||'送料を取得できません');
-  const option=data.options[0];
-  const message='CJ送料見積: '+option.name+' / USD '+option.usd.toFixed(2)+'（'+destination+'向け・最初のバリエーション）。保存しますか？';
-  if(!confirm(message)){if(result)result.textContent='保存をキャンセルしました';return}
-  x.shippingJpy=Math.round(option.usd*fx);
-  x.shippingSource='CJ';
-  x.shippingMethod=option.name;
-  x.shippingDestination=destination;
-  x.shippingVariant=data.variantSku||data.vid;
-  x.shippingQuotedAt=new Date().toISOString();
-  save();renderAll();showCandidateToast('CJ送料見積を保存しました');
+  if(!result)return;
+  result.replaceChildren();
+  const title=document.createElement('div');
+  title.textContent='CJ送料の見積（'+destination+'向け・最初のバリエーション）';
+  const select=document.createElement('select');
+  select.style.width='100%';
+  data.options.forEach((option,index)=>{
+   const item=document.createElement('option');
+   item.value=String(index);
+   item.textContent=option.name+' / USD '+option.usd.toFixed(2)+(option.days?' / '+option.days:'');
+   select.appendChild(item);
+  });
+  const saveButton=document.createElement('button');
+  saveButton.type='button';
+  saveButton.className='secondary';
+  saveButton.textContent='選択した送料を保存';
+  saveButton.onclick=()=>{
+   const option=data.options[Number(select.value)];
+   if(!option)return;
+   x.shippingJpy=Math.round(option.usd*fx);
+   x.shippingSource='CJ';
+   x.shippingMethod=option.name;
+   x.shippingDestination=destination;
+   x.shippingVariant=data.variantSku||data.vid;
+   x.shippingQuotedAt=new Date().toISOString();
+   save();renderAll();showCandidateToast('CJ送料見積を保存しました');
+  };
+  result.append(title,select,saveButton);
  }catch(error){if(result)result.textContent='送料を取得できません: '+error.message+'。手入力もできます。'}
 }
 function changeShipping(id,v){const x=findActive(id);if(!x)return;if(String(v).trim()===''){delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingDestination;delete x.shippingVariant;delete x.shippingQuotedAt}else{x.shippingJpy=Math.max(0,Math.round(Number(v)||0));x.shippingSource='manual';delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt}save();renderAll()}
