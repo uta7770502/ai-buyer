@@ -18,7 +18,7 @@ export default async function handler(req,res){
   const detailResponse=await fetch(detailUrl,{headers});const detail=await detailResponse.json();
   if(!detailResponse.ok||detail.result!==true)return res.status(502).json({ok:false,error:detail.message||'Product detail unavailable'});
   const p=detail.data||{},variants=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
-  const v=variants.find(v=>v.vid||v.id||v.variantId);
+  const variantId=String(req.query.vid||'').trim();const v=variantId?variants.find(v=>String(v.vid||v.id||v.variantId)===variantId):variants.find(v=>v.vid||v.id||v.variantId);
   if(!v)return res.status(422).json({ok:false,error:'CJの商品バリエーションIDを取得できません。送料は手入力してください。'});
   const vid=String(v.vid||v.id||v.variantId);
   const quoteResponse=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({startCountryCode:origin,endCountryCode:destination,products:[{quantity:1,vid}]})});
@@ -27,6 +27,6 @@ export default async function handler(req,res){
   const options=(Array.isArray(quote.data)?quote.data:[]).map(x=>({name:String(x.logisticName||''),usd:Number(x.totalPostageFee??x.logisticPrice),days:String(x.logisticAging||'')})).filter(x=>Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
   if(!options.length)return res.status(422).json({ok:false,error:'この配送先の送料見積がありません。配送元やバリエーションを確認してください。'});
   res.setHeader('Cache-Control','private, no-store');
-  return res.status(200).json({ok:true,origin,destination,vid,variantSku:String(v.variantSku||v.sku||''),variantName:String(v.variantNameEn||v.variantName||''),options});
+  return res.status(200).json({ok:true,origin,destination,vid,variants:variants.slice(0,50).filter(v=>v.vid||v.id||v.variantId).map(v=>({vid:String(v.vid||v.id||v.variantId),sku:String(v.variantSku||v.sku||''),name:String(v.variantNameEn||v.variantName||v.variantSku||'')})),variantSku:String(v.variantSku||v.sku||''),variantName:String(v.variantNameEn||v.variantName||''),options});
  }catch(e){return res.status(500).json({ok:false,error:e.message||'Freight quote failed'})}
 }
