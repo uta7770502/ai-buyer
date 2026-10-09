@@ -191,19 +191,28 @@ async function syncTestTrackingToShopify(){
     if(result)result.textContent='Shopify注文IDとCJ追跡番号を先に確認してください';
     return;
   }
-  if(!confirm('このテスト注文にCJの追跡番号をShopifyへ反映します。顧客通知はOFFです。実行しますか？'))return;
   const key=prompt('管理者キーを入力してください');
   if(!key)return;
-  if(result)result.textContent='Shopifyへ追跡番号を反映中…';
+  const payload={
+    orderId:'gid://shopify/Order/'+testShopifyOrderNumericId,
+    trackingNumber:testTrackingNumber,
+    trackingCompany:testTrackingCompany
+  };
   try{
+    if(result)result.textContent='Shopify反映可否を確認中…';
+    const pre=await fetch('/api/shopify-fulfillment-sync',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
+      body:JSON.stringify({...payload,dryRun:true})
+    });
+    const pj=await pre.json();
+    if(!pre.ok||!pj.ok||!pj.eligible)throw new Error(pj.error||'この注文は追跡同期できません');
+    if(!confirm('Shopify側で反映可能な注文であることを確認しました。\nCJ追跡番号をShopifyへ反映します。顧客通知はOFFです。実行しますか？'))return;
+    if(result)result.textContent='Shopifyへ追跡番号を反映中…';
     const r=await fetch('/api/shopify-fulfillment-sync',{
       method:'POST',
       headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-      body:JSON.stringify({
-        orderId:'gid://shopify/Order/'+testShopifyOrderNumericId,
-        trackingNumber:testTrackingNumber,
-        trackingCompany:testTrackingCompany
-      })
+      body:JSON.stringify(payload)
     });
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'Shopify追跡同期に失敗しました');
