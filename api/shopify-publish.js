@@ -237,11 +237,16 @@ export default async function handler(req,res){
     const title=clean(p.title||p.name,255),description=clean(p.description||p.descriptionHtml,5000),vendor=clean(p.vendor||'AI BUYER',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
-    const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'ACTIVE',tags:['AI BUYER','dropshipping']}});
+    const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping']}});
     const ce=create.productCreate;if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
     const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),sku:cj.vid}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
+    // Publishing must be explicit after the CJ variant and Shopify price are validated.
+    // Keep the newly created product as a draft until a dedicated approval step.
+    if(p.publishApproved!==true)return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
+    const activated=await gql(shop,token,'mutation ActivateProduct($product: ProductUpdateInput!) { productUpdate(product:$product) { product { id status } userErrors { message } } }',{product:{id:ce.product.id,status:'ACTIVE'}});
+    if(activated.productUpdate?.userErrors?.length)throw Error(activated.productUpdate.userErrors.map(x=>x.message).join(' / '));
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
     const target=nodes.find(x=>/online store/i.test(String(x.name||'')))||nodes.find(x=>x.autoPublish)||nodes[0];
