@@ -17,6 +17,7 @@ This application must **not** be considered ready for live, unattended fulfillme
 | `CJ_MAX_ITEMS_PER_ORDER` | Mandatory positive integer quantity limit |
 | `CJ_MAX_ORDER_VALUE` | Mandatory positive maximum Shopify order total |
 | `CJ_ORDER_LIMIT_CURRENCY` | ISO currency matching Shopify orders, e.g. `JPY` |
+| `CJ_MAX_FREIGHT_USD` | Mandatory positive maximum CJ freight quote, denominated in USD |
 | `CJ_SANDBOX_ORDER_ENABLED` | Set to `true` **only** for controlled sandbox tests |
 
 Do not expose secrets through client-side variables, repository files, screenshots or logs. Keep `CJ_ALLOW_REAL_SHOPIFY_ORDERS_IN_SANDBOX` unset during initial testing.
@@ -27,10 +28,11 @@ Do not expose secrets through client-side variables, repository files, screensho
 2. Register the `orders/paid` webhook to `/api/shopify-order-webhook` using the matching Shopify app secret and exact merchant domain.
 3. With sandbox disabled, verify webhook handling fails closed; do not use real customer orders to test.
 4. Set required server variables and enable sandbox only in a controlled environment. Query `GET /api/automation-health` with `Authorization: Bearer <admin key>`; require `sandboxReady: true` before testing.
-5. Use a Shopify test order with a verified CJ variant ID, supported shipping address, currency and limits. Verify exactly one sandbox CJ order exists even after duplicate webhook delivery.
-6. Query `GET /api/automation-order-status?shop=<shop>&orderId=<id>` with the admin key; verify the CJ order ID or a review-needed state.
-7. Inspect `GET /api/automation-reconciliation` with the admin key. If `partial: true`, do not treat the list as exhaustive. Investigate every uncertain order manually; **never automatically retry an ambiguous CJ creation**.
-8. Keep real payment, CJ live order creation, Shopify fulfillment updates and customer tracking notifications disabled until end-to-end integration tests and operational controls pass.
+5. Verify the USD freight ceiling is configured and that over-limit quotes fail closed. This does not verify margin or procurement cost.
+6. Use a Shopify test order with a verified CJ variant ID, supported shipping address, currency and limits. Verify exactly one sandbox CJ order exists even after duplicate webhook delivery.
+7. Query `GET /api/automation-order-status?shop=<shop>&orderId=<id>` with the admin key; verify the CJ order ID or a review-needed state.
+8. Inspect `GET /api/automation-reconciliation` with the admin key. If `partial: true`, do not treat the list as exhaustive. Investigate every uncertain order manually; **never automatically retry an ambiguous CJ creation**.
+9. Keep real payment, CJ live order creation, Shopify fulfillment updates and customer tracking notifications disabled until end-to-end integration tests and operational controls pass.
 
 ## Known blockers
 
