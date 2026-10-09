@@ -453,6 +453,7 @@ async function checkReleaseReadiness(){
     if(!r.ok||!j.ok)throw new Error(j.error||'公開準備チェックに失敗しました');
     releaseReadiness=j;
     releaseReadinessCheckedAt=new Date().toISOString();
+    localStorage.setItem('aiBuyerReleaseReadiness',JSON.stringify(j));
     localStorage.setItem('aiBuyerReleaseCheckedAt',releaseReadinessCheckedAt);
     const blockers=Array.isArray(j.blockers)?j.blockers:[];
     if(st){
@@ -474,9 +475,8 @@ async function checkReleaseReadiness(){
     }
     renderAutomationDashboard();
   }catch(e){
-    releaseReadiness=null;
     if(st){st.className='connectionState ng';st.textContent='要確認'}
-    if(meta)meta.textContent=e.message||'公開準備チェックに失敗しました';
+    if(meta)meta.textContent=(e.message||'公開準備チェックに失敗しました')+(releaseReadiness?' / 前回結果を保持':'');
     renderAutomationDashboard();
   }
 }
@@ -538,7 +538,7 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
   }
 }
 function maybeDailyMonitor(){if(monitorSettings.daily!=='on')return;const last=localStorage.getItem('aiBuyerLastMonitorAt');if(!last||Date.now()-new Date(last).getTime()>=30*60*1000)runMarketMonitor(true)}
-let releaseReadiness=null;
+let releaseReadiness=(()=>{try{return JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null')}catch{return null}})();
 let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
 let testCjOrderId='';
 let testShopifyOrderNumericId='';
