@@ -30,6 +30,14 @@ export default async function handler(req,res){
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const p=req.body||{};
+    if(p.adHealth===true){
+      const meta={connected:Boolean(process.env.META_AD_ACCOUNT_ID&&process.env.META_ACCESS_TOKEN),accountConfigured:Boolean(process.env.META_AD_ACCOUNT_ID),tokenConfigured:Boolean(process.env.META_ACCESS_TOKEN)};
+      const google={connected:Boolean(process.env.GOOGLE_ADS_CUSTOMER_ID&&process.env.GOOGLE_ADS_DEVELOPER_TOKEN&&process.env.GOOGLE_ADS_ACCESS_TOKEN),customerConfigured:Boolean(process.env.GOOGLE_ADS_CUSTOMER_ID),developerTokenConfigured:Boolean(process.env.GOOGLE_ADS_DEVELOPER_TOKEN),accessTokenConfigured:Boolean(process.env.GOOGLE_ADS_ACCESS_TOKEN)};
+      const liveEnabled=String(process.env.ADS_LIVE_ENABLED||'').toLowerCase()==='true';
+      const maxDailyJpy=Math.max(0,Math.round(Number(process.env.ADS_MAX_DAILY_JPY)||0));
+      return res.status(200).json({ok:true,adHealth:true,meta,google,liveEnabled,maxDailyJpy});
+    }
+
     if(p.adGuard===true){
       const provider=String(p.provider||'').toLowerCase();
       const action=String(p.action||'').toLowerCase();
