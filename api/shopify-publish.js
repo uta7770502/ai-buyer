@@ -32,16 +32,55 @@ export default async function handler(req,res){
     const p=req.body||{};
     if(p.orderAudit===true){
       const data=await gql(shop,token,'query RecentOrders { orders(first:20, reverse:true) { nodes { id name createdAt cancelledAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } lineItems(first:20) { nodes { name quantity sku } } } } }');
-      const orders=(data.orders?.nodes||[]).map(o=>{
+      const shopOrders=data.orders?.nodes||[];
+      let cjByStoreOrder={};
+      try{
+        const ids=shopOrders.map(o=>'SHOP-'+String(o.id||'').split('/').pop()).filter(Boolean);
+        if(ids.length){
+          const access=await cjToken();
+          const rr=await fetch('https://developers.cjdropshipping.com/api2.0/v1/shopping/order/getOrderDetailBatch',{
+            method:'POST',
+            headers:{'CJ-Access-Token':access,'Content-Type':'application/json'},
+            body:JSON.stringify({orderIds:ids})
+          });
+          const jj=await rr.json();
+          if(rr.ok&&jj?.result===true){
+            const arr=Array.isArray(jj.data)?jj.data:(Array.isArray(jj.data?.list)?jj.data.list:[]);
+            for(const cjo of arr){
+              const keys=[cjo.orderNum,cjo.orderNumber,cjo.storeOrderNumber,cjo.platformOrderId,cjo.orderId].filter(Boolean).map(String);
+              for(const k of keys)cjByStoreOrder[k]=cjo;
+            }
+          }
+        }
+      }catch(_e){}
+
+      const orders=shopOrders.map(o=>{
         const fin=String(o.displayFinancialStatus||''),ful=String(o.displayFulfillmentStatus||''),cancelled=Boolean(o.cancelledAt);
+        const numericId=String(o.id||'').split('/').pop(),storeOrder='SHOP-'+numericId;
+        const cjo=cjByStoreOrder[storeOrder]||cjByStoreOrder[numericId]||null;
+        const cjStatus=String(cjo?.orderStatus||cjo?.status||'').toUpperCase();
         let state='確認',reason='個別確認が必要です',safeAction='review';
+
         if(cancelled){state='完了';reason='Shopifyですでにキャンセル済み';safeAction='none'}
         else if(fin==='REFUNDED'||fin==='PARTIALLY_REFUNDED'){state='返金済';reason='返金処理済みまたは一部返金済み';safeAction='none'}
-        else if(['FULFILLED','PARTIALLY_FULFILLED','IN_PROGRESS','SCHEDULED'].includes(ful)){state='要確認';reason='発送処理が進んでいるため自動キャンセル禁止';safeAction='review'}
+        else if(['SHIPPED','DELIVERED'].includes(cjStatus)){state='要確認';reason='CJ側が'+cjStatus+'のため自動キャンセル禁止';safeAction='review'}
+        else if(['PENDING','PROCESSING','UNSHIPPED'].includes(cjStatus)){state='要確認';reason='CJ側で出荷処理中のため自動キャンセル禁止';safeAction='review'}
+        else if(cjStatus==='CANCELLED'){state='キャンセル候補';reason='CJ側はキャンセル済み。Shopify側の整合確認が必要';safeAction='cancel_candidate'}
+        else if(['CREATED','IN_CART','UNPAID'].includes(cjStatus)&&['UNFULFILLED','OPEN','PENDING_FULFILLMENT','ON_HOLD',''].includes(ful)){
+          state='キャンセル候補';reason='CJ側が'+cjStatus+'で未出荷。Shopify側も未発送';safeAction='cancel_candidate'
+        }
+        else if(['FULFILLED','PARTIALLY_FULFILLED','IN_PROGRESS','SCHEDULED'].includes(ful)){state='要確認';reason='Shopify側で発送処理が進んでいるため自動キャンセル禁止';safeAction='review'}
         else if(['VOIDED','EXPIRED'].includes(fin)){state='キャンセル候補';reason='未発送かつ決済が無効/期限切れ';safeAction='cancel_candidate'}
         else if(fin==='PENDING'){state='保留';reason='決済確認待ちのため発注・返金を保留';safeAction='hold'}
-        else if(['PAID','AUTHORIZED','PARTIALLY_PAID'].includes(fin)&&['UNFULFILLED','OPEN','PENDING_FULFILLMENT','ON_HOLD'].includes(ful)){state='要確認';reason='未発送だが入金済み。CJ状況確認後のみキャンセル可能';safeAction='review'}
-        return {id:o.id,name:o.name,createdAt:o.createdAt,cancelledAt:o.cancelledAt,financialStatus:fin,fulfillmentStatus:ful,state,reason,safeAction,total:o.totalPriceSet?.shopMoney||null,items:(o.lineItems?.nodes||[]).map(x=>({name:x.name,quantity:x.quantity,sku:x.sku}))};
+        else if(['PAID','AUTHORIZED','PARTIALLY_PAID'].includes(fin)&&['UNFULFILLED','OPEN','PENDING_FULFILLMENT','ON_HOLD'].includes(ful)){state='要確認';reason=cjo?'CJ状態 '+(cjStatus||'不明')+' を確認してから判断':'CJ注文がまだ見つからないため自動キャンセル禁止';safeAction='review'}
+
+        return {
+          id:o.id,name:o.name,createdAt:o.createdAt,cancelledAt:o.cancelledAt,
+          financialStatus:fin,fulfillmentStatus:ful,state,reason,safeAction,
+          total:o.totalPriceSet?.shopMoney||null,
+          items:(o.lineItems?.nodes||[]).map(x=>({name:x.name,quantity:x.quantity,sku:x.sku})),
+          cjFound:Boolean(cjo),cjStatus,cjOrderId:cjo?.cjOrderCode||cjo?.orderId||cjo?.cjOrderId||'',storeOrderNumber:storeOrder
+        };
       });
       const counts=orders.reduce((a,o)=>(a[o.state]=(a[o.state]||0)+1,a),{});
       return res.status(200).json({ok:true,audit:true,mode:'safe',orders,counts});
