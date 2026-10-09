@@ -13,8 +13,8 @@ async function reserveOrder(shop,orderId){
   const token=process.env.UPSTASH_REDIS_REST_TOKEN;
   if(!url||!token)throw Error('Durable idempotency storage is not configured');
   const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
-  const r=await fetch(url.replace(/\\/$/,'')+'/set/'+encodeURIComponent(key)+'/'+encodeURIComponent('reserved')+'?NX=true',{
-    headers:{Authorization:'Bearer '+token},method:'GET'
+  const r=await fetch(url.replace(/\/$/,'')+'/',{
+    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},method:'POST',body:JSON.stringify(['SET',key,'reserved','NX'])
   });
   if(!r.ok)throw Error('Idempotency store unavailable');
   const j=await r.json();
@@ -25,8 +25,8 @@ async function markOrder(shop,orderId,status){
   const url=process.env.UPSTASH_REDIS_REST_URL;
   const token=process.env.UPSTASH_REDIS_REST_TOKEN;
   const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
-  const r=await fetch(url.replace(/\\/$/,'')+'/set/'+encodeURIComponent(key)+'/'+encodeURIComponent(status),{headers:{Authorization:'Bearer '+token}});
-  if(!r.ok)throw Error('Failed to persist order state');
+  const r=await fetch(url.replace(/\/$/,'')+'/',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(['SET',key,status])});
+  if(!r.ok)throw Error('Failed to persist order state');const j=await r.json();if(j.error||j.result!=='OK')throw Error('Failed to persist order state');
 }
 
 export default async function handler(req,res){
@@ -77,7 +77,7 @@ export default async function handler(req,res){
       products
     };
     const shop=str(req.headers['x-shopify-shop-domain'],255).toLowerCase();
-    if(!/^[a-z0-9][a-z0-9.-]*\\.myshopify\\.com$/.test(shop))return res.status(400).json({ok:false,error:'Invalid Shopify shop domain'});
+    if(!/^[a-z0-9][a-z0-9.-]*\.myshopify\.com$/.test(shop))return res.status(400).json({ok:false,error:'Invalid Shopify shop domain'});
     const reserved=await reserveOrder(shop,String(order.id));
     if(!reserved)return res.status(200).json({ok:true,skipped:true,reason:'Order already reserved or processed'});
     const cr=await fetch(BASE+'/shopping/order/createOrderV2',{method:'POST',headers,body:JSON.stringify(body)});
