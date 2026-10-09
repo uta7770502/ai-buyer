@@ -6,6 +6,7 @@ export default async function handler(req,res){
   if(!key||req.headers.authorization!=='Bearer '+key)return res.status(401).json({ok:false,error:'Unauthorized'});
   const checks={
     shopifyWebhookSecret:Boolean(process.env.SHOPIFY_CLIENT_SECRET),
+    allowedShopConfigured:/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase()),
     cjCredentials:Boolean(process.env.CJ_ACCESS_TOKEN||process.env.CJ_API_KEY),
     durableOrderStore:Boolean(process.env.UPSTASH_REDIS_REST_URL&&process.env.UPSTASH_REDIS_REST_TOKEN),
     sandboxOptIn:process.env.CJ_SANDBOX_ORDER_ENABLED==='true',
@@ -22,6 +23,6 @@ export default async function handler(req,res){
       redisReachable=r.ok&&j.result==='PONG';
     }catch{}
   }
-  const sandboxReady=checks.shopifyWebhookSecret&&checks.cjCredentials&&checks.durableOrderStore&&redisReachable&&checks.sandboxOptIn&&checks.maxItemsPerOrderConfigured&&checks.maxOrderValueConfigured&&checks.limitCurrencyConfigured;
+  const sandboxReady=checks.shopifyWebhookSecret&&checks.allowedShopConfigured&&checks.cjCredentials&&checks.durableOrderStore&&redisReachable&&checks.sandboxOptIn&&checks.maxItemsPerOrderConfigured&&checks.maxOrderValueConfigured&&checks.limitCurrencyConfigured;
   return res.status(200).json({ok:true,checks,redisReachable,sandboxReady,liveOrdersEnabled:false,note:'Live fulfillment and payment are not implemented'});
 }
