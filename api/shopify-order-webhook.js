@@ -81,9 +81,20 @@ export default async function handler(req,res){
     if(!/^[a-z0-9][a-z0-9.-]*\.myshopify\.com$/.test(shop))return res.status(400).json({ok:false,error:'Invalid Shopify shop domain'});
     const reserved=await reserveOrder(shop,String(order.id));
     if(!reserved)return res.status(200).json({ok:true,skipped:true,reason:'Order already reserved or processed'});
-    const cr=await fetch(BASE+'/shopping/order/createOrderV2',{method:'POST',headers,body:JSON.stringify(body)});
-    const cj=await cr.json();
-    if(!cr.ok||cj.result!==true)throw Error(cj.message||'CJ sandbox order creation failed');
+    // A timeout or network error may mean CJ accepted the order. Never auto-retry
+    // after reservation; record an ambiguous state for human reconciliation.
+    let cr,cj;
+    try{
+      cr=await fetch(BASE+'/shopping/order/createOrderV2',{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
+      cj=await cr.json();
+    }catch{
+      await markOrder(shop,String(order.id),'needs_review:unknown_cj_result');
+      return res.status(202).json({ok:false,needsReview:true,error:'CJ result uncertain; do not retry automatically'});
+    }
+    if(!cr.ok||cj.result!==true){
+      await markOrder(shop,String(order.id),'needs_review:cj_rejected');
+      return res.status(202).json({ok:false,needsReview:true,error:'CJ rejected sandbox order; manual reconciliation required'});
+    }
     await markOrder(shop,String(order.id),'created:'+str(cj.data?.orderId||cj.data?.orderNumber||'unknown',100));
     return res.status(200).json({ok:true,sandbox:true,cjOrderId:cj.data?.orderId||'',cjOrderNumber:cj.data?.orderNumber||'',logisticName:chosen.name});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'CJ自動発注処理に失敗しました'})}
