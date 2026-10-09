@@ -11,7 +11,7 @@ function verifyHmac(query,secret){
 export default async function handler(req,res){
   try{
     const clientId=String(process.env.SHOPIFY_CLIENT_ID||'').trim(),clientSecret=String(process.env.SHOPIFY_CLIENT_SECRET||'').trim();
-    if(!clientId||!clientSecret)throw Error('Shopify認証情報が未設定です');
+    const missing=[];if(!clientId)missing.push('SHOPIFY_CLIENT_ID');if(!clientSecret)missing.push('SHOPIFY_CLIENT_SECRET');if(missing.length)throw Error('未設定: '+missing.join(', '));
     const shop=safeShop(req.query.shop),code=String(req.query.code||''),state=String(req.query.state||''),cookies=parseCookies(req);
     if(!shop||!code)throw Error('Shopifyからの認証情報が不足しています');
     if(!state||state!==cookies.shopify_oauth_state)throw Error('認証stateが一致しません');
