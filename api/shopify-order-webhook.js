@@ -80,7 +80,7 @@ export default async function handler(req,res){
     const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
-    const opts=(Array.isArray(fq.data)?fq.data:[]).map(x=>({name:str(x.logisticName,50),usd:Number(x.totalPostageFee??x.logisticPrice),days:str(x.logisticAging,50)})).filter(x=>x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
+    const opts=(Array.isArray(fq.data)?fq.data:[]).map(x=>({name:str(x.logisticName,50),usd:x.totalPostageFee==null&&x.logisticPrice==null?NaN:Number(x.totalPostageFee??x.logisticPrice),days:str(x.logisticAging,50)})).filter(x=>x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
     if(!opts.length)throw Error('CJ配送方法が見つかりません');
     // Shipping cost is USD; never compare it against an unconverted Shopify total.
     const maxFreightUsd=Number(process.env.CJ_MAX_FREIGHT_USD);
