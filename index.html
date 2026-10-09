@@ -40,7 +40,7 @@ let opsHistory=JSON.parse(localStorage.getItem('aiBuyerOpsHistory')||'[]');
 let monitorHistory=JSON.parse(localStorage.getItem('aiBuyerMonitorHistory')||'{}');
 let shopifyConnected=false;
 let shopifyCheckedAt='';
-let aioAudit={checked:false,total:0,ready:0,missing:0,items:[]};
+let aioAudit=JSON.parse(localStorage.getItem('aiBuyerAioAudit')||'null')||{checked:false,total:0,ready:0,missing:0,items:[],checkedAt:''};
 let webhookCheckedAt='';
 let cjConnected=false;
 let cjCheckedAt='';
@@ -770,19 +770,21 @@ async function checkAioGeoAudit(){
     const j=await r.json();
     if(!r.ok||!j.ok||!Array.isArray(j.products))throw new Error(j.error||'AIO/GEO監査に失敗しました');
     const missing=j.products.filter(p=>p.aioReady!==true).map(p=>({id:p.id,productId:p.productId||'',title:p.title||p.id}));
-    aioAudit={checked:true,total:Number(j.count||j.products.length),ready:Number(j.aioReadyCount||0),missing:Number(j.aioMissingCount||missing.length),items:missing};
+    aioAudit={checked:true,total:Number(j.count||j.products.length),ready:Number(j.aioReadyCount||0),missing:Number(j.aioMissingCount||missing.length),items:missing,checkedAt:new Date().toISOString()};
+    localStorage.setItem('aiBuyerAioAudit',JSON.stringify(aioAudit));
     if(st){
       st.className=aioAudit.missing===0?'connectionState ok':'connectionState ng';
       st.textContent=aioAudit.missing===0?'完了':'未完了 '+aioAudit.missing;
     }
-    if(meta)meta.textContent='全'+aioAudit.total+'商品 / 完了 '+aioAudit.ready+' / 未完了 '+aioAudit.missing;
+    if(meta)meta.textContent='全'+aioAudit.total+'商品 / 完了 '+aioAudit.ready+' / 未完了 '+aioAudit.missing+' / 確認 '+new Date(aioAudit.checkedAt).toLocaleString('ja-JP');
     if(card)card.style.display=aioAudit.missing?'block':'none';
     if(rows)rows.innerHTML=aioAudit.missing
       ?missing.slice(0,20).map(x=>'<div style="padding:7px 0;border-bottom:1px solid #eee"><b>'+esc(x.title)+'</b><br><span class="tiny">対象ユーザー・要約・選定理由のいずれかが未設定</span><br><button class="ghost" style="margin-top:6px" onclick="backfillAioGeo(\''+js(x.productId)+'\',\''+js(x.title)+'\')">AIO/GEO補完</button></div>').join('')+(missing.length>20?'<div style="padding-top:7px">ほか '+(missing.length-20)+'商品</div>':'')
       :'<div>AIO/GEO必須メタデータはすべて揃っています。</div>';
     renderAutomationDashboard();
   }catch(e){
-    aioAudit={checked:false,total:0,ready:0,missing:0,items:[]};
+    aioAudit={checked:false,total:0,ready:0,missing:0,items:[],checkedAt:''};
+    localStorage.removeItem('aiBuyerAioAudit');
     if(st){st.className='connectionState ng';st.textContent='要確認'}
     if(meta)meta.textContent=e.message||'AIO/GEO監査に失敗しました';
     if(card)card.style.display='none';
