@@ -30,6 +30,12 @@ export default async function handler(req,res){
           vendor
           onlineStoreUrl
           featuredImage{url altText width height}
+          audience:metafield(namespace:"custom",key:"adps_audience"){value}
+          adpsSummary:metafield(namespace:"custom",key:"adps_summary"){value}
+          adpsWhy:metafield(namespace:"custom",key:"adps_why"){value}
+          shippingPrice:metafield(namespace:"custom",key:"shipping_price_jpy"){value}
+          shippingCountry:metafield(namespace:"custom",key:"shipping_country"){value}
+          returnDays:metafield(namespace:"custom",key:"return_days"){value}
           variants(first:1){
             nodes{
               id
@@ -74,6 +80,18 @@ export default async function handler(req,res){
         featuredImage:p.featuredImage?{
           url:String(p.featuredImage.url||''),
           altText:String(p.featuredImage.altText||p.title||'')
+        }:null,
+        audience:String(p.audience?.value||''),
+        summary:String(p.adpsSummary?.value||''),
+        why:String(p.adpsWhy?.value||'').split(/\r?\n|\|/).map(x=>x.trim()).filter(Boolean).slice(0,6),
+        shipping:p.shippingPrice?.value?{
+          price:Number(p.shippingPrice.value||0),
+          country:String(p.shippingCountry?.value||'JP').toUpperCase(),
+          handlingMin:1,handlingMax:3,transitMin:1,transitMax:5
+        }:null,
+        returnPolicy:p.returnDays?.value?{
+          days:Number(p.returnDays.value||0),
+          country:String(p.shippingCountry?.value||'JP').toUpperCase()
         }:null,
         variant:{
           id:String(v.id||''),
