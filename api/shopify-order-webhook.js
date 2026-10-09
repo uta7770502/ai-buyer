@@ -44,11 +44,12 @@ export default async function handler(req,res){
     // Without durable event deduplication, retrying this handler may duplicate CJ sandbox orders.
     // Keep this endpoint disabled for live fulfillment.
     const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number(x.quantity)>0);
-    if(!lines.length)return res.status(200).json({ok:true,skipped:true,reason:'CJ SKU/variant mapping not found'});
+    if(!lines.length||lines.length!==(Array.isArray(order.line_items)?order.line_items.length:0))return res.status(422).json({ok:false,error:'CJ variant mapping is incomplete; order requires review'});
     const countryCode=str(addr.country_code,2).toUpperCase();
-    if(!countryCode||!addr.city||!addr.address1||!addr.name)return res.status(200).json({ok:true,skipped:true,reason:'Shipping address incomplete'});
+    if(!countryCode||!addr.city||!addr.address1||!addr.name)return res.status(422).json({ok:false,error:'Shipping address incomplete; order requires review'});
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
-    const products=lines.slice(0,20).map(x=>({vid:str(x.sku,100),quantity:Math.max(1,Math.min(50,Number(x.quantity)||1)),storeLineItemId:str(x.id,125)}));
+    if(lines.length>20||lines.some(x=>!Number.isSafeInteger(Number(x.quantity))||Number(x.quantity)>50))return res.status(422).json({ok:false,error:'Unsupported order size; manual review required'});
+    const products=lines.map(x=>({vid:str(x.sku,100),quantity:Math.max(1,Math.min(50,Number(x.quantity)||1)),storeLineItemId:str(x.id,125)}));
     const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
