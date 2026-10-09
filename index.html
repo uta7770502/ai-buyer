@@ -635,6 +635,10 @@ function runNextReadinessCheck(){
   if(!g.reconciliationOk){loadReconciliationSummary();return}
   renderTestChecklist();
 }
+function aioAuditIsFresh(){
+  const t=Date.parse(aioAudit?.checkedAt||'');
+  return Boolean(aioAudit?.checked&&Number.isFinite(t)&&Date.now()-t<24*60*60*1000);
+}
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
   const orderText=String(document.getElementById('orderAutoState')?.textContent||'');
@@ -654,9 +658,9 @@ function renderAutomationDashboard(){
       !reconciliationSummaryChecked||!reconciliationSummaryIsFresh()?'wait':reconciliationCriticalCount>0?'wait':reconciliationReviewCount>0?'test':'ok',
       !reconciliationSummaryChecked?'未確認':!reconciliationSummaryIsFresh()?'再確認':reconciliationCriticalCount>0?'要対応':reconciliationReviewCount>0?'要確認':'異常なし'],
     ['⑤.8','AIO/GEO商品監査',
-      !aioAudit.checked?'未確認':aioAudit.missing?'未完了 '+aioAudit.missing+'商品':'全商品メタデータ完了',
-      !aioAudit.checked?'wait':aioAudit.missing?'test':'ok',
-      !aioAudit.checked?'未確認':aioAudit.missing?'要対応':'完了'],
+      !aioAudit.checked?'未確認':!aioAuditIsFresh()?'監査結果が24時間以上前です':aioAudit.missing?'未完了 '+aioAudit.missing+'商品':'全商品メタデータ完了',
+      !aioAudit.checked||!aioAuditIsFresh()?'wait':aioAudit.missing?'test':'ok',
+      !aioAudit.checked?'未確認':!aioAuditIsFresh()?'再確認':aioAudit.missing?'要対応':'完了'],
     ['⑥','公開準備ゲート',
       releaseReadiness
         ?(!releaseCheckIsFresh()
