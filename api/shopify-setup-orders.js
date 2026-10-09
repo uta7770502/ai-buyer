@@ -10,10 +10,10 @@ export default async function handler(req,res){
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const uri='https://ai-buyer-nine.vercel.app/api/shopify-order-webhook';
-    const existing=await gql(shop,token,'query { webhookSubscriptions(first:50, topics:[ORDERS_CREATE]) { nodes { id topic uri } } }');
+    const existing=await gql(shop,token,'query { webhookSubscriptions(first:50, topics:[ORDERS_PAID]) { nodes { id topic uri } } }');
     const found=(existing.webhookSubscriptions?.nodes||[]).find(x=>x.uri===uri);
     if(found)return res.status(200).json({ok:true,created:false,id:found.id,uri});
-    const data=await gql(shop,token,'mutation Create($topic: WebhookSubscriptionTopic!, $input: WebhookSubscriptionInput!) { webhookSubscriptionCreate(topic:$topic, webhookSubscription:$input) { webhookSubscription { id topic uri } userErrors { field message } } }',{topic:'ORDERS_CREATE',input:{uri}});
+    const data=await gql(shop,token,'mutation Create($topic: WebhookSubscriptionTopic!, $input: WebhookSubscriptionInput!) { webhookSubscriptionCreate(topic:$topic, webhookSubscription:$input) { webhookSubscription { id topic uri } userErrors { field message } } }',{topic:'ORDERS_PAID',input:{uri}});
     const out=data.webhookSubscriptionCreate,errs=out?.userErrors||[];
     if(errs.length||!out?.webhookSubscription)throw Error(errs.map(x=>x.message).join(' / ')||'Webhook登録に失敗しました');
     return res.status(200).json({ok:true,created:true,id:out.webhookSubscription.id,uri});
