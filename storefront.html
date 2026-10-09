@@ -249,7 +249,43 @@ function removeCart(id){cart=cart.filter(p=>p.id!==id);renderCart()}
 function openCart(){document.getElementById('cartDrawer').classList.add('open')}function closeCart(){document.getElementById('cartDrawer').classList.remove('open')}
 function openSearch(){document.getElementById('searchLayer').classList.add('open');setTimeout(()=>document.getElementById('searchInput').focus(),150);renderSearch('')}function closeSearch(){document.getElementById('searchLayer').classList.remove('open')}
 function renderSearch(q){const v=(q||'').trim().toLowerCase();const list=(v?products.filter(p=>[p.name,p.category,p.audience,p.summary,...(p.why||[])].filter(Boolean).join(' ').toLowerCase().includes(v)):products.slice(0,4));document.getElementById('searchResults').innerHTML=list.map(p=>`<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eee;cursor:pointer" onclick="closeSearch();openProduct('${p.id}')"><img src="${p.img}" style="width:58px;height:58px;border-radius:10px;object-fit:cover"><div><b>${p.name}</b><div>${yen(p.price)}</div></div></div>`).join('')}
+function normalizeShopifyProduct(raw){
+  const variant=raw?.variant||raw?.variants?.[0]||{};
+  const price=Number(variant.price?.amount??variant.price??raw?.price??0);
+  const currency=String(variant.price?.currencyCode||raw?.currency||'JPY');
+  return {
+    id:String(raw?.handle||raw?.id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),
+    name:String(raw?.title||raw?.name||'商品'),
+    category:String(raw?.productType||raw?.category||'ライフスタイル'),
+    audience:String(raw?.audience||'一般消費者'),
+    summary:String(raw?.description||raw?.summary||'').trim(),
+    price:Number.isFinite(price)?price:0,
+    currency,
+    img:String(raw?.featuredImage?.url||raw?.image||''),
+    why:Array.isArray(raw?.why)?raw.why:[],
+    available:variant.availableForSale!==false&&raw?.available!==false,
+    sku:String(variant.sku||raw?.sku||''),
+    brand:String(raw?.vendor||raw?.brand||''),
+    url:String(raw?.onlineStoreUrl||raw?.url||''),
+    shipping:raw?.shipping||null,
+    returnPolicy:raw?.returnPolicy||null,
+    authoritative:raw?.authoritative===true
+  };
+}
+
 function productStructuredData(p){
+  const data={
+    "@type":"Product",
+    "name":p.name,
+    "image":[p.img],
+    "description":p.summary||p.why.join('。'),
+    "category":p.category||"ライフスタイル",
+    "audience":{"@type":"Audience","audienceType":p.audience||"一般消費者"},
+    "sku":p.sku||("ADPS-"+p.id.toUpperCase()),
+    "brand":{"@type":"Brand","name":p.brand||"ADPS PICKS"},
+    "url":p.url||("https://ai-buyer-nine.vercel.app/shop#"+p.id)
+  };
+  if(p.authoritative!==true)return data;
   const availability=p.available===false?'https://schema.org/OutOfStock':'https://schema.org/InStock';
   const offer={
     "@type":"Offer",
@@ -280,17 +316,8 @@ function productStructuredData(p){
       "returnFees":"https://schema.org/FreeReturn"
     };
   }
-  return {
-    "@type":"Product",
-    "name":p.name,
-    "image":[p.img],
-    "description":p.summary||p.why.join('。'),
-    "category":p.category||"ライフスタイル",
-    "audience":{"@type":"Audience","audienceType":p.audience||"一般消費者"},
-    "sku":p.sku||("ADPS-"+p.id.toUpperCase()),
-    "brand":{"@type":"Brand","name":p.brand||"ADPS PICKS"},
-    "offers":offer
-  };
+  data.offers=offer;
+  return data;
 }
 
 function renderStructuredData(){
