@@ -20,6 +20,7 @@
 <nav class="nav"><button class="on" onclick="showPage('home',this)"><b>⌂</b>ホーム</button><button onclick="showPage('recommend',this)"><b>✦</b>AI推薦</button><button onclick="showPage('profit',this)"><b>¥</b>利益</button></nav>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet"><button class="close" onclick="closeModal()">×</button><div id="detail"><div class="loading">商品詳細を読み込み中…</div></div></div></div>
 <script>
+if(location.hostname.endsWith('-diogolf.vercel.app')&&location.hostname!=='ai-buyer-nine.vercel.app'){location.replace('https://ai-buyer-nine.vercel.app'+location.pathname+location.search+location.hash)}
 let results=[],filtered=[],page=1,totalPages=1,currentQuery='';
 let active=JSON.parse(localStorage.getItem('aiBuyerCandidates')||'[]');
 let watch=JSON.parse(localStorage.getItem('aiBuyerWatch')||'["pet","kitchen","beauty"]');
