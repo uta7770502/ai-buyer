@@ -19,6 +19,7 @@ async function reserveOrder(shop,orderId){
   if(!r.ok)throw Error('Idempotency store unavailable');
   const j=await r.json();
   if(j.error)throw Error('Idempotency store rejected reservation');
+  if(j.result!==null&&j.result!=='OK')throw Error('Unexpected idempotency reservation response');
   return j.result==='OK';
 }
 async function markOrder(shop,orderId,status){
