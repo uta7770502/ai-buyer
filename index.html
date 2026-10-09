@@ -213,6 +213,7 @@ async function prepareSandboxTracking(){
   finally{if(button)button.disabled=false}
 }
 function resetReconciliationView(){
+  reconciliationRequestVersion++;
   reconciliationCursor='0';
   reconciliationLoadedCount=0;
   document.getElementById('reconciliationRows').innerHTML='';
@@ -222,13 +223,15 @@ function resetReconciliationView(){
 async function loadReconciliation(reset){
   const key=getTestAdminKey();if(!key)return;
   if(reset)resetReconciliationView();
+  const requestVersion=++reconciliationRequestVersion;
   const kind=document.getElementById('reconciliationKind').value;
+  const cursor=reconciliationCursor;
   const result=document.getElementById('reconciliationResult');
   result.textContent='要照合の処理を確認中…';
   try{
-    const r=await fetch('/api/automation-reconciliation?kind='+encodeURIComponent(kind)+'&cursor='+encodeURIComponent(reconciliationCursor),{headers:{Authorization:'Bearer '+key}});
+    const r=await fetch('/api/automation-reconciliation?kind='+encodeURIComponent(kind)+'&cursor='+encodeURIComponent(cursor),{headers:{Authorization:'Bearer '+key}});
     const j=await r.json();
-    if(kind!==document.getElementById('reconciliationKind').value)return;
+    if(requestVersion!==reconciliationRequestVersion||kind!==document.getElementById('reconciliationKind').value)return;
     if(!r.ok||!j.ok)throw new Error(j.error||'照合一覧を取得できません');
     const reasons={result_unconfirmed:'処理結果が未確定',cj_result_ambiguous:'CJの応答が未確定',cj_rejected:'CJが注文を拒否',missing_cj_order_id:'CJ注文IDが未取得',shopify_result_ambiguous:'Shopifyの応答が未確定',shopify_rejected:'Shopifyが同期を拒否',simulation_result_ambiguous:'模擬配送の結果が未確定'};
     const rows=j.orders||[];
@@ -664,6 +667,7 @@ function maybeDailyMonitor(){if(monitorSettings.daily!=='on')return;const last=l
 let testContextVersion=0;
 let reconciliationCursor='0';
 let reconciliationLoadedCount=0;
+let reconciliationRequestVersion=0;
 let releaseReadiness=(()=>{try{const saved=JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null');return saved?.checkVersion===2?saved:null}catch{return null}})();
 let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
 let testCjOrderId='';
