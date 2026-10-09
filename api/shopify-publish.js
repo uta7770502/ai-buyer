@@ -234,6 +234,55 @@ export default async function handler(req,res){
       const counts=orders.reduce((a,o)=>(a[o.state]=(a[o.state]||0)+1,a),{});
       return res.status(200).json({ok:true,audit:true,mode:'safe',orders,counts});
     }
+    if(p.aioBackfill===true){
+      const productId=String(p.productId||'').trim();
+      if(!/^gid:\/\/shopify\/Product\/\d+$/.test(productId))return res.status(400).json({ok:false,error:'Shopify商品IDが不正です'});
+      const productData=await gql(shop,token,'query ProductForAio($id:ID!){ product(id:$id){ id title description productType vendor status metafield(namespace:"custom",key:"adps_audience"){value} summary:metafield(namespace:"custom",key:"adps_summary"){value} why:metafield(namespace:"custom",key:"adps_why"){value} } }',{id:productId});
+      const product=productData.product;
+      if(!product)return res.status(404).json({ok:false,error:'Shopify商品が見つかりません'});
+      const existing={
+        audience:String(product.metafield?.value||'').trim(),
+        summary:String(product.summary?.value||'').trim(),
+        why:String(product.why?.value||'').trim()
+      };
+      const fallbackAudience=clean(p.adpsAudience||p.audience||product.productType||'一般消費者',500);
+      const fallbackSummary=clean(p.adpsSummary||p.summary||product.description||product.title,2000);
+      const fallbackWhyRaw=Array.isArray(p.adpsWhy||p.why)?(p.adpsWhy||p.why):String(p.adpsWhy||p.why||'').split(/\r?\n|\|/);
+      const fallbackWhy=fallbackWhyRaw.map(x=>clean(x,500)).filter(Boolean).slice(0,6);
+      if(!fallbackWhy.length){
+        if(product.productType)fallbackWhy.push(product.productType+'カテゴリの商品');
+        if(product.description)fallbackWhy.push('商品説明が明確で用途を理解しやすい');
+        fallbackWhy.push('ADPSの商品選定基準に基づく候補');
+      }
+      const payload={
+        adpsAudience:existing.audience||fallbackAudience,
+        adpsSummary:existing.summary||fallbackSummary,
+        adpsWhy:existing.why?existing.why.split(/\r?\n|\|/).filter(Boolean):fallbackWhy,
+        shippingPriceJpy:p.shippingPriceJpy,
+        shippingCountry:p.shippingCountry,
+        returnDays:p.returnDays
+      };
+      const metafields=aioMetafields(payload,productId,product.title,product.description);
+      if(!metafields.length)return res.status(409).json({ok:false,error:'補完できるAIO/GEO情報がありません'});
+      const meta=await gql(shop,token,'mutation BackfillAio($metafields:[MetafieldsSetInput!]!){ metafieldsSet(metafields:$metafields){ metafields{id namespace key value} userErrors{field message code} } }',{metafields});
+      const errs=meta.metafieldsSet?.userErrors||[];
+      if(errs.length)return res.status(409).json({ok:false,error:'AIO/GEOメタフィールドの保存に失敗しました',metadataErrors:errs.map(x=>x.message)});
+      return res.status(200).json({
+        ok:true,
+        aioBackfill:true,
+        productId,
+        title:product.title,
+        status:product.status,
+        changedPublicationState:false,
+        metadataReady:true,
+        filled:{
+          audience:Boolean(payload.adpsAudience),
+          summary:Boolean(payload.adpsSummary),
+          why:Boolean(payload.adpsWhy?.length)
+        }
+      });
+    }
+
     const syncAction=String(p.syncAction||'').toLowerCase();
     const livePublishEnabled=process.env.SHOPIFY_LIVE_PUBLISH_ENABLED==='true';
     if(['stop','resume','price'].includes(syncAction)){
