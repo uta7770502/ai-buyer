@@ -109,6 +109,7 @@ async function checkAdConnections(){
     const sum=document.getElementById('adAutomationSummary');
     if(sum&&j.liveEnabled)sum.textContent+=' / LIVEゲートON・日次上限 '+yen(j.maxDailyJpy||0);
     renderAutomationDashboard();
+    renderTestChecklist();
   }catch(e){
     if(ms){ms.className='connectionState ng';ms.textContent='要確認'}if(gs){gs.className='connectionState ng';gs.textContent='要確認'}
     if(mm)mm.textContent=e.message||'確認失敗';if(gm)gm.textContent=e.message||'確認失敗';
@@ -503,6 +504,7 @@ async function checkReleaseReadiness(){
     if(st){st.className='connectionState ng';st.textContent='要確認'}
     if(meta)meta.textContent=(e.message||'公開準備チェックに失敗しました')+(releaseReadiness?' / 前回結果を保持':'');
     renderAutomationDashboard();
+    renderTestChecklist();
   }
 }
 async function checkConnection(){const st=document.getElementById('connectionState'),meta=document.getElementById('connectionMeta');if(st){st.className='connectionState';st.textContent='確認中'}try{const r=await fetch('/api/cj-health');const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'接続失敗');if(st){st.className='connectionState ok';st.textContent='接続OK'}if(meta)meta.textContent=`${j.mode==='api-key'?'API Key':'Access Token'} / ${j.latencyMs}ms / ${new Date(j.checkedAt).toLocaleString('ja-JP')}`;localStorage.setItem('aiBuyerConnectionLastOk',j.checkedAt);setTimeout(maybeDailyScan,150)}catch(e){if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'接続失敗'}}
