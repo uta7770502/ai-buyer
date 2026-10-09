@@ -167,6 +167,7 @@ async function runReturnAudit(){
   }catch(e){if(sum)sum.textContent=e.message||'注文監査に失敗しました';if(box)box.innerHTML=''}
 }
 async function runSafeCancel(orderId,name){
+  invalidateReconciliationSummary();
   if(!confirm((name||'この注文')+'を安全キャンセルしますか？\n未発送・未決済・CJ未出荷をサーバー側で再確認してから実行します。'))return;
   try{
     const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({safeCancelOrder:true,orderId})});
@@ -192,6 +193,7 @@ function getTestAdminKey(){
   return key;
 }
 async function prepareSandboxTracking(){
+  invalidateReconciliationSummary();
   const key=getTestAdminKey(),id=testShopifyOrderNumericId,result=document.getElementById('testSimulationResult');
   if(!key||!testCjOrderId||!/^\d{1,30}$/.test(id))return;
   invalidateOrderEvidence(['tracking','sync','duplicate']);
@@ -211,6 +213,18 @@ async function prepareSandboxTracking(){
     const track=document.getElementById('testTrackingBtn');if(track)track.style.display='block';
   }catch(e){if(context===testContextVersion&&result)result.textContent=e.message||'シミュレーションを確認できませんでした'}
   finally{if(button)button.disabled=false}
+}
+function invalidateReconciliationSummary(){
+  reconciliationSummaryChecked=false;
+  reconciliationSummaryCheckedAt='';
+  reconciliationCriticalCount=0;
+  reconciliationReviewCount=0;
+  reconciliationLoadedCount=0;
+  localStorage.setItem('aiBuyerReconciliationSummaryChecked','false');
+  localStorage.removeItem('aiBuyerReconciliationSummaryCheckedAt');
+  localStorage.removeItem('aiBuyerReconciliationSummary');
+  hydrateReconciliationSummaryUI();
+  renderAutomationDashboard();
 }
 function hydrateReconciliationSummaryUI(){
   const el=document.getElementById('reconciliationSummary');if(!el)return;
@@ -318,6 +332,7 @@ async function loadReconciliation(reset){
   }catch(e){result.className='tiny fail';result.textContent=e.message||'照合一覧を取得できません';renderAutomationDashboard()}
 }
 async function syncTestTrackingToShopify(){
+  invalidateReconciliationSummary();
   const result=document.getElementById('testTrackingResult');
   if(!/^\d{1,30}$/.test(testShopifyOrderNumericId)||!testTrackingNumber){
     if(result)result.textContent='Shopify注文IDとCJ追跡番号を先に確認してください';
@@ -360,6 +375,7 @@ async function syncTestTrackingToShopify(){
   }catch(e){if(result)result.textContent=e.message||'Shopify追跡同期に失敗しました'}
 }
 async function verifyDuplicateTrackingSync(){
+  invalidateReconciliationSummary();
   const result=document.getElementById('testDuplicateResult');
   if(!/^\d{1,30}$/.test(testShopifyOrderNumericId)||!testTrackingNumber){
     if(result)result.textContent='先に追跡同期テストを完了してください';
@@ -420,6 +436,7 @@ async function checkTestTracking(){
   }catch(e){if(result)result.textContent=e.message||'追跡情報の確認に失敗しました'}
 }
 async function checkTestOrder(){
+  invalidateReconciliationSummary();
   const orderId=String(document.getElementById('testShopifyOrderId')?.value||'').trim();
   invalidateOrderEvidence(['order','tracking','sync','duplicate']);
   testCjOrderId='';testTrackingNumber='';testTrackingCompany='';
