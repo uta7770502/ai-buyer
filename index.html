@@ -726,6 +726,17 @@ async function runAdAutomation(){
 }
 function buildDailyActions(){const actions=[];for(const x of active){const d=decisionMetrics(x),sd=scaleDecision(x),lm=learnedMetrics(x),score=x.learnedScore||x.aiScore||metrics(x).score;if(d.state==='stop'||x.stopCandidate)actions.push({p:100,type:'stop',tag:'停止',text:`${x.name}：停止候補。ROAS ${lm.roas===99?'∞':lm.roas.toFixed(1)} / 実利益 ${yen(lm.net)}。広告投入を止めて入れ替え候補を確認。`});else if(sd.state==='up')actions.push({p:90,type:'up',tag:'拡大',text:`${x.name}：勝ち商品。AI ${score} / 実利益 ${yen(lm.net)}。広告予算と販売件数を段階的に拡大。`});else if(x.status==='test'&&lm.views>=40&&lm.orders===0)actions.push({p:70,type:'test',tag:'確認',text:`${x.name}：テスト中。閲覧 ${lm.views} で注文0。クリエイティブ・価格を見直し、停止判定まで継続。`});else if(x.status==='candidate')actions.push({p:55,type:'test',tag:'テスト',text:`${x.name}：候補商品。少額テストへ移行して実績データを集める。`})}const pool=(today?.products||[]).filter(p=>!findActive(p.id)).sort((a,b)=>metrics(b).score-metrics(a).score);if(pool[0])actions.push({p:45,type:'test',tag:'新規',text:`${pool[0].name}：今日の未採用トップ候補 AI ${metrics(pool[0]).score}。停止商品の代替テスト候補。`});if(!actions.length)actions.push({p:1,type:'wait',tag:'待機',text:'緊急アクションはありません。スキャンと実績収集を継続します。'});return actions.sort((a,b)=>b.p-a.p).slice(0,6)}
 function renderDailyActions(){const box=document.getElementById('dailyActions');if(!box)return;const a=buildDailyActions();box.innerHTML='<h3>AI運用アクション</h3>'+a.map(x=>`<div class="actionItem ${x.type}"><span class="tag">${x.tag}</span>${esc(x.text)}</div>`).join('')}
+async function backfillAioGeo(productId,title){
+  if(!productId){alert('Shopify商品IDを取得できません');return}
+  try{
+    const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({aioBackfill:true,productId})});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||'AIO/GEO補完に失敗しました');
+    addOps('AIO/GEO補完',(title||j.title||productId)+' のメタデータを補完');
+    await checkAioGeoAudit();
+  }catch(e){alert(e.message||'AIO/GEO補完に失敗しました')}
+}
+
 async function checkAioGeoAudit(){
   const st=document.getElementById('aioGeoState'),meta=document.getElementById('aioGeoMeta'),card=document.getElementById('aioGeoAuditCard'),rows=document.getElementById('aioGeoRows');
   if(st){st.className='connectionState';st.textContent='確認中'}
@@ -733,7 +744,7 @@ async function checkAioGeoAudit(){
     const r=await fetch('/api/storefront-products',{headers:{Accept:'application/json'}});
     const j=await r.json();
     if(!r.ok||!j.ok||!Array.isArray(j.products))throw new Error(j.error||'AIO/GEO監査に失敗しました');
-    const missing=j.products.filter(p=>p.aioReady!==true).map(p=>({id:p.id,title:p.title||p.id}));
+    const missing=j.products.filter(p=>p.aioReady!==true).map(p=>({id:p.id,productId:p.productId||'',title:p.title||p.id}));
     aioAudit={checked:true,total:Number(j.count||j.products.length),ready:Number(j.aioReadyCount||0),missing:Number(j.aioMissingCount||missing.length),items:missing};
     if(st){
       st.className=aioAudit.missing===0?'connectionState ok':'connectionState ng';
@@ -742,7 +753,7 @@ async function checkAioGeoAudit(){
     if(meta)meta.textContent='全'+aioAudit.total+'商品 / 完了 '+aioAudit.ready+' / 未完了 '+aioAudit.missing;
     if(card)card.style.display=aioAudit.missing?'block':'none';
     if(rows)rows.innerHTML=aioAudit.missing
-      ?missing.slice(0,20).map(x=>'<div style="padding:7px 0;border-bottom:1px solid #eee"><b>'+esc(x.title)+'</b><br><span class="tiny">対象ユーザー・要約・選定理由のいずれかが未設定</span></div>').join('')+(missing.length>20?'<div style="padding-top:7px">ほか '+(missing.length-20)+'商品</div>':'')
+      ?missing.slice(0,20).map(x=>'<div style="padding:7px 0;border-bottom:1px solid #eee"><b>'+esc(x.title)+'</b><br><span class="tiny">対象ユーザー・要約・選定理由のいずれかが未設定</span><br><button class="ghost" style="margin-top:6px" onclick="backfillAioGeo(\''+js(x.productId)+'\',\''+js(x.title)+'\')">AIO/GEO補完</button></div>').join('')+(missing.length>20?'<div style="padding-top:7px">ほか '+(missing.length-20)+'商品</div>':'')
       :'<div>AIO/GEO必須メタデータはすべて揃っています。</div>';
     renderAutomationDashboard();
   }catch(e){
