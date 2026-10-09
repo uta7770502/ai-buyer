@@ -315,6 +315,10 @@ function resetTestProgress(){
 function renderTestChecklist(){
   const box=document.getElementById('testChecklist');if(!box)return;
   if(!releaseReadiness){box.innerHTML='<div class="tiny">公開準備チェック後にテスト手順を表示します。</div>';return}
+  if(!releaseCheckIsFresh()){
+    box.innerHTML='<b style="font-size:13px">公開準備チェックを再確認</b><div class="tiny" style="margin-top:7px">前回確認から24時間以上経過しています。テストを続ける前に公開準備チェックを再実行してください。</div><button class="secondary" style="margin-top:8px;padding:7px 9px" onclick="checkReleaseReadiness()">再確認</button>';
+    return;
+  }
   const blockers=releaseReadiness.blockers||[],warnings=releaseReadiness.warnings||[];
   if(blockers.length||warnings.length||!releaseReadiness.safeToTest){
     box.innerHTML='<b style="font-size:13px">テスト開始前</b><div class="tiny" style="margin-top:7px">不足・警告を解消してから進めます。</div>';
