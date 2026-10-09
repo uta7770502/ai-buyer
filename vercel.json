@@ -15,6 +15,26 @@
     {
       "source": "/api/cj-health",
       "destination": "/api/diagnostics?action=cj-health"
+    },
+    {
+      "source": "/api/cj-detail",
+      "destination": "/api/cj?action=detail"
+    },
+    {
+      "source": "/api/cj-freight",
+      "destination": "/api/cj?action=freight"
+    },
+    {
+      "source": "/api/cj-monitor",
+      "destination": "/api/cj?action=monitor"
+    },
+    {
+      "source": "/api/cj-risk",
+      "destination": "/api/cj?action=risk"
+    },
+    {
+      "source": "/api/cj-search",
+      "destination": "/api/cj?action=search"
     }
   ]
 }
