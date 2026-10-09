@@ -3,8 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ADPS PICKS — AI Curated Store</title>
-<meta name="description" content="AIが見つけた、今ちょっと気になるもの。ADPS PICKS">
+<title>ADPS PICKS — AIが選ぶ、今ちょっと気になるもの</title>
+<meta name="description" content="ADPS PICKSは、AIがトレンド・価格・使いやすさ・話題性をもとにセレクトした商品を紹介するオンラインストア。ガジェット、ペット、キッチン、トラベル、ゴルフなど、今ちょっと気になるものを見つけられます。">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<link rel="canonical" href="https://ai-buyer-nine.vercel.app/shop">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ADPS PICKS">
+<meta property="og:title" content="ADPS PICKS — AIが選ぶ、今ちょっと気になるもの">
+<meta property="og:description" content="AIがトレンド・価格・使いやすさ・話題性から選ぶオンラインセレクトショップ。">
+<meta property="og:url" content="https://ai-buyer-nine.vercel.app/shop">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#dfff00">
+<link rel="describedby" href="/llms.txt">
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@graph":[
+    {
+      "@type":"Organization",
+      "@id":"https://ai-buyer-nine.vercel.app/#organization",
+      "name":"ADPS PICKS",
+      "url":"https://ai-buyer-nine.vercel.app/shop",
+      "description":"AIがトレンド・価格・使いやすさ・話題性をもとに商品をセレクトするオンラインストア。"
+    },
+    {
+      "@type":"WebSite",
+      "@id":"https://ai-buyer-nine.vercel.app/#website",
+      "url":"https://ai-buyer-nine.vercel.app/shop",
+      "name":"ADPS PICKS",
+      "publisher":{"@id":"https://ai-buyer-nine.vercel.app/#organization"},
+      "inLanguage":"ja-JP"
+    },
+    {
+      "@type":"WebPage",
+      "@id":"https://ai-buyer-nine.vercel.app/shop#webpage",
+      "url":"https://ai-buyer-nine.vercel.app/shop",
+      "name":"ADPS PICKS — AIが選ぶ、今ちょっと気になるもの",
+      "isPartOf":{"@id":"https://ai-buyer-nine.vercel.app/#website"},
+      "about":{"@id":"https://ai-buyer-nine.vercel.app/#organization"},
+      "inLanguage":"ja-JP"
+    }
+  ]
+}
+</script>
 <style>
 :root{
   --bg:#f7f5ef;--paper:#fff;--ink:#111;--muted:#6f6f6a;--line:#deddd6;
@@ -27,6 +68,7 @@ button,input{font:inherit}.wrap{max-width:1440px;margin:auto;padding:0 28px}
 .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:18px}.product{min-width:0}.thumb{position:relative;aspect-ratio:1/1;background:#e8e7e2;border-radius:16px;overflow:hidden;cursor:pointer}.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:.25s}.thumb:hover img{transform:scale(1.025)}.heart{position:absolute;right:10px;top:10px;width:34px;height:34px;border-radius:50%;border:0;background:#fff;cursor:pointer}.tag{position:absolute;left:10px;bottom:10px;background:var(--acid);font-size:11px;font-weight:950;padding:6px 8px;border-radius:5px}.rank{position:absolute;left:10px;top:10px;background:#111;color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900}.product h3{font-size:14px;line-height:1.45;margin:12px 0 6px}.price{font-size:19px;font-weight:950}.rating{font-size:12px;color:#444;margin-top:5px}
 .editorial{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.banner{min-height:190px;border-radius:18px;padding:24px;display:flex;flex-direction:column;justify-content:space-between;background-size:cover;background-position:center;overflow:hidden}.banner h3{font-size:34px;line-height:.93;letter-spacing:-.05em;margin:0;max-width:220px}.banner p{font-size:13px;max-width:210px}.b1{background:#efc59f}.b2{background:#c8d5e1}.b3{background:#17120b;color:#fff}.banner a{color:inherit;font-weight:900;text-decoration:none}
 .interests{display:grid;grid-template-columns:repeat(8,1fr);gap:18px}.interest{text-align:center;font-size:12px;font-weight:800}.interest img{width:88px;height:88px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 10px}
+.geoInfo{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;margin:10px 0 34px}.geoCard{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px}.geoCard h2,.geoCard h3{margin:0 0 12px;letter-spacing:-.035em}.geoCard h2{font-size:34px}.geoCard h3{font-size:23px}.geoCard p{color:#444;line-height:1.8;margin:8px 0}.geoList{display:grid;gap:10px;margin-top:18px}.geoList div{padding:13px 14px;background:var(--soft);border-radius:12px;font-size:14px}.faq{margin:0 0 40px}.faq details{background:#fff;border-top:1px solid var(--line);padding:17px 2px}.faq details:last-child{border-bottom:1px solid var(--line)}.faq summary{font-weight:900;cursor:pointer}.faq p{color:#555;line-height:1.75;max-width:900px}
 .story{margin:10px 0 70px;border-radius:22px;min-height:260px;background:linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.2)),url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1800&q=85') center/cover;color:#fff;display:flex;align-items:end;padding:34px}.story h3{font-size:46px;line-height:.95;letter-spacing:-.05em;margin:0 0 10px}.story p{margin:0;color:#eee}
 .drawer,.modal,.searchLayer{position:fixed;inset:0;z-index:60;pointer-events:none}.scrim{position:absolute;inset:0;background:rgba(0,0,0,.28);opacity:0;transition:.2s}.panel{position:absolute;right:0;top:0;height:100%;width:min(440px,92vw);background:#fff;transform:translateX(100%);transition:.25s;padding:22px;overflow:auto}.drawer.open,.modal.open,.searchLayer.open{pointer-events:auto}.drawer.open .scrim,.modal.open .scrim,.searchLayer.open .scrim{opacity:1}.drawer.open .panel{transform:none}
 .panelHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.panelHead h3{font-size:24px;margin:0}.close{border:0;background:#eee;width:38px;height:38px;border-radius:50%;cursor:pointer}.cartRow{display:grid;grid-template-columns:78px 1fr auto;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}.cartRow img{width:78px;height:78px;border-radius:12px;object-fit:cover}.qty{display:flex;align-items:center;gap:8px;margin-top:8px}.qty button{width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:8px}.checkout{position:sticky;bottom:0;background:#fff;padding-top:14px;border-top:1px solid var(--line)}.checkout button,.buyBtn{width:100%;height:56px;border:0;border-radius:12px;background:var(--acid);font-weight:950;cursor:pointer}.total{display:flex;justify-content:space-between;font-size:19px;font-weight:950;margin:8px 0 14px}
@@ -34,6 +76,7 @@ button,input{font:inherit}.wrap{max-width:1440px;margin:auto;padding:0 28px}
 .searchLayer .searchBox{position:absolute;left:50%;top:8%;width:min(760px,92vw);transform:translate(-50%,-20px);opacity:0;background:#fff;border-radius:24px;padding:22px;transition:.2s}.searchLayer.open .searchBox{transform:translate(-50%,0);opacity:1}.searchInput{width:100%;height:54px;border:1px solid var(--line);border-radius:999px;padding:0 20px;font-size:18px}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.chip{border:0;background:#efefec;padding:10px 13px;border-radius:999px;cursor:pointer}
 .mobileNav{display:none}.mobileOnly{display:none}
 @media(max-width:900px){
+  .geoInfo{grid-template-columns:1fr}.geoCard{padding:20px}.geoCard h2{font-size:28px}
   .wrap{padding:0 16px}.header{height:60px}.nav{display:none}.brand{font-size:23px}.icons{margin-left:auto}.hero{grid-template-columns:1fr;min-height:0}.heroCopy{padding:28px 16px 22px;order:2}.hero h1{font-size:54px}.hero p{font-size:17px}.heroVisual{min-height:310px;order:1}.heroBadge{width:92px;height:92px;font-size:12px}.trustGrid{grid-template-columns:repeat(2,1fr)}.trustItem:nth-child(2){border-right:0}.trustItem{font-size:11px;padding:17px 10px}.section{padding:38px 0}.sectionTitle h2{font-size:28px}.grid5{display:flex;overflow:auto;scroll-snap-type:x mandatory;padding-bottom:8px}.product{min-width:44vw;scroll-snap-align:start}.editorial{grid-template-columns:1fr}.banner{min-height:165px}.interests{grid-template-columns:repeat(4,1fr);gap:18px 8px}.interest img{width:66px;height:66px}.story{margin-bottom:90px;min-height:220px;padding:22px}.story h3{font-size:34px}.mobileNav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;bottom:0;left:0;right:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:8px 4px calc(8px + env(safe-area-inset-bottom))}.mobileNav button{border:0;background:#fff;font-size:10px;font-weight:800}.mobileNav span{display:block;font-size:20px;margin-bottom:3px}.productDetail{grid-template-columns:1fr}.detailInfo h2{font-size:28px}.modalCard{padding:14px}.mobileOnly{display:block}.hideMobile{display:none}
 }
 </style>
@@ -101,6 +144,34 @@ button,input{font:inherit}.wrap{max-width:1440px;margin:auto;padding:0 28px}
   </div>
 </section>
 
+<section class="geoInfo" aria-labelledby="about-adps">
+  <article class="geoCard">
+    <div class="kicker">ABOUT ADPS PICKS</div>
+    <h2 id="about-adps">ADPS PICKSとは？</h2>
+    <p>ADPS PICKSは、ジャンルを限定せず「今ちょっと気になる」「使ってみたくなる」商品をAIが横断的に選ぶオンラインセレクトショップです。</p>
+    <p>ガジェット、ペット用品、キッチン用品、トラベル、趣味用品などから、価格の買いやすさ、用途の分かりやすさ、話題性、使う場面の想像しやすさを重視して紹介します。</p>
+    <div class="geoList">
+      <div><b>発見しやすい：</b>商品カテゴリではなく「今売れている」「便利」「3,000円以下」など、買う理由から探せます。</div>
+      <div><b>選定理由が分かる：</b>商品ページの「WHY ADPS PICKED IT」で、なぜ選んだのかを説明します。</div>
+      <div><b>日本からスタート：</b>初期は日本国内向けを中心に、配送・決済・サポート情報を分かりやすく表示します。</div>
+    </div>
+  </article>
+  <aside class="geoCard">
+    <div class="kicker">HOW WE PICK</div>
+    <h3>AIは何を見て選ぶ？</h3>
+    <p>ADPSでは、単に「人気商品」だけを並べません。トレンドの伸び、価格帯、利用シーン、レビュー傾向、配送条件などを組み合わせ、購入者に価値が伝わりやすい商品を候補にします。</p>
+    <p>最終的な商品情報・価格・在庫・配送条件は、販売時点の情報を基準に表示します。</p>
+  </aside>
+</section>
+
+<section class="faq" aria-labelledby="faq-title">
+  <div class="sectionHead"><div class="sectionTitle"><h2 id="faq-title">FAQ</h2><span>ADPS PICKSについて</span></div></div>
+  <details><summary>ADPS PICKSはどんなネットショップですか？</summary><p>AIが複数ジャンルの商品を横断して選ぶオンラインセレクトショップです。特定カテゴリに限定せず、今注目されているもの、便利なもの、買いやすい価格の商品などを紹介します。</p></details>
+  <details><summary>商品はどのように選ばれますか？</summary><p>トレンド、価格、利用シーン、レビュー傾向、配送条件などを組み合わせて候補を選定します。購入者にとって価値が分かりやすいことを重視します。</p></details>
+  <details><summary>日本国内向けのショップですか？</summary><p>初期は日本国内を主な販売対象にします。将来的には商品ごとの配送条件や規制を確認したうえで、対応国を拡大する想定です。</p></details>
+  <details><summary>商品情報はいつ更新されますか？</summary><p>価格、在庫、配送など変動する情報は販売時点の最新情報を反映する設計です。実運用ではShopifyと商品データを同期します。</p></details>
+</section>
+
 <section class="story"><div><h3>LIFE IS MORE FUN<br>WITH GOOD FINDS.</h3><p>ちょっとしたモノで、毎日はもっと楽しくなる。</p></div></section>
 </main>
 
@@ -156,7 +227,43 @@ function removeCart(id){cart=cart.filter(p=>p.id!==id);renderCart()}
 function openCart(){document.getElementById('cartDrawer').classList.add('open')}function closeCart(){document.getElementById('cartDrawer').classList.remove('open')}
 function openSearch(){document.getElementById('searchLayer').classList.add('open');setTimeout(()=>document.getElementById('searchInput').focus(),150);renderSearch('')}function closeSearch(){document.getElementById('searchLayer').classList.remove('open')}
 function renderSearch(q){const v=(q||'').trim().toLowerCase();const list=(v?products.filter(p=>p.name.toLowerCase().includes(v)):products.slice(0,4));document.getElementById('searchResults').innerHTML=list.map(p=>`<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eee;cursor:pointer" onclick="closeSearch();openProduct('${p.id}')"><img src="${p.img}" style="width:58px;height:58px;border-radius:10px;object-fit:cover"><div><b>${p.name}</b><div>${yen(p.price)}</div></div></div>`).join('')}
-render();renderCart();
+function renderStructuredData(){
+  const old=document.getElementById('adps-product-schema');if(old)old.remove();
+  const script=document.createElement('script');
+  script.type='application/ld+json';script.id='adps-product-schema';
+  script.textContent=JSON.stringify({
+    "@context":"https://schema.org",
+    "@graph":[
+      {
+        "@type":"ItemList",
+        "name":"ADPS PICKS 商品セレクション",
+        "itemListElement":products.map((p,i)=>({
+          "@type":"ListItem","position":i+1,
+          "item":{
+            "@type":"Product",
+            "name":p.name,
+            "image":[p.img],
+            "description":p.why.join('。'),
+            "sku":"ADPS-"+p.id.toUpperCase(),
+            "brand":{"@type":"Brand","name":"ADPS PICKS"},
+            "aggregateRating":{"@type":"AggregateRating","ratingValue":p.rating,"reviewCount":String(p.reviews).replace(/,/g,'')},
+            "offers":{"@type":"Offer","priceCurrency":"JPY","price":p.price,"availability":"https://schema.org/InStock","url":"https://ai-buyer-nine.vercel.app/shop#"+p.id}
+          }
+        }))
+      },
+      {
+        "@type":"FAQPage",
+        "mainEntity":[
+          {"@type":"Question","name":"ADPS PICKSはどんなネットショップですか？","acceptedAnswer":{"@type":"Answer","text":"AIが複数ジャンルの商品を横断して選ぶオンラインセレクトショップです。特定カテゴリに限定せず、今注目されているもの、便利なもの、買いやすい価格の商品などを紹介します。"}},
+          {"@type":"Question","name":"商品はどのように選ばれますか？","acceptedAnswer":{"@type":"Answer","text":"トレンド、価格、利用シーン、レビュー傾向、配送条件などを組み合わせて候補を選定します。購入者にとって価値が分かりやすいことを重視します。"}},
+          {"@type":"Question","name":"日本国内向けのショップですか？","acceptedAnswer":{"@type":"Answer","text":"初期は日本国内を主な販売対象にします。将来的には商品ごとの配送条件や規制を確認したうえで、対応国を拡大する想定です。"}}
+        ]
+      }
+    ]
+  });
+  document.head.appendChild(script);
+}
+render();renderCart();renderStructuredData();
 </script>
 </body>
 </html>
