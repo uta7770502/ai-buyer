@@ -559,6 +559,14 @@ function hydrateReleaseReadinessUI(){
         :'設定確認が必要です';
   meta.textContent=base+(releaseReadinessCheckedAt?' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP'):'')+(fresh?'':' / 24時間以上経過');
 }
+function finalTestGateState(){
+  const keys=['shopify','webhook','order','tracking','sync','duplicate'];
+  const testsComplete=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
+  const testsFresh=keys.every(k=>testTimestampIsFresh(testProgress.timestamps?.[k]));
+  const releaseOk=Boolean(releaseReadiness&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length);
+  const reconciliationOk=Boolean(reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0);
+  return {releaseOk,testsComplete,testsFresh,reconciliationOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk};
+}
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
   const orderText=String(document.getElementById('orderAutoState')?.textContent||'');
@@ -590,35 +598,16 @@ function renderAutomationDashboard(){
       releaseReadiness&&!releaseCheckIsFresh()?'再確認':releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'テストOK':'要確認'],
     ['⑦','完全自動運用ダッシュボード',
       (()=>{
-        const keys=['shopify','webhook','order','tracking','sync','duplicate'];
-        const allTests=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
-        const staleKeys=keys.filter(k=>{
-          const ts=testProgress.timestamps?.[k];
-          return !testTimestampIsFresh(ts);
-        });
-        if(allTests&&staleKeys.length)return '再確認が必要: '+staleKeys.join(', ');
-        if(releaseReadiness&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length&&shopOk&&orderTest&&allTests&&reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0)return '主要サンドボックステスト完了';
-        return '本番完全自動運用はまだ開始していません';
+        const g=finalTestGateState();
+        const parts=[
+          '公開準備 '+(g.releaseOk?'OK':'要確認'),
+          '主要テスト '+(g.testsComplete&&g.testsFresh?'OK':g.testsComplete?'再確認':'未完了'),
+          '要照合 '+(g.reconciliationOk?'0件':'要確認')
+        ];
+        return parts.join(' / ');
       })(),
-      (()=>{
-        const keys=['shopify','webhook','order','tracking','sync','duplicate'];
-        const allTests=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
-        const allFresh=keys.every(k=>{
-          const ts=testProgress.timestamps?.[k];
-          return testTimestampIsFresh(ts);
-        });
-        return allFresh&&releaseReadiness&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length&&shopOk&&orderTest&&allTests&&reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0?'test':'wait';
-      })(),
-      (()=>{
-        const keys=['shopify','webhook','order','tracking','sync','duplicate'];
-        const allTests=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
-        const allFresh=keys.every(k=>{
-          const ts=testProgress.timestamps?.[k];
-          return testTimestampIsFresh(ts);
-        });
-        return allFresh&&releaseReadiness&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length&&shopOk&&orderTest&&allTests&&reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0?'テスト完了':allTests&&!allFresh?'再確認':'未完了';
-      })()]
-  ];
+      finalTestGateState().allOk?'test':'wait',
+      finalTestGateState().allOk?'テスト完了':'未完了']  ];
   box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>';
   renderTestChecklist();
 }
