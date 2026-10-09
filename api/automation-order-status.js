@@ -27,7 +27,8 @@ export default async function handler(req,res){
     const state=data.result===null?'not_found':String(data.result);
     const status=state==='reserved'||state.startsWith('needs_review:')?'pending_reconciliation':state.startsWith('created:')?'sandbox_created':state==='not_found'?'not_found':'unknown';
     // No customer name, address, API token or Shopify line items in the response.
-    return res.status(200).json({ok:true,shop,orderId,status,needsReview:status==='pending_reconciliation',sandbox:true});
+    const cjOrderId=status==='sandbox_created'?state.slice('created:'.length):null;
+    return res.status(200).json({ok:true,shop,orderId,status,needsReview:status==='pending_reconciliation',sandbox:true,cjOrderId,automaticRetry:false});
   }catch{
     return res.status(503).json({ok:false,error:'Unable to read order status'});
   }
