@@ -7,8 +7,13 @@ async function gql(shop,token,query,variables={}){
     body:JSON.stringify({query,variables}),
     signal:AbortSignal.timeout(10000)
   });
-  const j=await r.json();
-  if(!r.ok||j.errors?.length)throw Error(j.errors?.[0]?.message||'Shopify API request failed');
+  let j={};
+  try{j=await r.json()}catch{}
+  if(!r.ok||j.errors?.length){
+    const e=new Error(j.errors?.[0]?.message||'Shopify API request failed');
+    e.status=r.status;
+    throw e;
+  }
   return j.data;
 }
 export default async function handler(req,res){
@@ -58,6 +63,7 @@ export default async function handler(req,res){
       ordersPaidWebhookReady,expectedWebhookUri,staleOrdersPaidWebhooks
     });
   }catch(e){
-    return res.status(503).json({ok:false,authRequired:false,error:e.message||'Shopify状態を確認できません'});
+    const authRequired=e?.status===401||e?.status===403||/unauthorized|access token|authentication/i.test(String(e?.message||''));
+    return res.status(authRequired?401:503).json({ok:false,authRequired,error:authRequired?'Shopify再認証が必要です':e.message||'Shopify状態を確認できません'});
   }
 }
