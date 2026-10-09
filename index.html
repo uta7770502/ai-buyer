@@ -565,7 +565,10 @@ function finalTestGateState(){
   const testsFresh=keys.every(k=>testTimestampIsFresh(testProgress.timestamps?.[k]));
   const releaseOk=Boolean(releaseReadiness&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length);
   const reconciliationOk=Boolean(reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0);
-  return {releaseOk,testsComplete,testsFresh,reconciliationOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk};
+  const runtimeShopOk=Boolean(shopifyConnected);
+  const runtimeOrderOk=/テスト稼働/.test(String(document.getElementById('orderAutoState')?.textContent||''));
+  const runtimeOk=runtimeShopOk&&runtimeOrderOk;
+  return {releaseOk,testsComplete,testsFresh,reconciliationOk,runtimeShopOk,runtimeOrderOk,runtimeOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk&&runtimeOk};
 }
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
@@ -602,7 +605,8 @@ function renderAutomationDashboard(){
         const parts=[
           '公開準備 '+(g.releaseOk?'OK':'要確認'),
           '主要テスト '+(g.testsComplete&&g.testsFresh?'OK':g.testsComplete?'再確認':'未完了'),
-          '要照合 '+(g.reconciliationOk?'0件':'要確認')
+          '要照合 '+(g.reconciliationOk?'0件':'要確認'),
+          '現在接続 '+(g.runtimeOk?'OK':!g.runtimeShopOk?'Shopify確認中/未接続':'CJ発注設定要確認')
         ];
         return parts.join(' / ');
       })(),
