@@ -31,7 +31,39 @@ export default async function handler(req,res){
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const p=req.body||{};
     if(p.adHealth===true){
-      const meta={connected:Boolean(process.env.META_AD_ACCOUNT_ID&&process.env.META_ACCESS_TOKEN),accountConfigured:Boolean(process.env.META_AD_ACCOUNT_ID),tokenConfigured:Boolean(process.env.META_ACCESS_TOKEN)};
+      const metaAccountId=String(process.env.META_AD_ACCOUNT_ID||'').replace(/^act_/,'');
+      const metaToken=String(process.env.META_ACCESS_TOKEN||'');
+      const metaPageId=String(process.env.META_PAGE_ID||'');
+      const metaPixelId=String(process.env.META_PIXEL_ID||'');
+      const metaGraphVersion=String(process.env.META_GRAPH_VERSION||'v23.0');
+      const meta={
+        connected:Boolean(metaAccountId&&metaToken),
+        accountConfigured:Boolean(metaAccountId),
+        tokenConfigured:Boolean(metaToken),
+        pageConfigured:Boolean(metaPageId),
+        pixelConfigured:Boolean(metaPixelId),
+        graphVersion:metaGraphVersion,
+        apiOk:false,
+        accountName:'',
+        accountStatus:null,
+        error:''
+      };
+      if(meta.connected){
+        try{
+          const u='https://graph.facebook.com/'+encodeURIComponent(metaGraphVersion)+'/act_'+encodeURIComponent(metaAccountId)+'?fields=id,name,account_status&access_token='+encodeURIComponent(metaToken);
+          const rr=await fetch(u);
+          const jj=await rr.json();
+          if(rr.ok&&!jj?.error){
+            meta.apiOk=true;
+            meta.accountName=jj?.name||'';
+            meta.accountStatus=jj?.account_status??null;
+          }else{
+            meta.error=jj?.error?.message||'Meta Ads API connection failed';
+          }
+        }catch(e){
+          meta.error=e.message||'Meta Ads API connection failed';
+        }
+      }
       const google={connected:Boolean(process.env.GOOGLE_ADS_CUSTOMER_ID&&process.env.GOOGLE_ADS_DEVELOPER_TOKEN&&process.env.GOOGLE_ADS_ACCESS_TOKEN),customerConfigured:Boolean(process.env.GOOGLE_ADS_CUSTOMER_ID),developerTokenConfigured:Boolean(process.env.GOOGLE_ADS_DEVELOPER_TOKEN),accessTokenConfigured:Boolean(process.env.GOOGLE_ADS_ACCESS_TOKEN)};
       const liveEnabled=String(process.env.ADS_LIVE_ENABLED||'').toLowerCase()==='true';
       const maxDailyJpy=Math.max(0,Math.round(Number(process.env.ADS_MAX_DAILY_JPY)||0));
