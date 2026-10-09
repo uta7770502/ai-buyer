@@ -11,7 +11,7 @@ export default async function handler(req,res){
     const state=crypto.randomBytes(24).toString('hex');
     res.setHeader('Set-Cookie',`shopify_oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
     const redirectUri='https://ai-buyer-nine.vercel.app/api/shopify-callback';
-    const scopes='read_products,write_products,read_publications,write_publications,read_orders';
+    const scopes='read_products,write_products,read_publications,write_publications,read_orders,write_orders';
     const u=new URL('https://'+shop+'.myshopify.com/admin/oauth/authorize');
     u.searchParams.set('client_id',clientId);
     u.searchParams.set('scope',scopes);
