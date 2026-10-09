@@ -328,7 +328,8 @@ function renderTestChecklist(){
     ['5','追跡同期確認','追跡番号をShopifyへ反映するテスト','','手動',testProgress.sync],
     ['6','二重実行確認','同じ注文・追跡番号が重複登録されないことを確認','','手動',testProgress.duplicate]
   ];
-  box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small></div>'+(x[5]?'<span class="autoState auto-ok">OK</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">'+x[4]+'</span>')+'</div>').join('');
+  const stamp=testProgress.updatedAt?'<div class="tiny" style="margin:7px 0 3px">最終確認: '+new Date(testProgress.updatedAt).toLocaleString('ja-JP')+'</div>':'';
+  box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+stamp+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small></div>'+(x[5]?'<span class="autoState auto-ok">OK</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">'+x[4]+'</span>')+'</div>').join('');
 }
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
@@ -498,7 +499,7 @@ let testShopifyOrderNumericId='';
 let testTrackingNumber='';
 let testTrackingCompany='';
 let testProgress=(()=>{try{return {...{shopify:false,webhook:false,order:false,tracking:false,sync:false,duplicate:false},...JSON.parse(localStorage.getItem('aiBuyerTestProgress')||'{}')}}catch{return {shopify:false,webhook:false,order:false,tracking:false,sync:false,duplicate:false}}})();
-function saveTestProgress(){localStorage.setItem('aiBuyerTestProgress',JSON.stringify(testProgress))}
+function saveTestProgress(){testProgress.updatedAt=new Date().toISOString();localStorage.setItem('aiBuyerTestProgress',JSON.stringify(testProgress))}
 let profitFilter='all';
 function setProfitFilter(value){profitFilter=['all','profitable','loss','missing'].includes(value)?value:'all';renderAll()}
 function hasValidShipping(x){return x.shippingJpy!==undefined&&x.shippingJpy!==null&&String(x.shippingJpy).trim()!==''&&Number.isFinite(Number(x.shippingJpy))&&Number(x.shippingJpy)>=0&&Number(x.shippingJpy)<=10000000}
