@@ -1,8 +1,14 @@
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
-  const r=await fetch('https://'+shop+'/admin/api/'+VERSION+'/graphql.json',{method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token},body:JSON.stringify({query,variables})});
-  const j=await r.json();if(!r.ok||j.errors?.length)throw Error(j.errors?.[0]?.message||'Shopify API request failed');return j.data;
+  const r=await fetch('https://'+shop+'/admin/api/'+VERSION+'/graphql.json',{method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token},body:JSON.stringify({query,variables}),signal:AbortSignal.timeout(10000)});
+  let j={};try{j=await r.json()}catch{}
+  if(!r.ok||j.errors?.length){
+    const e=new Error(j.errors?.[0]?.message||'Shopify API request failed');
+    e.status=r.status;
+    throw e;
+  }
+  return j.data;
 }
 export default async function handler(req,res){
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -32,5 +38,9 @@ export default async function handler(req,res){
     const out=data.webhookSubscriptionCreate,errs=out?.userErrors||[];
     if(errs.length||!out?.webhookSubscription)throw Error(errs.map(x=>x.message).join(' / ')||'Webhook登録に失敗しました');
     return res.status(200).json({ok:true,created:true,id:out.webhookSubscription.id,uri,topic:'ORDERS_PAID',verified:true,exactUriMatch:true,staleSubscriptions:stale,staleCount:stale.length});
-  }catch(e){return res.status(500).json({ok:false,error:e.message||'自動発注Webhook設定に失敗しました'})}
+  }catch(e){
+    const authRequired=e?.status===401||e?.status===403||/unauthorized|access token|authentication/i.test(String(e?.message||''));
+    const status=authRequired?401:503;
+    return res.status(status).json({ok:false,authRequired,error:authRequired?'Shopify再認証が必要です':e.message||'自動発注Webhook設定に失敗しました'});
+  }
 }
