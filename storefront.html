@@ -241,6 +241,22 @@ let cart=[];
 const yen=n=>'¥'+Number(n).toLocaleString('ja-JP');
 function card(p,rank=''){const rating=p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}）`:''}</div>`:'';return `<article class="product" id="${p.id}" data-category="${p.category||''}" data-price="${p.price}" data-audience="${p.audience||''}"><div class="thumb" onclick="openProduct('${p.id}')"><img src="${p.img}" alt="${p.name}"><button class="heart" onclick="event.stopPropagation();this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button>${rank?`<span class="rank">${rank}</span>`:''}<span class="tag">AI PICK</span></div><h3>${p.name}</h3><div class="price">${yen(p.price)}</div>${rating}<div class="meta" style="margin-top:6px">${p.category||'ライフスタイル'} ・ ${p.audience||'一般向け'}</div></article>`}
 function render(){document.getElementById('pickGrid').innerHTML=products.slice(0,5).map(p=>card(p)).join('');document.getElementById('trendGrid').innerHTML=products.slice(5,10).map((p,i)=>card(p,i+1)).join('')}
+function productFaqItems(p){
+  const availability=p.authoritative?(p.available?'現在購入可能です。':'現在は在庫切れです。'):'このプレビューでは在庫状況は未確定です。';
+  const shipping=p.shipping
+    ?('配送先は'+(p.shipping.country||'JP')+'、送料は'+(Number(p.shipping.price||0)===0?'無料':yen(p.shipping.price))+'です。')
+    :'配送条件は商品ページとチェックアウトで確認してください。';
+  const returns=p.returnPolicy
+    ?('返品受付期間は'+Number(p.returnPolicy.days||0)+'日です。')
+    :'返品条件は購入前に商品ページで確認してください。';
+  return [
+    {q:p.name+'はどんな商品ですか？',a:p.summary||p.name},
+    {q:p.name+'はどんな人に向いていますか？',a:p.audience||'日常を少し便利にしたい人に向いています。'},
+    {q:p.name+'は購入できますか？',a:availability},
+    {q:p.name+'の配送条件は？',a:shipping},
+    {q:p.name+'の返品条件は？',a:returns}
+  ];
+}
 function setProductSeo(p){
   const base='https://ai-buyer-nine.vercel.app/shop';
   const url=base+'?product='+encodeURIComponent(p.id);
@@ -252,7 +268,15 @@ function setProductSeo(p){
   let node=document.getElementById('adps-product-page-schema');
   if(node)node.remove();
   node=document.createElement('script');node.type='application/ld+json';node.id='adps-product-page-schema';
-  node.textContent=JSON.stringify({"@context":"https://schema.org","@type":"WebPage","name":p.name+' | ADPS PICKS',"url":url,"mainEntity":productStructuredData({...p,url})});
+  const productData=productStructuredData({...p,url});
+  const faq=productFaqItems(p);
+  node.textContent=JSON.stringify({
+    "@context":"https://schema.org",
+    "@graph":[
+      {"@type":"WebPage","name":p.name+' | ADPS PICKS',"url":url,"mainEntity":productData},
+      {"@type":"FAQPage","mainEntity":faq.map(x=>({"@type":"Question","name":x.q,"acceptedAnswer":{"@type":"Answer","text":x.a}}))}
+    ]
+  });
   document.head.appendChild(node);
 }
 function resetStoreSeo(){
@@ -280,10 +304,12 @@ function productAnswerBlocks(p){
   const caution=p.authoritative
     ?(!p.available?'現在は在庫切れです。再入荷後に購入できます。':'価格・在庫・配送条件は購入時点の表示を確認してください。')
     :'このプレビューの商品条件はデモです。実販売時はShopifyの最新情報を表示します。';
+  const faq=productFaqItems(p);
   return `<div class="why"><h4>WHAT IS IT?</h4><p>${p.summary||p.name}</p></div>
   <div class="why"><h4>WHO IS IT FOR?</h4><p>${p.audience||'日常を少し便利にしたい人'}</p></div>
   <div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${(p.why||[]).map(x=>`<li>${x}</li>`).join('')}</ul></div>
-  <div class="why"><h4>BEFORE YOU BUY</h4><p>${caution}</p></div>`;
+  <div class="why"><h4>BEFORE YOU BUY</h4><p>${caution}</p></div>
+  <div class="why"><h4>PRODUCT FAQ</h4>${faq.map(x=>`<details style="padding:8px 0;border-top:1px solid #ddd"><summary style="font-weight:800;cursor:pointer">${x.q}</summary><p>${x.a}</p></details>`).join('')}</div>`;
 }
 function openProduct(id,options={}){const p=products.find(x=>x.id===id);if(!p)return;setProductSeo(p);if(options.history!==false){const u=new URL(location.href);u.searchParams.set('product',p.id);history.pushState({product:p.id},'',u)}document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2>${p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}件のレビュー）`:''}</div>`:''}<div class="detailPrice">${yen(p.price)}</div><div class="meta" style="margin:8px 0 14px"><b>カテゴリ：</b>${p.category||'ライフスタイル'}<br><b>おすすめ：</b>${p.audience||'一般向け'}</div><ul class="bullets">${productFacts(p).map(x=>`<li>${x}</li>`).join('')}</ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button>${productAnswerBlocks(p)}</div></div>`;document.getElementById('productModal').classList.add('open')}
 function closeProduct(options={}){document.getElementById('productModal').classList.remove('open');resetStoreSeo();if(options.history!==false){const u=new URL(location.href);u.searchParams.delete('product');history.pushState({},'',u)}}
