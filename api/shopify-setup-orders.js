@@ -17,7 +17,7 @@ export default async function handler(req,res){
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowed)||shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
-    const configuredBase=String(process.env.SHOPIFY_WEBHOOK_BASE_URL||'https://ai-buyer-nine.vercel.app').replace(/\/$/,'');
+    const configuredBase=String(process.env.SHOPIFY_WEBHOOK_BASE_URL||'').trim().replace(/\/$/,'');
     if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(configuredBase))throw Error('SHOPIFY_WEBHOOK_BASE_URL must be a valid HTTPS origin');
     const uri=configuredBase+'/api/shopify-order-webhook';
     const nodes=[];let after=null,hasNextPage=true;
