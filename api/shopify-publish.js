@@ -246,12 +246,13 @@ export default async function handler(req,res){
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
     if(p.publishApproved!==true)return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
-    const activated=await gql(shop,token,'mutation ActivateProduct($product: ProductUpdateInput!) { productUpdate(product:$product) { product { id status } userErrors { message } } }',{product:{id:ce.product.id,status:'ACTIVE'}});
-    if(activated.productUpdate?.userErrors?.length)throw Error(activated.productUpdate.userErrors.map(x=>x.message).join(' / '));
+    // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
     const target=nodes.find(x=>/online store/i.test(String(x.name||'')));
-    if(!target)throw Error('Online Store公開先を取得できませんでした。商品は下書きとして確認してください');
+    if(!target)return res.status(409).json({ok:false,productId:ce.product.id,status:'DRAFT',error:'Online Store channel not found; draft retained'});
+    const activated=await gql(shop,token,'mutation ActivateProduct($product: ProductUpdateInput!) { productUpdate(product:$product) { product { id status } userErrors { message } } }',{product:{id:ce.product.id,status:'ACTIVE'}});
+    if(activated.productUpdate?.userErrors?.length)throw Error(activated.productUpdate.userErrors.map(x=>x.message).join(' / '));
     const publish=await gql(shop,token,'mutation Publish($id: ID!, $input: [PublicationInput!]!) { publishablePublish(id:$id, input:$input) { userErrors { field message } } }',{id:ce.product.id,input:[{publicationId:target.id}]});
     const errs=publish.publishablePublish?.userErrors||[];
     if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
