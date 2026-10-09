@@ -31,6 +31,8 @@ export default async function handler(req,res){
       'shopify_connected_shop='+encodeURIComponent(shop)+'; '+opts,
       'shopify_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'
     ]);
-    return res.redirect(302,'/?shopify=connected');
+    const appBase=String(process.env.SHOPIFY_WEBHOOK_BASE_URL||'https://ai-buyer-nine.vercel.app').replace(/\/$/,'');
+    if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(appBase))throw Error('SHOPIFY_WEBHOOK_BASE_URL を確認してください');
+    return res.redirect(302,appBase+'/?shopify=connected');
   }catch(e){return res.status(400).send('Shopify接続エラー: '+String(e.message||e))}
 }
