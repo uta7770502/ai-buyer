@@ -37,3 +37,21 @@ Current CJ endpoints used:
 - Connection status appears in the home screen.
 - Supply risk uses the most recent 7 monitor snapshots (up to 30 stored per product) to detect price volatility and stock deterioration.
 - JSON backup/restore covers product candidates, monitoring, AI learning, settings and history.
+
+## Storefront AIO / GEO product metadata
+
+The customer-facing storefront reads optional Shopify product metafields from the `custom` namespace and uses them in visible product copy, search, product FAQs and structured data.
+
+Recommended metafields:
+
+- `custom.adps_audience` — short description of who the product is for.
+- `custom.adps_summary` — concise factual product summary.
+- `custom.adps_why` — ADPS selection reasons, separated by new lines or `|`.
+- `custom.shipping_price_jpy` — numeric shipping price in JPY.
+- `custom.shipping_country` — ISO country code, initially `JP`.
+- `custom.return_days` — positive integer return window.
+
+The metafield definitions must be exposed to the Shopify Storefront API before the public feed can read them.
+
+Production rule: only factual, current Shopify product data may be treated as authoritative. Demo values, inferred review scores and unverified shipping/return claims must not be emitted as live commerce structured data.
+
