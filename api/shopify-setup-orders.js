@@ -12,10 +12,10 @@ export default async function handler(req,res){
     const uri='https://ai-buyer-nine.vercel.app/api/shopify-order-webhook';
     const existing=await gql(shop,token,'query { webhookSubscriptions(first:50, topics:[ORDERS_PAID]) { nodes { id topic uri } } }');
     const found=(existing.webhookSubscriptions?.nodes||[]).find(x=>x.uri===uri);
-    if(found)return res.status(200).json({ok:true,created:false,id:found.id,uri});
+    if(found)return res.status(200).json({ok:true,created:false,id:found.id,uri,topic:'ORDERS_PAID',verified:true});
     const data=await gql(shop,token,'mutation Create($topic: WebhookSubscriptionTopic!, $input: WebhookSubscriptionInput!) { webhookSubscriptionCreate(topic:$topic, webhookSubscription:$input) { webhookSubscription { id topic uri } userErrors { field message } } }',{topic:'ORDERS_PAID',input:{uri}});
     const out=data.webhookSubscriptionCreate,errs=out?.userErrors||[];
     if(errs.length||!out?.webhookSubscription)throw Error(errs.map(x=>x.message).join(' / ')||'Webhook登録に失敗しました');
-    return res.status(200).json({ok:true,created:true,id:out.webhookSubscription.id,uri});
+    return res.status(200).json({ok:true,created:true,id:out.webhookSubscription.id,uri,topic:'ORDERS_PAID',verified:true});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'自動発注Webhook設定に失敗しました'})}
 }
