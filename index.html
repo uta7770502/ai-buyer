@@ -198,7 +198,16 @@ function renderAutomationDashboard(){
     ['③','在庫・価格・配送同期',syncProducts?syncProducts+'商品を監視対象':'出品商品から自動監視',shopOk?'ok':'wait',shopOk?'稼働':'待機'],
     ['④','広告自動運用',adTest?'出稿・増減・停止を自動判定（実課金なし）':'広告自動運用OFF',adTest?'test':'wait',adTest?'テスト稼働':'OFF'],
     ['⑤','返品・キャンセル',returnAudit?'直近'+(returnAudit.orders||[]).length+'注文を安全監査済み':'注文状態・CJ状態を確認して安全判定',returnAudit?'test':orderTest?'test':'wait',returnAudit?'監査済':orderTest?'安全モード':'待機'],
-    ['⑥','公開準備ゲート',releaseReadiness?(releaseReadiness.blockers?.length?'不足: '+releaseReadiness.blockers.join(', '):'サンドボックス準備OK'):'公開準備チェック未実行',releaseReadiness?(releaseReadiness.blockers?.length?'wait':'ok'):'wait',releaseReadiness?(releaseReadiness.blockers?.length?'要確認':'準備OK'):'未確認'],
+    ['⑥','公開準備ゲート',
+      releaseReadiness
+        ?((releaseReadiness.blockers||[]).length
+          ?'不足: '+releaseReadiness.blockers.join(', ')
+          :(releaseReadiness.warnings||[]).length
+            ?'警告: '+releaseReadiness.warnings.join(', ')
+            :releaseReadiness.safeToTest?'安全にサンドボックステスト可能':'設定確認が必要')
+        :'公開準備チェック未実行',
+      releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'ok':'wait',
+      releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'テストOK':'要確認'],
     ['⑦','完全自動運用ダッシュボード',
       releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'主要テスト準備が整っています':'本番完全自動運用はまだ開始していません',
       releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'test':'wait',
@@ -256,11 +265,20 @@ async function checkReleaseReadiness(){
     releaseReadiness=j;
     const blockers=Array.isArray(j.blockers)?j.blockers:[];
     if(st){
-      st.className=blockers.length?'connectionState ng':'connectionState ok';
-      st.textContent=blockers.length?'要確認':'準備OK';
+      const warnings=Array.isArray(j.warnings)?j.warnings:[];
+      const ready=Boolean(j.safeToTest)&&!blockers.length&&!warnings.length;
+      st.className=ready?'connectionState ok':'connectionState ng';
+      st.textContent=ready?'テストOK':'要確認';
     }
     if(meta){
-      meta.textContent=blockers.length?'不足: '+blockers.join(', '):'サンドボックス公開準備OK / 本番CJ注文はOFF';
+      const warnings=Array.isArray(j.warnings)?j.warnings:[];
+      meta.textContent=blockers.length
+        ?'不足: '+blockers.join(', ')
+        :warnings.length
+          ?'警告: '+warnings.join(', ')
+          :j.safeToTest
+            ?'安全にサンドボックステスト可能 / 本番CJ注文はOFF'
+            :'設定確認が必要です';
     }
     renderAutomationDashboard();
   }catch(e){
