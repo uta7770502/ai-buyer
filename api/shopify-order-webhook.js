@@ -44,6 +44,12 @@ export default async function handler(req,res){
     if(!order.id||!req.headers['x-shopify-webhook-id'])return res.status(400).json({ok:false,error:'Missing order or event identifier'});
     // Without durable event deduplication, retrying this handler may duplicate CJ sandbox orders.
     // Keep this endpoint disabled for live fulfillment.
+    // A valid HMAC proves app origin, not that the order belongs to the configured merchant.
+    const allowedShop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+    const webhookShop=String(req.headers['x-shopify-shop-domain']||'').trim().toLowerCase();
+    if(!allowedShop||!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowedShop))
+      return res.status(503).json({ok:false,error:'Allowed Shopify shop is not configured'});
+    if(webhookShop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number(x.quantity)>0);
     if(!lines.length||lines.length!==(Array.isArray(order.line_items)?order.line_items.length:0))return res.status(422).json({ok:false,error:'CJ variant mapping is incomplete; order requires review'});
     // Spending limits are mandatory even in sandbox mode. No live CJ payments here.
@@ -100,11 +106,6 @@ export default async function handler(req,res){
     };
     const shop=str(req.headers['x-shopify-shop-domain'],255).toLowerCase();
     if(!/^[a-z0-9][a-z0-9.-]*\.myshopify\.com$/.test(shop))return res.status(400).json({ok:false,error:'Invalid Shopify shop domain'});
-    // An authenticated webhook from a different Shopify shop must never create CJ orders.
-    const allowedShop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
-    if(!allowedShop||!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowedShop))
-      return res.status(503).json({ok:false,error:'Allowed Shopify shop is not configured'});
-    if(shop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     const reserved=await reserveOrder(shop,String(order.id));
     if(!reserved)return res.status(200).json({ok:true,skipped:true,reason:'Order already reserved or processed'});
     // A timeout or network error may mean CJ accepted the order. Never auto-retry
