@@ -30,6 +30,44 @@ export default async function handler(req,res){
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const p=req.body||{};
+    if(p.adGuard===true){
+      const provider=String(p.provider||'').toLowerCase();
+      const action=String(p.action||'').toLowerCase();
+      const dailyBudgetJpy=Math.max(0,Math.round(Number(p.dailyBudgetJpy)||0));
+      const currentSpendJpy=Math.max(0,Math.round(Number(p.currentSpendJpy)||0));
+      const requestedBudgetJpy=Math.max(0,Math.round(Number(p.requestedBudgetJpy)||0));
+      const allowedProviders=['meta','google'];
+      const allowedActions=['create','increase','decrease','pause','resume','hold'];
+      if(!allowedProviders.includes(provider))return res.status(400).json({ok:false,error:'広告プロバイダーが不正です'});
+      if(!allowedActions.includes(action))return res.status(400).json({ok:false,error:'広告アクションが不正です'});
+      const serverCapRaw=Number(process.env.ADS_MAX_DAILY_JPY||0);
+      const serverCap=Number.isFinite(serverCapRaw)&&serverCapRaw>0?Math.round(serverCapRaw):0;
+      const liveEnabled=String(process.env.ADS_LIVE_ENABLED||'').toLowerCase()==='true';
+      const effectiveCap=serverCap>0?serverCap:dailyBudgetJpy;
+      const reasons=[];
+      if(effectiveCap<=0)reasons.push('日次上限が未設定');
+      if(requestedBudgetJpy>effectiveCap)reasons.push('要求予算が日次上限を超過');
+      if(currentSpendJpy>=effectiveCap&&['create','increase','resume'].includes(action))reasons.push('本日上限に到達');
+      if(currentSpendJpy+requestedBudgetJpy>effectiveCap&&['create','increase','resume'].includes(action))reasons.push('本日上限を超過する可能性');
+      const testApproved=reasons.length===0;
+      const liveApproved=testApproved&&liveEnabled&&serverCap>0;
+      return res.status(200).json({
+        ok:true,
+        guard:true,
+        provider,
+        action,
+        testApproved,
+        liveApproved,
+        liveEnabled,
+        serverCapJpy:serverCap,
+        effectiveCapJpy:effectiveCap,
+        currentSpendJpy,
+        requestedBudgetJpy,
+        reasons,
+        mode:liveApproved?'live':'test'
+      });
+    }
+
     if(p.safeCancelOrder===true){
       const orderId=String(p.orderId||'');
       if(!/^gid:\/\/shopify\/Order\/\d+$/.test(orderId))return res.status(400).json({ok:false,error:'Shopify注文IDが不正です'});
