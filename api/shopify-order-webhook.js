@@ -45,6 +45,15 @@ export default async function handler(req,res){
     // Keep this endpoint disabled for live fulfillment.
     const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number(x.quantity)>0);
     if(!lines.length||lines.length!==(Array.isArray(order.line_items)?order.line_items.length:0))return res.status(422).json({ok:false,error:'CJ variant mapping is incomplete; order requires review'});
+    // Spending limits are mandatory even in sandbox mode. No live CJ payments here.
+    const maxItems=Number(process.env.CJ_MAX_ITEMS_PER_ORDER);
+    const maxOrderValue=Number(process.env.CJ_MAX_ORDER_VALUE);
+    const orderValue=Number(order.current_total_price??order.total_price);
+    const totalItems=lines.reduce((sum,x)=>sum+Number(x.quantity),0);
+    if(!Number.isFinite(maxItems)||maxItems<=0||!Number.isFinite(maxOrderValue)||maxOrderValue<=0)
+      return res.status(503).json({ok:false,error:'CJ order safety limits are not configured'});
+    if(!Number.isFinite(orderValue)||orderValue<0||!Number.isSafeInteger(totalItems)||totalItems>maxItems||orderValue>maxOrderValue)
+      return res.status(422).json({ok:false,error:'Order exceeds safety limits or has invalid totals'});
     const countryCode=str(addr.country_code,2).toUpperCase();
     if(!countryCode||!addr.city||!addr.address1||!addr.name)return res.status(422).json({ok:false,error:'Shipping address incomplete; order requires review'});
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
