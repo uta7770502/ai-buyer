@@ -64,6 +64,9 @@ export default async function handler(req,res){
       return res.status(422).json({ok:false,error:'Order exceeds safety limits or has invalid totals'});
     const countryCode=str(addr.country_code,2).toUpperCase();
     if(!countryCode||!addr.city||!addr.address1||!addr.name)return res.status(422).json({ok:false,error:'Shipping address incomplete; order requires review'});
+    // Require explicit CJ variant identifiers; a merchant SKU is not a CJ VID.
+    if(lines.some(x=>!/^[A-Za-z0-9_-]{6,100}$/.test(String(x.sku||''))))
+      return res.status(422).json({ok:false,error:'CJ variant identifiers must be validated before ordering'});
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
     if(lines.length>20||lines.some(x=>!Number.isSafeInteger(Number(x.quantity))||Number(x.quantity)>50))return res.status(422).json({ok:false,error:'Unsupported order size; manual review required'});
     const products=lines.map(x=>({vid:str(x.sku,100),quantity:Math.max(1,Math.min(50,Number(x.quantity)||1)),storeLineItemId:str(x.id,125)}));
