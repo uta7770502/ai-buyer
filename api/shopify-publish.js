@@ -29,7 +29,32 @@ export default async function handler(req,res){
   try{
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
-    const p=req.body||{},title=clean(p.title||p.name,255),description=clean(p.description||p.descriptionHtml,5000),vendor=clean(p.vendor||'AI BUYER',255),price=Number(p.price);
+    const p=req.body||{};
+    const syncAction=String(p.syncAction||'').toLowerCase();
+    if(['stop','resume','price'].includes(syncAction)){
+      const productId=String(p.productId||''),variantId=String(p.variantId||''),syncPrice=Number(p.price);
+      if(!productId)return res.status(400).json({ok:false,error:'Shopify商品IDが必要です'});
+      if(syncAction==='price'){
+        if(!variantId||!Number.isFinite(syncPrice)||syncPrice<=0)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
+        const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
+        const errs=d.productVariantsBulkUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
+        return res.status(200).json({ok:true,sync:true,action:'price',price:Math.round(syncPrice)});
+      }
+      const status=syncAction==='stop'?'DRAFT':'ACTIVE';
+      const d=await gql(shop,token,'mutation UpdateProduct($product: ProductUpdateInput!) { productUpdate(product:$product) { product { id status } userErrors { field message } } }',{product:{id:productId,status}});
+      const errs=d.productUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
+      if(syncAction==='resume'){
+        const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
+        const nodes=pubs.publications?.nodes||[];
+        const target=nodes.find(x=>/online store/i.test(String(x.name||'')))||nodes.find(x=>x.autoPublish)||nodes[0];
+        if(target){
+          const pub=await gql(shop,token,'mutation Publish($id: ID!, $input: [PublicationInput!]!) { publishablePublish(id:$id, input:$input) { userErrors { field message } } }',{id:productId,input:[{publicationId:target.id}]});
+          const pe=pub.publishablePublish?.userErrors||[];if(pe.length)throw Error(pe.map(x=>x.message).join(' / '));
+        }
+      }
+      return res.status(200).json({ok:true,sync:true,action:syncAction,status});
+    }
+    const title=clean(p.title||p.name,255),description=clean(p.description||p.descriptionHtml,5000),vendor=clean(p.vendor||'AI BUYER',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
     const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'ACTIVE',tags:['AI BUYER','dropshipping']}});
