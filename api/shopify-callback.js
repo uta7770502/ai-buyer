@@ -2,8 +2,11 @@ import crypto from 'crypto';
 function parseCookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 function safeShop(v){const s=String(v||'').toLowerCase();return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(s)?s:''}
 function verifyHmac(query,secret){
-  const pairs=Object.keys(query).filter(k=>k!=='hmac'&&k!=='signature').sort().map(k=>k+'='+Array.isArray(query[k])?query[k].join(','):query[k]);
-  const msg=Object.keys(query).filter(k=>k!=='hmac'&&k!=='signature').sort().map(k=>k+'='+String(Array.isArray(query[k])?query[k].join(','):query[k])).join('&');
+  const msg=Object.keys(query)
+    .filter(k=>k!=='hmac'&&k!=='signature')
+    .sort()
+    .map(k=>k+'='+String(Array.isArray(query[k])?query[k].join(','):query[k]))
+    .join('&');
   const digest=crypto.createHmac('sha256',secret).update(msg).digest('hex');
   const a=Buffer.from(digest),b=Buffer.from(String(query.hmac||''));
   return a.length===b.length&&crypto.timingSafeEqual(a,b);
