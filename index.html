@@ -330,26 +330,28 @@ function renderTestChecklist(){
     ['2','Webhook確認','ORDERS_PAID が正しいURLに登録済みか確認','setupOrderAutomation()','確認',testProgress.webhook],
     ['3','Shopifyテスト注文','実注文ではなくテスト注文のみ使用','','手動',testProgress.order],
     ['4','CJ照合','CJサンドボックス注文IDを確認','','手動',testProgress.order],
-    ['5','追跡同期確認','追跡番号をShopifyへ反映するテスト','','手動',testProgress.sync],
+    ['5','追跡同期確認','CJ追跡番号の取得とShopify反映を確認','','手動',Boolean(testProgress.tracking&&testProgress.sync)],
     ['6','二重実行確認','同じ注文・追跡番号が重複登録されないことを確認','','手動',testProgress.duplicate]
   ];
-  const stepKeys=['shopify','webhook','order','order','sync','duplicate'];
+  const stepKeys=[['shopify'],['webhook'],['order'],['order'],['tracking','sync'],['duplicate']];
   const stamp=testProgress.updatedAt
     ?'<div class="tiny" style="margin:7px 0 3px">最終更新: '+new Date(testProgress.updatedAt).toLocaleString('ja-JP')+'</div>'
     :'';
   box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+stamp+steps.map((x,i)=>{
-    const key=stepKeys[i];
-    const ts=testProgress.timestamps?.[key];
-    const stale=Boolean(ts)&&(Date.now()-new Date(ts).getTime())>24*60*60*1000;
+    const keys=stepKeys[i];
+    const times=keys.map(k=>testProgress.timestamps?.[k]).filter(Boolean);
+    const stale=times.length!==keys.length||times.some(ts=>(Date.now()-new Date(ts).getTime())>24*60*60*1000);
+    const latest=times.length?new Date(Math.min(...times.map(ts=>new Date(ts).getTime()))).toISOString():'';
+    const key=keys.join('_');
     const pending={
       shopify:'Shopify権限を再確認してください',
       webhook:'ORDERS_PAID Webhookを確認してください',
       order:'Shopifyテスト注文→CJ照合を実行してください',
-      sync:'CJ追跡番号を取得してShopify同期を実行してください',
+      tracking_sync:'CJ追跡番号を取得してShopify同期を実行してください',
       duplicate:'同じ追跡番号で二重同期防止を確認してください'
     }[key]||'確認が必要です';
     const status=x[5]&&!stale?'<span class="autoState auto-ok">OK</span>':x[5]&&stale?'<span class="autoState auto-wait">再確認</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">未完了</span>';
-    const checked=ts?'<small>確認: '+new Date(ts).toLocaleString('ja-JP')+'</small>':'<small>'+pending+'</small>';
+    const checked=latest?'<small>確認: '+new Date(latest).toLocaleString('ja-JP')+'</small>':'<small>'+pending+'</small>';
     return '<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small>'+checked+'</div>'+status+'</div>';
   }).join('');
 }
