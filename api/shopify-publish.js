@@ -25,9 +25,10 @@ async function cjVariant(productId){
   return {vid:String(v.vid||v.id||v.variantId),sku:String(v.variantSku||v.sku||''),productId:String(p.pid||p.id||productId)};
 }
 export default async function handler(req,res){
+  res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});
   try{
-    const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
+    const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'').toLowerCase();
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowed)||shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
@@ -111,11 +112,13 @@ export default async function handler(req,res){
     }
 
     if(p.safeCancelOrder===true){
+      if(process.env.SHOPIFY_SAFE_CANCEL_ENABLED!=='true')return res.status(503).json({ok:false,error:'Shopify safe cancellation is disabled'});
       const orderId=String(p.orderId||'');
       if(!/^gid:\/\/shopify\/Order\/\d+$/.test(orderId))return res.status(400).json({ok:false,error:'Shopify注文IDが不正です'});
 
-      const od=await gql(shop,token,'query OrderForSafeCancel($id: ID!) { order(id:$id) { id name cancelledAt displayFinancialStatus displayFulfillmentStatus } }',{id:orderId});
+      const od=await gql(shop,token,'query OrderForSafeCancel($id: ID!) { order(id:$id) { id name test cancelledAt displayFinancialStatus displayFulfillmentStatus } }',{id:orderId});
       const o=od.order;
+      if(o&&o.test!==true)return res.status(403).json({ok:false,error:'Only Shopify test orders may be cancelled while sandbox safety mode is active'});
       if(!o)return res.status(404).json({ok:false,error:'Shopify注文が見つかりません'});
       const fin=String(o.displayFinancialStatus||''),ful=String(o.displayFulfillmentStatus||'');
 
