@@ -249,6 +249,50 @@ function removeCart(id){cart=cart.filter(p=>p.id!==id);renderCart()}
 function openCart(){document.getElementById('cartDrawer').classList.add('open')}function closeCart(){document.getElementById('cartDrawer').classList.remove('open')}
 function openSearch(){document.getElementById('searchLayer').classList.add('open');setTimeout(()=>document.getElementById('searchInput').focus(),150);renderSearch('')}function closeSearch(){document.getElementById('searchLayer').classList.remove('open')}
 function renderSearch(q){const v=(q||'').trim().toLowerCase();const list=(v?products.filter(p=>[p.name,p.category,p.audience,p.summary,...(p.why||[])].filter(Boolean).join(' ').toLowerCase().includes(v)):products.slice(0,4));document.getElementById('searchResults').innerHTML=list.map(p=>`<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eee;cursor:pointer" onclick="closeSearch();openProduct('${p.id}')"><img src="${p.img}" style="width:58px;height:58px;border-radius:10px;object-fit:cover"><div><b>${p.name}</b><div>${yen(p.price)}</div></div></div>`).join('')}
+function productStructuredData(p){
+  const availability=p.available===false?'https://schema.org/OutOfStock':'https://schema.org/InStock';
+  const offer={
+    "@type":"Offer",
+    "priceCurrency":p.currency||"JPY",
+    "price":Number(p.price||0),
+    "availability":availability,
+    "url":p.url||("https://ai-buyer-nine.vercel.app/shop#"+p.id)
+  };
+  if(p.shipping){
+    offer.shippingDetails={
+      "@type":"OfferShippingDetails",
+      "shippingRate":{"@type":"MonetaryAmount","value":Number(p.shipping.price||0),"currency":p.currency||"JPY"},
+      "shippingDestination":{"@type":"DefinedRegion","addressCountry":p.shipping.country||"JP"},
+      "deliveryTime":{
+        "@type":"ShippingDeliveryTime",
+        "handlingTime":{"@type":"QuantitativeValue","minValue":Number(p.shipping.handlingMin||1),"maxValue":Number(p.shipping.handlingMax||3),"unitCode":"DAY"},
+        "transitTime":{"@type":"QuantitativeValue","minValue":Number(p.shipping.transitMin||1),"maxValue":Number(p.shipping.transitMax||5),"unitCode":"DAY"}
+      }
+    };
+  }
+  if(p.returnPolicy){
+    offer.hasMerchantReturnPolicy={
+      "@type":"MerchantReturnPolicy",
+      "applicableCountry":p.returnPolicy.country||"JP",
+      "returnPolicyCategory":"https://schema.org/MerchantReturnFiniteReturnWindow",
+      "merchantReturnDays":Number(p.returnPolicy.days||30),
+      "returnMethod":"https://schema.org/ReturnByMail",
+      "returnFees":"https://schema.org/FreeReturn"
+    };
+  }
+  return {
+    "@type":"Product",
+    "name":p.name,
+    "image":[p.img],
+    "description":p.summary||p.why.join('。'),
+    "category":p.category||"ライフスタイル",
+    "audience":{"@type":"Audience","audienceType":p.audience||"一般消費者"},
+    "sku":p.sku||("ADPS-"+p.id.toUpperCase()),
+    "brand":{"@type":"Brand","name":p.brand||"ADPS PICKS"},
+    "offers":offer
+  };
+}
+
 function renderStructuredData(){
   const old=document.getElementById('adps-product-schema');if(old)old.remove();
   const script=document.createElement('script');
@@ -261,17 +305,7 @@ function renderStructuredData(){
         "name":"ADPS PICKS 商品セレクション",
         "itemListElement":products.map((p,i)=>({
           "@type":"ListItem","position":i+1,
-          "item":{
-            "@type":"Product",
-            "name":p.name,
-            "image":[p.img],
-            "description":p.summary||p.why.join('。'),
-            "category":p.category||"ライフスタイル",
-            "audience":{"@type":"Audience","audienceType":p.audience||"一般消費者"},
-            "sku":"ADPS-"+p.id.toUpperCase(),
-            "brand":{"@type":"Brand","name":"ADPS PICKS"},
-            "url":"https://ai-buyer-nine.vercel.app/shop#"+p.id
-          }
+          "item":productStructuredData(p)
         }))
       },
       {
