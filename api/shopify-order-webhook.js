@@ -82,7 +82,11 @@ export default async function handler(req,res){
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
     const opts=(Array.isArray(fq.data)?fq.data:[]).map(x=>({name:str(x.logisticName,50),usd:Number(x.totalPostageFee??x.logisticPrice),days:str(x.logisticAging,50)})).filter(x=>x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
     if(!opts.length)throw Error('CJ配送方法が見つかりません');
+    // Shipping cost is USD; never compare it against an unconverted Shopify total.
+    const maxFreightUsd=Number(process.env.CJ_MAX_FREIGHT_USD);
+    if(!Number.isFinite(maxFreightUsd)||maxFreightUsd<=0)return res.status(503).json({ok:false,error:'CJ freight safety limit is not configured'});
     const chosen=opts[0];
+    if(chosen.usd>maxFreightUsd)return res.status(422).json({ok:false,error:'CJ freight exceeds configured USD limit; manual review required'});
     const body={
       orderNumber:'SHOP-'+str(order.id,40),
       shippingZip:str(addr.zip,20),
