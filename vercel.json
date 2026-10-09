@@ -43,6 +43,14 @@
     {
       "source": "/api/release-readiness",
       "destination": "/api/diagnostics?action=release-readiness"
+    },
+    {
+      "source": "/api/cj-order-tracking",
+      "destination": "/api/cj?action=order-tracking"
+    },
+    {
+      "source": "/api/cj-sandbox-simulate",
+      "destination": "/api/cj?action=sandbox-simulate"
     }
   ]
 }
