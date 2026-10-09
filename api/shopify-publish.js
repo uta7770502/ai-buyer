@@ -1,7 +1,7 @@
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
-  const r=await fetch('https://'+shop+'/admin/api/'+VERSION+'/graphql.json',{method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token},body:JSON.stringify({query,variables})});
+  const r=await fetch('https://'+shop+'/admin/api/'+VERSION+'/graphql.json',{method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token},body:JSON.stringify({query,variables}),signal:AbortSignal.timeout(10000)});
   const j=await r.json();if(!r.ok||j.errors?.length)throw Error(j.errors?.[0]?.message||'Shopify API request failed');return j.data;
 }
 function clean(v,max=5000){return String(v||'').replace(/[<>]/g,'').trim().slice(0,max)}
@@ -10,14 +10,14 @@ async function cjToken(){
   if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
   if(cjCache.token&&Date.now()<cjCache.expiresAt-60000)return cjCache.token;
   if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');
-  const r=await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY})});
+  const r=await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(8000)});
   const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');
   cjCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return cjCache.token;
 }
 async function cjVariant(productId){
   if(!productId)throw Error('CJ商品IDが不足しています');
   const u=new URL('https://developers.cjdropshipping.com/api2.0/v1/product/query');u.searchParams.set('pid',String(productId));
-  const r=await fetch(u,{headers:{'CJ-Access-Token':await cjToken()}});const j=await r.json();
+  const r=await fetch(u,{headers:{'CJ-Access-Token':await cjToken()},signal:AbortSignal.timeout(10000)});const j=await r.json();
   if(!r.ok||j.result!==true)throw Error(j.message||'CJ商品情報を取得できません');
   const p=j.data||{},vs=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
   const v=vs.find(x=>x&&(x.vid||x.id||x.variantId));
@@ -54,7 +54,7 @@ export default async function handler(req,res){
       if(meta.connected){
         try{
           const u='https://graph.facebook.com/'+encodeURIComponent(metaGraphVersion)+'/act_'+encodeURIComponent(metaAccountId)+'?fields=id,name,account_status&access_token='+encodeURIComponent(metaToken);
-          const rr=await fetch(u);
+          const rr=await fetch(u,{signal:AbortSignal.timeout(10000)});
           const jj=await rr.json();
           if(rr.ok&&!jj?.error){
             meta.apiOk=true;
@@ -133,7 +133,8 @@ export default async function handler(req,res){
         const rr=await fetch('https://developers.cjdropshipping.com/api2.0/v1/shopping/order/getOrderDetailBatch',{
           method:'POST',
           headers:{'CJ-Access-Token':access,'Content-Type':'application/json'},
-          body:JSON.stringify({orderIds:[storeOrder]})
+          body:JSON.stringify({orderIds:[storeOrder]}),
+          signal:AbortSignal.timeout(10000)
         });
         const jj=await rr.json();
         if(rr.ok&&jj?.result===true){
@@ -171,7 +172,8 @@ export default async function handler(req,res){
           const rr=await fetch('https://developers.cjdropshipping.com/api2.0/v1/shopping/order/getOrderDetailBatch',{
             method:'POST',
             headers:{'CJ-Access-Token':access,'Content-Type':'application/json'},
-            body:JSON.stringify({orderIds:ids})
+            body:JSON.stringify({orderIds:ids}),
+            signal:AbortSignal.timeout(10000)
           });
           const jj=await rr.json();
           if(rr.ok&&jj?.result===true){
