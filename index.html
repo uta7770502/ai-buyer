@@ -117,14 +117,14 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
   if(!x||!x.shopifyProductId)return;
   try{
     if(monitorStop&&x.shopifySyncState!=='stopped'){
-      const r=await fetch('/api/shopify-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop',productId:x.shopifyProductId})});
+      const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'stop',productId:x.shopifyProductId})});
       const j=await r.json();
       if(!r.ok||!j.ok)throw new Error(j.error||'Shopify販売停止に失敗しました');
       x.shopifySyncState='stopped';
       x.shopifySyncAt=new Date().toISOString();
       addOps('Shopify同期',x.name+' を自動停止');
     }else if(!monitorStop&&x.shopifySyncState==='stopped'&&x.testDecision!=='stop'){
-      const r=await fetch('/api/shopify-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'resume',productId:x.shopifyProductId})});
+      const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'resume',productId:x.shopifyProductId})});
       const j=await r.json();
       if(!r.ok||!j.ok)throw new Error(j.error||'Shopify販売再開に失敗しました');
       x.shopifySyncState='active';
@@ -136,7 +136,7 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
     const shipping=Math.max(0,Number(x.shippingJpy)||0);
     const minPrice=Math.ceil((cost+shipping)/.595/100)*100;
     if(!monitorStop&&x.shopifyVariantId&&currentPrice>0&&minPrice>currentPrice){
-      const r=await fetch('/api/shopify-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'price',productId:x.shopifyProductId,variantId:x.shopifyVariantId,price:minPrice})});
+      const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'price',productId:x.shopifyProductId,variantId:x.shopifyVariantId,price:minPrice})});
       const j=await r.json();
       if(!r.ok||!j.ok)throw new Error(j.error||'Shopify価格同期に失敗しました');
       x.price=minPrice;
