@@ -117,12 +117,12 @@ button,input{font:inherit}.wrap{max-width:1440px;margin:auto;padding:0 28px}
 <main class="wrap">
 <section class="section" id="picks">
   <div class="sectionHead"><div class="sectionTitle"><h2>TODAY'S PICKS</h2><span>今日、AIが選んだ商品</span></div><button class="linkBtn">すべて見る →</button></div>
-  <div class="grid5" id="pickGrid"></div>
+  <p class="sub" style="max-width:760px">TODAY'S PICKSは、価格の買いやすさ、用途の分かりやすさ、話題性、レビュー傾向などをもとに、ADPSが今おすすめしたい商品をまとめたセレクションです。</p><div class="grid5" id="pickGrid"></div>
 </section>
 
 <section class="section" id="trending">
   <div class="sectionHead"><div class="sectionTitle"><h2>TRENDING NOW</h2><span>今、みんなが見ている商品</span></div><button class="linkBtn">すべて見る →</button></div>
-  <div class="grid5" id="trendGrid"></div>
+  <p class="sub" style="max-width:760px">TRENDING NOWは、今注目が集まっている商品を中心に紹介するセクションです。話題性だけでなく、日常で使う場面が想像しやすいかも重視しています。</p><div class="grid5" id="trendGrid"></div>
 </section>
 
 <section class="editorial">
@@ -204,11 +204,11 @@ button,input{font:inherit}.wrap{max-width:1440px;margin:auto;padding:0 28px}
 
 <script>
 const products=[
-{id:'juice',name:'どこでも使えるポータブルジューサー',price:2980,rating:'4.7',reviews:'1,203',img:'https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=900&q=85',why:['コンパクトで持ち運びやすい','3,000円以下で試しやすい','使用シーンが一目で伝わる']},
-{id:'pet',name:'ペット用ワンタッチブラシ',price:1980,rating:'4.6',reviews:'980',img:'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=85',why:['ペット需要が安定','動画で使い方が伝わりやすい','衝動買いしやすい価格帯']},
-{id:'projector',name:'コンパクトプロジェクター',price:6980,rating:'4.5',reviews:'743',img:'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=900&q=85',why:['SNSで注目度が上昇中','レビュー評価が安定','用途が広くギフトにも向く']},
-{id:'mouse',name:'エルゴノミクスマウス',price:3480,rating:'4.6',reviews:'1,105',img:'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=900&q=85',why:['在宅ワーク需要','悩み解決型で価値が明確','価格と機能のバランスが良い']},
-{id:'plant',name:'自動給水プランター',price:2480,rating:'4.4',reviews:'620',img:'https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=900&q=85',why:['インテリア映え','便利さが視覚的に伝わる','プレゼント需要あり']},
+{id:'juice',name:'どこでも使えるポータブルジューサー',category:'キッチン',audience:'外出先でも手軽にドリンクを作りたい人',summary:'持ち運びしやすく、日常や外出先で使いやすい小型ジューサー。',price:2980,rating:'4.7',reviews:'1,203',img:'https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=900&q=85',why:['コンパクトで持ち運びやすい','3,000円以下で試しやすい','使用シーンが一目で伝わる']},
+{id:'pet',name:'ペット用ワンタッチブラシ',category:'ペット',audience:'毎日のブラッシングを手軽にしたい飼い主',summary:'抜け毛ケアを手軽にしやすいワンタッチ式ペットブラシ。',price:1980,rating:'4.6',reviews:'980',img:'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=85',why:['ペット需要が安定','動画で使い方が伝わりやすい','衝動買いしやすい価格帯']},
+{id:'projector',name:'コンパクトプロジェクター',category:'ガジェット',audience:'自宅で手軽に映像を楽しみたい人',summary:'省スペースで設置しやすい小型プロジェクター。',price:6980,rating:'4.5',reviews:'743',img:'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=900&q=85',why:['SNSで注目度が上昇中','レビュー評価が安定','用途が広くギフトにも向く']},
+{id:'mouse',name:'エルゴノミクスマウス',category:'ガジェット',audience:'長時間のPC作業を少し楽にしたい人',summary:'手首への負担を抑えやすい形状のエルゴノミクスマウス。',price:3480,rating:'4.6',reviews:'1,105',img:'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=900&q=85',why:['在宅ワーク需要','悩み解決型で価値が明確','価格と機能のバランスが良い']},
+{id:'plant',name:'自動給水プランター',category:'ホーム',audience:'植物の水やりを簡単にしたい人',summary:'給水管理を手軽にしやすいインテリア向けプランター。',price:2480,rating:'4.4',reviews:'620',img:'https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=900&q=85',why:['インテリア映え','便利さが視覚的に伝わる','プレゼント需要あり']},
 {id:'stand',name:'マグネット式スマホスタンド',price:2980,rating:'4.7',reviews:'2,341',img:'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=85',why:['スマホ周辺は需要が広い','小型で配送しやすい','3秒で用途が理解できる']},
 {id:'lamp',name:'LEDランタン',price:3980,rating:'4.6',reviews:'1,890',img:'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=900&q=85',why:['アウトドア＋防災需要','写真映えが強い','季節を問わず使える']},
 {id:'storage',name:'真空フードストッカー',price:2980,rating:'4.5',reviews:'1,120',img:'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=900&q=85',why:['食品ロス削減ニーズ','便利さが分かりやすい','キッチンカテゴリで展開しやすい']},
@@ -219,7 +219,8 @@ let cart=[];
 const yen=n=>'¥'+Number(n).toLocaleString('ja-JP');
 function card(p,rank=''){return `<article class="product" id="${p.id}"><div class="thumb" onclick="openProduct('${p.id}')"><img src="${p.img}" alt="${p.name}"><button class="heart" onclick="event.stopPropagation();this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button>${rank?`<span class="rank">${rank}</span>`:''}<span class="tag">AI PICK</span></div><h3>${p.name}</h3><div class="price">${yen(p.price)}</div><div class="rating">★ ${p.rating}（${p.reviews}）</div></article>`}
 function render(){document.getElementById('pickGrid').innerHTML=products.slice(0,5).map(p=>card(p)).join('');document.getElementById('trendGrid').innerHTML=products.slice(5,10).map((p,i)=>card(p,i+1)).join('')}
-function openProduct(id){const p=products.find(x=>x.id===id);if(!p)return;document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2><div class="rating">★ ${p.rating}（${p.reviews}件のレビュー）</div><div class="detailPrice">${yen(p.price)}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div></div></div>`;document.getElementById('productModal').classList.add('open')}
+function openProduct(id){const p=products.find(x=>x.id===id);if(!p)return;document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2><div class="rating">★ ${p.rating}（${p.reviews}件のレビュー）</div><div class="detailPrice">${yen(p.price)}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+<div class="why"><h4>WHO IT'S FOR</h4><p>${p.audience||'日常を少し便利にしたい人'}</p><h4 style="margin-top:14px">ABOUT THIS ITEM</h4><p>${p.summary||p.name}</p></div></div></div>`;document.getElementById('productModal').classList.add('open')}
 function closeProduct(){document.getElementById('productModal').classList.remove('open')}
 function addCart(id){const p=products.find(x=>x.id===id);const row=cart.find(x=>x.id===id);if(row)row.qty++;else cart.push({...p,qty:1});renderCart();openCart()}
 function renderCart(){const root=document.getElementById('cartItems');root.innerHTML=cart.length?cart.map(p=>`<div class="cartRow"><img src="${p.img}"><div><b>${p.name}</b><div>${yen(p.price)}</div><div class="qty"><button onclick="changeQty('${p.id}',-1)">−</button><span>${p.qty}</span><button onclick="changeQty('${p.id}',1)">＋</button></div></div><button class="close" onclick="removeCart('${p.id}')">×</button></div>`).join(''):'<p style="color:#777">カートは空です。</p>';const count=cart.reduce((a,b)=>a+b.qty,0),total=cart.reduce((a,b)=>a+b.qty*b.price,0);document.getElementById('cartCount').textContent='('+count+')';document.getElementById('cartTotal').textContent=yen(total)}
@@ -244,12 +245,26 @@ function renderStructuredData(){
             "@type":"Product",
             "name":p.name,
             "image":[p.img],
-            "description":p.why.join('。'),
+            "description":p.summary||p.why.join('。'),
+            "category":p.category||"ライフスタイル",
+            "audience":{"@type":"Audience","audienceType":p.audience||"一般消費者"},
             "sku":"ADPS-"+p.id.toUpperCase(),
             "brand":{"@type":"Brand","name":"ADPS PICKS"},
             "url":"https://ai-buyer-nine.vercel.app/shop#"+p.id
           }
         }))
+      },
+      {
+        "@type":"CollectionPage",
+        "name":"TODAY'S PICKS",
+        "url":"https://ai-buyer-nine.vercel.app/shop#picks",
+        "description":"ADPS PICKSが今日選んだ商品セレクション"
+      },
+      {
+        "@type":"CollectionPage",
+        "name":"TRENDING NOW",
+        "url":"https://ai-buyer-nine.vercel.app/shop#trending",
+        "description":"現在注目が集まっている商品セレクション"
       },
       {
         "@type":"FAQPage",
