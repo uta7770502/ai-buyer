@@ -198,7 +198,8 @@ function renderAutomationDashboard(){
     ['③','在庫・価格・配送同期',syncProducts?syncProducts+'商品を監視対象':'出品商品から自動監視',shopOk?'ok':'wait',shopOk?'稼働':'待機'],
     ['④','広告自動運用',adTest?'出稿・増減・停止を自動判定（実課金なし）':'広告自動運用OFF',adTest?'test':'wait',adTest?'テスト稼働':'OFF'],
     ['⑤','返品・キャンセル',returnAudit?'直近'+(returnAudit.orders||[]).length+'注文を安全監査済み':'注文状態・CJ状態を確認して安全判定',returnAudit?'test':orderTest?'test':'wait',returnAudit?'監査済':orderTest?'安全モード':'待機'],
-    ['⑥','完全自動運用ダッシュボード','①〜⑤の状態を一括表示','ok','稼働']
+    ['⑥','公開準備ゲート',releaseReadiness?(releaseReadiness.blockers?.length?'不足: '+releaseReadiness.blockers.join(', '):'サンドボックス準備OK'):'公開準備チェック未実行',releaseReadiness?(releaseReadiness.blockers?.length?'wait':'ok'):'wait',releaseReadiness?(releaseReadiness.blockers?.length?'要確認':'準備OK'):'未確認'],
+    ['⑦','完全自動運用ダッシュボード','①〜⑥の状態を一括表示','ok','稼働']
   ];
   box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>';
 }
@@ -249,6 +250,7 @@ async function checkReleaseReadiness(){
     const r=await fetch('/api/release-readiness',{headers:{Authorization:'Bearer '+key}});
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'公開準備チェックに失敗しました');
+    releaseReadiness=j;
     const blockers=Array.isArray(j.blockers)?j.blockers:[];
     if(st){
       st.className=blockers.length?'connectionState ng':'connectionState ok';
@@ -257,9 +259,12 @@ async function checkReleaseReadiness(){
     if(meta){
       meta.textContent=blockers.length?'不足: '+blockers.join(', '):'サンドボックス公開準備OK / 本番CJ注文はOFF';
     }
+    renderAutomationDashboard();
   }catch(e){
+    releaseReadiness=null;
     if(st){st.className='connectionState ng';st.textContent='要確認'}
     if(meta)meta.textContent=e.message||'公開準備チェックに失敗しました';
+    renderAutomationDashboard();
   }
 }
 async function checkConnection(){const st=document.getElementById('connectionState'),meta=document.getElementById('connectionMeta');if(st){st.className='connectionState';st.textContent='確認中'}try{const r=await fetch('/api/cj-health');const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'接続失敗');if(st){st.className='connectionState ok';st.textContent='接続OK'}if(meta)meta.textContent=`${j.mode==='api-key'?'API Key':'Access Token'} / ${j.latencyMs}ms / ${new Date(j.checkedAt).toLocaleString('ja-JP')}`;localStorage.setItem('aiBuyerConnectionLastOk',j.checkedAt);setTimeout(maybeDailyScan,150)}catch(e){if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'接続失敗'}}
@@ -320,6 +325,7 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
   }
 }
 function maybeDailyMonitor(){if(monitorSettings.daily!=='on')return;const last=localStorage.getItem('aiBuyerLastMonitorAt');if(!last||Date.now()-new Date(last).getTime()>=30*60*1000)runMarketMonitor(true)}
+let releaseReadiness=null;
 let profitFilter='all';
 function setProfitFilter(value){profitFilter=['all','profitable','loss','missing'].includes(value)?value:'all';renderAll()}
 function hasValidShipping(x){return x.shippingJpy!==undefined&&x.shippingJpy!==null&&String(x.shippingJpy).trim()!==''&&Number.isFinite(Number(x.shippingJpy))&&Number(x.shippingJpy)>=0&&Number(x.shippingJpy)<=10000000}
