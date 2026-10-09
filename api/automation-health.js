@@ -8,7 +8,9 @@ export default async function handler(req,res){
     shopifyWebhookSecret:Boolean(process.env.SHOPIFY_CLIENT_SECRET),
     cjCredentials:Boolean(process.env.CJ_ACCESS_TOKEN||process.env.CJ_API_KEY),
     durableOrderStore:Boolean(process.env.UPSTASH_REDIS_REST_URL&&process.env.UPSTASH_REDIS_REST_TOKEN),
-    sandboxOptIn:process.env.CJ_SANDBOX_ORDER_ENABLED==='true'
+    sandboxOptIn:process.env.CJ_SANDBOX_ORDER_ENABLED==='true',
+    maxItemsPerOrderConfigured:Number.isFinite(Number(process.env.CJ_MAX_ITEMS_PER_ORDER))&&Number(process.env.CJ_MAX_ITEMS_PER_ORDER)>0,
+    maxOrderValueConfigured:Number.isFinite(Number(process.env.CJ_MAX_ORDER_VALUE))&&Number(process.env.CJ_MAX_ORDER_VALUE)>0
   };
   let redisReachable=false;
   if(checks.durableOrderStore){
@@ -19,6 +21,6 @@ export default async function handler(req,res){
       redisReachable=r.ok&&j.result==='PONG';
     }catch{}
   }
-  const sandboxReady=checks.shopifyWebhookSecret&&checks.cjCredentials&&checks.durableOrderStore&&redisReachable&&checks.sandboxOptIn;
+  const sandboxReady=checks.shopifyWebhookSecret&&checks.cjCredentials&&checks.durableOrderStore&&redisReachable&&checks.sandboxOptIn&&checks.maxItemsPerOrderConfigured&&checks.maxOrderValueConfigured;
   return res.status(200).json({ok:true,checks,redisReachable,sandboxReady,liveOrdersEnabled:false,note:'Live fulfillment and payment are not implemented'});
 }
