@@ -254,11 +254,13 @@ async function loadReconciliation(reset){
       return '<div class="tiny" style="margin-top:8px"><span class="statusDot '+(critical?'status-candidate':'status-test')+'">'+badge+'</span> '+esc(x.keyHash)+'：'+esc(reason)+(critical?' / 自動再実行なし・管理画面で確認':'')+'</div>';
     }).join(''));
     reconciliationCursor=String(j.nextCursor||'0');
-    result.textContent=reconciliationLoadedCount===0&&!j.partial
+    const clear=reconciliationLoadedCount===0&&!j.partial;
+    result.className=clear?'tiny pass':'tiny';
+    result.textContent=clear
       ?'異常なし：要照合の処理はありません'
       :reconciliationLoadedCount+'件確認 / '+(j.partial?'未取得の処理があります。「続きを確認」を押してください。':'照合一覧の取得完了（自動再実行なし）');
     document.getElementById('reconciliationNext').style.display=j.partial?'block':'none';
-  }catch(e){result.textContent=e.message||'照合一覧を取得できません'}
+  }catch(e){result.className='tiny fail';result.textContent=e.message||'照合一覧を取得できません'}
 }
 async function syncTestTrackingToShopify(){
   const result=document.getElementById('testTrackingResult');
