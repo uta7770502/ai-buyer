@@ -12,6 +12,8 @@ export default async function handler(req,res){
   if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop)||!/^[0-9]{1,30}$/.test(orderId)){
     return res.status(400).json({ok:false,error:'Valid shop and numeric orderId are required'});
   }
+  const allowedShop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+  if(!allowedShop||shop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
   const url=process.env.UPSTASH_REDIS_REST_URL;
   const token=process.env.UPSTASH_REDIS_REST_TOKEN;
   if(!url||!token)return res.status(503).json({ok:false,error:'Order database is not configured'});
