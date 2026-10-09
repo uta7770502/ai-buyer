@@ -30,6 +30,22 @@ export default async function handler(req,res){
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const p=req.body||{};
+    if(p.orderAudit===true){
+      const data=await gql(shop,token,'query RecentOrders { orders(first:20, reverse:true) { nodes { id name createdAt cancelledAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } lineItems(first:20) { nodes { name quantity sku } } } } }');
+      const orders=(data.orders?.nodes||[]).map(o=>{
+        const fin=String(o.displayFinancialStatus||''),ful=String(o.displayFulfillmentStatus||''),cancelled=Boolean(o.cancelledAt);
+        let state='確認',reason='個別確認が必要です',safeAction='review';
+        if(cancelled){state='完了';reason='Shopifyですでにキャンセル済み';safeAction='none'}
+        else if(fin==='REFUNDED'||fin==='PARTIALLY_REFUNDED'){state='返金済';reason='返金処理済みまたは一部返金済み';safeAction='none'}
+        else if(['FULFILLED','PARTIALLY_FULFILLED','IN_PROGRESS','SCHEDULED'].includes(ful)){state='要確認';reason='発送処理が進んでいるため自動キャンセル禁止';safeAction='review'}
+        else if(['VOIDED','EXPIRED'].includes(fin)){state='キャンセル候補';reason='未発送かつ決済が無効/期限切れ';safeAction='cancel_candidate'}
+        else if(fin==='PENDING'){state='保留';reason='決済確認待ちのため発注・返金を保留';safeAction='hold'}
+        else if(['PAID','AUTHORIZED','PARTIALLY_PAID'].includes(fin)&&['UNFULFILLED','OPEN','PENDING_FULFILLMENT','ON_HOLD'].includes(ful)){state='要確認';reason='未発送だが入金済み。CJ状況確認後のみキャンセル可能';safeAction='review'}
+        return {id:o.id,name:o.name,createdAt:o.createdAt,cancelledAt:o.cancelledAt,financialStatus:fin,fulfillmentStatus:ful,state,reason,safeAction,total:o.totalPriceSet?.shopMoney||null,items:(o.lineItems?.nodes||[]).map(x=>({name:x.name,quantity:x.quantity,sku:x.sku}))};
+      });
+      const counts=orders.reduce((a,o)=>(a[o.state]=(a[o.state]||0)+1,a),{});
+      return res.status(200).json({ok:true,audit:true,mode:'safe',orders,counts});
+    }
     const syncAction=String(p.syncAction||'').toLowerCase();
     if(['stop','resume','price'].includes(syncAction)){
       const productId=String(p.productId||''),variantId=String(p.variantId||''),syncPrice=Number(p.price);
