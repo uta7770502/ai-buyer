@@ -17,6 +17,13 @@ export default async function handler(req,res){
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
     const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price))}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
-    return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,publicationConfigured:false});
+    const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
+    const nodes=pubs.publications?.nodes||[];
+    const target=nodes.find(x=>/online store/i.test(String(x.name||'')))||nodes.find(x=>x.autoPublish)||nodes[0];
+    if(!target)throw Error('Shopify公開先を取得できませんでした');
+    const publish=await gql(shop,token,'mutation Publish($id: ID!, $input: [PublicationInput!]!) { publishablePublish(id:$id, input:$input) { userErrors { field message } } }',{id:ce.product.id,input:[{publicationId:target.id}]});
+    const errs=publish.publishablePublish?.userErrors||[];
+    if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
+    return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:true,publicationConfigured:true,publicationName:target.name});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'Shopify自動出品に失敗しました'})}
 }
