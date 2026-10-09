@@ -16,10 +16,12 @@ export default async function handler(req,res){
     const clientId=String(process.env.SHOPIFY_CLIENT_ID||'').trim(),clientSecret=String(process.env.SHOPIFY_CLIENT_SECRET||'').trim();
     const missing=[];if(!clientId)missing.push('SHOPIFY_CLIENT_ID');if(!clientSecret)missing.push('SHOPIFY_CLIENT_SECRET');if(missing.length)throw Error('未設定: '+missing.join(', '));
     const shop=safeShop(req.query.shop),code=String(req.query.code||''),state=String(req.query.state||''),cookies=parseCookies(req);
+    const allowed=safeShop(String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim());
+    if(!allowed||shop!==allowed)throw Error('許可されたShopifyストアではありません');
     if(!shop||!code)throw Error('Shopifyからの認証情報が不足しています');
     if(!state||state!==cookies.shopify_oauth_state)throw Error('認証stateが一致しません');
     if(!verifyHmac(req.query,clientSecret))throw Error('Shopify署名を検証できません');
-    const r=await fetch('https://'+shop+'/admin/oauth/access_token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,client_secret:clientSecret,code})});
+    const r=await fetch('https://'+shop+'/admin/oauth/access_token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,client_secret:clientSecret,code}),signal:AbortSignal.timeout(10000)});
     const j=await r.json();
     if(!r.ok||!j.access_token)throw Error(j.error_description||j.error||'アクセストークン取得に失敗しました');
     const maxAge=60*60*24*365;

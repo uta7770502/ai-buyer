@@ -5,7 +5,10 @@ import cjRisk from '../lib/routes/cj-risk.js';
 import cjSearch from '../lib/routes/cj-search.js';
 import cjOrderTracking from '../lib/routes/cj-order-tracking.js';
 
+import cjSandboxSimulate from '../lib/routes/cj-sandbox-simulate.js';
+
 const handlers={
+  'sandbox-simulate':cjSandboxSimulate,
   'detail':cjDetail,
   'freight':cjFreight,
   'monitor':cjMonitor,

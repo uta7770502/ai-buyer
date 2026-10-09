@@ -15,6 +15,11 @@ const payload={orderId:'gid://shopify/Order/123',trackingNumber:'TRACK123'};
 const target={id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]};
 const order={id:payload.orderId,test:true,cancelledAt:null,displayFinancialStatus:'PAID',fulfillmentOrders:{nodes:[target],pageInfo:{hasNextPage:false}}};
 const json=data=>({ok:true,json:async()=>data});
+async function performSync(){
+ const pre=await invoke(sync,{...payload,dryRun:true});
+ assert.equal(pre.data.ok,true);
+ return invoke(sync,{...payload,preflightToken:pre.data.preflightToken});
+}
 async function invoke(handler,body={},method='POST',customHeaders=headers){
  const res={code:200,setHeader(){},status(code){this.code=code;return this},json(data){this.data=data;return this},end(){return this}};
  await handler({method,headers:customHeaders,body,query:body},res);return res;
@@ -29,7 +34,7 @@ function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=
  const fetcher=async(url,options)=>{
   const body=options.body?JSON.parse(options.body):null;calls.push(body);
   if(String(url).startsWith('https://redis.invalid')){
-   if(body[0]==='GET')return json({result:state});
+   if(body[0]==='GET')return json({result:body[1].startsWith('ai-buyer:cj-sandbox:')?'created:CJ123':state});
    if(body[0]==='SET'){
     sets++;
     if(body.includes('NX')&&state!==null)return json({result:null});
@@ -37,6 +42,7 @@ function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=
     state=body[2];return json({result:'OK'});
    }
   }
+  if(String(url).includes('/shopping/order/getOrderDetail'))return json({result:true,data:{orderId:'CJ123',isSandbox:1,trackNumber:'TRACK123'}});
   if(body.query.startsWith('query'))return json({data:{order:currentOrder}});
   if(body.query.startsWith('mutation')){
    mutations++;assert.equal(body.variables.fulfillment.notifyCustomer,false);
@@ -72,16 +78,16 @@ test('split fulfillment orders require review',async t=>{
  assert.equal((await invoke(sync,payload)).code,409);assert.equal(m.mutations,0);
 });
 test('successful sync persists completion and duplicate checks stay read-only',async t=>{
- const m=mockStore();configure(t,m.fetcher);assert.equal((await invoke(sync,payload)).data.ok,true);
+ const m=mockStore();configure(t,m.fetcher);assert.equal((await performSync()).data.ok,true);
  assert.equal(m.state,'synced:gid://shopify/Fulfillment/99');assert.equal((await invoke(sync,{...payload,checkOnly:true})).data.duplicateConfirmed,true);assert.equal(m.mutations,1);
 });
 for(const scenario of [{uncertain:true},{persistFail:true}])test('uncertain outcome never retries '+JSON.stringify(scenario),async t=>{
- const m=mockStore(scenario);configure(t,m.fetcher);const first=await invoke(sync,payload);
+ const m=mockStore(scenario);configure(t,m.fetcher);const first=await performSync();
  assert.equal(first.data.needsReview,true);assert.equal(first.data.ok,false);
  assert.equal((await invoke(sync,payload)).code,409);assert.equal(m.mutations,1);
 });
 test('concurrent sync requests perform at most one mutation',async t=>{
- const m=mockStore();configure(t,m.fetcher);await Promise.all([invoke(sync,payload),invoke(sync,payload)]);assert.equal(m.mutations,1);
+ const m=mockStore();configure(t,m.fetcher);await Promise.all([performSync(),performSync()]);assert.equal(m.mutations,1);
 });
 test('authorization failure does not contact services',async t=>{
  configure(t);assert.equal((await invoke(sync,payload,'POST',{})).code,401);
@@ -129,4 +135,19 @@ test('reconciliation batches reads, preserves cursor and exposes no raw keys',as
   assert.equal(cmd[0],'MGET');return json({result:['needs_review:unknown_shopify_result','synced:gid://shopify/Fulfillment/99']});
  });
  const r=await invoke(reconcile,{kind:'fulfillment'},'GET');assert.equal(r.data.partial,true);assert.equal(r.data.nextCursor,'42');assert.equal(r.data.orders.length,1);assert.equal(r.data.orders[0].reason,'shopify_result_ambiguous');assert.equal(count,2);assert.equal(JSON.stringify(r.data).includes('private1'),false);
+});
+test('actual sync requires a fresh matching server preflight',async t=>{
+ const m=mockStore();configure(t,m.fetcher);
+ assert.equal((await invoke(sync,payload)).code,409);assert.equal(m.mutations,0);
+ const pre=await invoke(sync,{...payload,dryRun:true});
+ assert.equal((await invoke(sync,{...payload,preflightToken:pre.data.preflightToken.slice(0,-1)+'z'})).code,409);
+ assert.equal(m.mutations,0);
+});
+test('client tracking must match linked sandbox CJ order',async t=>{
+ const m=mockStore();configure(t,m.fetcher);
+ const r=await invoke(sync,{...payload,trackingNumber:'WRONG',dryRun:true});assert.equal(r.code,409);assert.equal(m.mutations,0);
+});
+for(const sandboxFlag of [0,undefined])test('real or unconfirmed CJ orders cannot be synchronized '+sandboxFlag,async t=>{
+ const m=mockStore();configure(t,async(url,opts)=>String(url).includes('/shopping/order/getOrderDetail')?json({result:true,data:{isSandbox:sandboxFlag,trackNumber:'TRACK123'}}):m.fetcher(url,opts));
+ const r=await invoke(sync,{...payload,dryRun:true});assert.equal(r.data.ok,false);assert.equal(m.mutations,0);
 });

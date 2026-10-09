@@ -45,7 +45,7 @@ Do not expose secrets through client-side variables, repository files, screensho
 
 ## Local safety regression checks
 
-Run `node --test tests/safety.test.mjs`. All external calls are mocked; these tests never create real orders, fulfillments, or payments.
+Run `node --test tests/*.test.mjs`. All external calls are mocked; these tests never create real orders, fulfillments, or payments.
 
 - A saved `synced:<fulfillment GID>` is checked before Shopify fulfillment eligibility.
 - `reserved`, `needs_review`, and unknown states block writes and never count as successful duplicate checks.
@@ -57,3 +57,24 @@ Run `node --test tests/safety.test.mjs`. All external calls are mocked; these te
 - Test progress is browser-local guidance, not proof of server safety or live readiness.
 
 Reconciliation is paginated: follow `nextCursor` until `0`; `partial:true` means more records remain. Use `kind=fulfillment` for Shopify sync reservations. Results contain only hashed keys and allowlisted reason codes. No reservations are modified.
+
+## Sandbox shipment simulation (2026-10-09)
+
+CJ sandbox orders do not generate real shipment labels. After creating and reconciling a Shopify test order, use the **サンドボックスの追跡番号を作成** button, then read CJ tracking and synchronize Shopify. This uses only CJ's documented `shopping/sandbox/simulatePay` and `shopping/sandbox/updateTrackNumber` endpoints. It does not call a real payment API or create a real label.
+
+The server obtains the CJ ID from the existing Redis Shopify-order mapping; the caller cannot supply arbitrary CJ IDs. CJ `isSandbox` must explicitly be true/1. Simulation actions use permanent Redis reservations. A timeout, rejection, or uncertain state blocks further attempts and appears under the simulation reconciliation queue. There is no automatic reset or retry. Parent-order batches and real CJ orders are not supported.
+
+Shopify synchronization now reads the mapped CJ order again, requires its sandbox flag and matching tracking number, and requires a signed dry-run token valid for five minutes and bound to the exact order, tracking number and fulfillment order. Dry-run and duplicate checks do not create fulfillments. Existing completed results remain readable even after the fulfillment order closes.
+
+The test administrator key is entered in a masked field and retained in the current page only. It is never written to local/session storage. Test evidence from older safety-check versions is invalidated, and release-readiness explicitly represents configuration checks rather than end-to-end completion.
+
+References:
+- https://developers.cjdropshipping.com/en/api/start/sandbox.html
+- https://developers.cjdropshipping.com/en/api/api2/api/shopping.html
+
+## Remaining external acceptance checks
+
+- CJ public read-only connection and product discovery were observed working on the deployed app.
+- The current browser reaches Shopify's sign-in screen; authenticated Shopify tests have not passed yet.
+- Admin-key protected release-readiness, real Redis behavior, and real CJ sandbox simulation require authorized test access.
+- Mock tests are not evidence of a successful external Shopify/CJ transaction. Do not mark release complete until the external checklist passes.

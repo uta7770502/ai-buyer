@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 function cfg(){
   const shop=String(process.env.SHOPIFY_SHOP||'').trim().replace(/\.myshopify\.com$/i,'');
+  const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+  if(!/^[a-z0-9][a-z0-9-]*$/.test(shop)||shop.toLowerCase()+'.myshopify.com'!==allowed)throw Error('SHOPIFY_SHOP と許可ストアの設定を確認してください');
   const clientId=String(process.env.SHOPIFY_CLIENT_ID||'').trim();
   const missing=[];if(!shop)missing.push('SHOPIFY_SHOP');if(!clientId)missing.push('SHOPIFY_CLIENT_ID');if(missing.length)throw Error('未設定: '+missing.join(', '));
   return {shop,clientId};
