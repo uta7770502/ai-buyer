@@ -223,7 +223,7 @@ button,input{font:inherit}.wrap{max-width:1440px;margin:auto;padding:0 28px}
 </div></div>
 
 <script>
-const products=[
+const demoProducts=[
 {id:'juice',name:'どこでも使えるポータブルジューサー',category:'キッチン',audience:'外出先でも手軽にドリンクを作りたい人',summary:'持ち運びしやすく、日常や外出先で使いやすい小型ジューサー。',price:2980,rating:'4.7',reviews:'1,203',img:'https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=900&q=85',why:['コンパクトで持ち運びやすい','3,000円以下で試しやすい','使用シーンが一目で伝わる']},
 {id:'pet',name:'ペット用ワンタッチブラシ',category:'ペット',audience:'毎日のブラッシングを手軽にしたい飼い主',summary:'抜け毛ケアを手軽にしやすいワンタッチ式ペットブラシ。',price:1980,rating:'4.6',reviews:'980',img:'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=85',why:['ペット需要が安定','動画で使い方が伝わりやすい','衝動買いしやすい価格帯']},
 {id:'projector',name:'コンパクトプロジェクター',category:'ガジェット',audience:'自宅で手軽に映像を楽しみたい人',summary:'省スペースで設置しやすい小型プロジェクター。',price:6980,rating:'4.5',reviews:'743',img:'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=900&q=85',why:['SNSで注目度が上昇中','レビュー評価が安定','用途が広くギフトにも向く']},
@@ -235,11 +235,13 @@ const products=[
 {id:'golf',name:'ゴルフ練習用スイングトレーナー',price:4980,rating:'4.4',reviews:'860',img:'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=900&q=85',why:['趣味商品で購買意欲が高い','用途が明確','動画訴求と相性が良い']},
 {id:'bag',name:'折りたたみトラベルバッグ',price:3480,rating:'4.6',reviews:'940',img:'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85',why:['旅行需要','収納性が価値として分かりやすい','幅広い年齢層に売りやすい']}
 ];
+let products=[...demoProducts];
+let usingAuthoritativeProducts=false;
 let cart=[];
 const yen=n=>'¥'+Number(n).toLocaleString('ja-JP');
-function card(p,rank=''){return `<article class="product" id="${p.id}" data-category="${p.category||''}" data-price="${p.price}" data-audience="${p.audience||''}"><div class="thumb" onclick="openProduct('${p.id}')"><img src="${p.img}" alt="${p.name}"><button class="heart" onclick="event.stopPropagation();this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button>${rank?`<span class="rank">${rank}</span>`:''}<span class="tag">AI PICK</span></div><h3>${p.name}</h3><div class="price">${yen(p.price)}</div><div class="rating">★ ${p.rating}（${p.reviews}）</div><div class="meta" style="margin-top:6px">${p.category||'ライフスタイル'} ・ ${p.audience||'一般向け'}</div></article>`}
+function card(p,rank=''){const rating=p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}）`:''}</div>`:'';return `<article class="product" id="${p.id}" data-category="${p.category||''}" data-price="${p.price}" data-audience="${p.audience||''}"><div class="thumb" onclick="openProduct('${p.id}')"><img src="${p.img}" alt="${p.name}"><button class="heart" onclick="event.stopPropagation();this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button>${rank?`<span class="rank">${rank}</span>`:''}<span class="tag">AI PICK</span></div><h3>${p.name}</h3><div class="price">${yen(p.price)}</div>${rating}<div class="meta" style="margin-top:6px">${p.category||'ライフスタイル'} ・ ${p.audience||'一般向け'}</div></article>`}
 function render(){document.getElementById('pickGrid').innerHTML=products.slice(0,5).map(p=>card(p)).join('');document.getElementById('trendGrid').innerHTML=products.slice(5,10).map((p,i)=>card(p,i+1)).join('')}
-function openProduct(id){const p=products.find(x=>x.id===id);if(!p)return;document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2><div class="rating">★ ${p.rating}（${p.reviews}件のレビュー）</div><div class="detailPrice">${yen(p.price)}</div><div class="meta" style="margin:8px 0 14px"><b>カテゴリ：</b>${p.category||'ライフスタイル'}<br><b>おすすめ：</b>${p.audience||'一般向け'}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+function openProduct(id){const p=products.find(x=>x.id===id);if(!p)return;document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2>${p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}件のレビュー）`:''}</div>`:''}<div class="detailPrice">${yen(p.price)}</div><div class="meta" style="margin:8px 0 14px"><b>カテゴリ：</b>${p.category||'ライフスタイル'}<br><b>おすすめ：</b>${p.audience||'一般向け'}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div>
 <div class="why"><h4>WHO IT'S FOR</h4><p>${p.audience||'日常を少し便利にしたい人'}</p><h4 style="margin-top:14px">ABOUT THIS ITEM</h4><p>${p.summary||p.name}</p></div></div></div>`;document.getElementById('productModal').classList.add('open')}
 function closeProduct(){document.getElementById('productModal').classList.remove('open')}
 function addCart(id){const p=products.find(x=>x.id===id);const row=cart.find(x=>x.id===id);if(row)row.qty++;else cart.push({...p,qty:1});renderCart();openCart()}
@@ -249,6 +251,39 @@ function removeCart(id){cart=cart.filter(p=>p.id!==id);renderCart()}
 function openCart(){document.getElementById('cartDrawer').classList.add('open')}function closeCart(){document.getElementById('cartDrawer').classList.remove('open')}
 function openSearch(){document.getElementById('searchLayer').classList.add('open');setTimeout(()=>document.getElementById('searchInput').focus(),150);renderSearch('')}function closeSearch(){document.getElementById('searchLayer').classList.remove('open')}
 function renderSearch(q){const v=(q||'').trim().toLowerCase();const list=(v?products.filter(p=>[p.name,p.category,p.audience,p.summary,...(p.why||[])].filter(Boolean).join(' ').toLowerCase().includes(v)):products.slice(0,4));document.getElementById('searchResults').innerHTML=list.map(p=>`<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eee;cursor:pointer" onclick="closeSearch();openProduct('${p.id}')"><img src="${p.img}" style="width:58px;height:58px;border-radius:10px;object-fit:cover"><div><b>${p.name}</b><div>${yen(p.price)}</div></div></div>`).join('')}
+async function loadShopifyProducts(){
+  try{
+    const r=await fetch('/api/storefront-products',{headers:{'Accept':'application/json'}});
+    const j=await r.json();
+    if(!r.ok||!j.ok||!j.authoritative||!Array.isArray(j.products)||!j.products.length)throw new Error(j.error||'No live products');
+    const mapped=j.products.map(raw=>{
+      const p=normalizeShopifyProduct(raw);
+      return {
+        ...p,
+        rating:'',
+        reviews:'',
+        why:[
+          p.category?'${category}カテゴリの商品':'ADPSが選定した商品',
+          p.summary?'用途や特徴が分かりやすい':'商品情報を確認中',
+          p.available?'現在購入可能':'在庫状況を確認してください'
+        ].map(x=>x.replace('${category}',p.category||''))
+      };
+    }).filter(p=>p.id&&p.name&&p.price>0&&p.img);
+    if(!mapped.length)throw new Error('No displayable live products');
+    products=mapped;
+    usingAuthoritativeProducts=true;
+    render();
+    renderCart();
+    renderStructuredData();
+  }catch{
+    products=[...demoProducts];
+    usingAuthoritativeProducts=false;
+    render();
+    renderCart();
+    renderStructuredData();
+  }
+}
+
 function normalizeShopifyProduct(raw){
   const variant=raw?.variant||raw?.variants?.[0]||{};
   const price=Number(variant.price?.amount??variant.price??raw?.price??0);
@@ -359,7 +394,7 @@ function renderStructuredData(){
   });
   document.head.appendChild(script);
 }
-render();renderCart();renderStructuredData();
+render();renderCart();renderStructuredData();loadShopifyProducts();
 </script>
 </body>
 </html>
