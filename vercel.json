@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/shop",
+      "destination": "/storefront.html"
+    },
+    {
       "source": "/api/automation-health",
       "destination": "/api/diagnostics?action=automation-health"
     },
