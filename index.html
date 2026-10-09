@@ -194,14 +194,14 @@ function renderTestChecklist(){
     return;
   }
   const steps=[
-    ['1','Shopify再認証','追加したFulfillment権限を取得'],
-    ['2','Webhook確認','ORDERS_PAID が正しいURLに登録済みか確認'],
-    ['3','Shopifyテスト注文','実注文ではなくテスト注文のみ使用'],
-    ['4','CJ照合','CJサンドボックス注文IDを確認'],
-    ['5','追跡同期確認','追跡番号をShopifyへ反映するテスト'],
-    ['6','二重実行確認','同じ注文・追跡番号が重複登録されないことを確認']
+    ['1','Shopify再認証','追加したFulfillment権限を取得','checkShopify(true)','再認証'],
+    ['2','Webhook確認','ORDERS_PAID が正しいURLに登録済みか確認','setupOrderAutomation()','確認'],
+    ['3','Shopifyテスト注文','実注文ではなくテスト注文のみ使用','','手動'],
+    ['4','CJ照合','CJサンドボックス注文IDを確認','','手動'],
+    ['5','追跡同期確認','追跡番号をShopifyへ反映するテスト','','手動'],
+    ['6','二重実行確認','同じ注文・追跡番号が重複登録されないことを確認','','手動']
   ];
-  box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small></div><span class="autoState auto-wait">未確認</span></div>').join('');
+  box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small></div>'+(x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">'+x[4]+'</span>')+'</div>').join('');
 }
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
