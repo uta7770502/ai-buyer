@@ -556,7 +556,8 @@ function hydrateReleaseReadinessUI(){
   const blockers=Array.isArray(releaseReadiness.blockers)?releaseReadiness.blockers:[];
   const warnings=Array.isArray(releaseReadiness.warnings)?releaseReadiness.warnings:[];
   const fresh=releaseCheckIsFresh();
-  const ready=Boolean(releaseReadiness.safeToTest)&&!blockers.length&&!warnings.length&&fresh;
+  const safeMode=releaseReadiness.mode==='sandbox'&&releaseReadiness.liveCjOrdersEnabled===false&&releaseReadiness.readyForLive===false&&releaseReadiness.verification==='configuration-only';
+  const ready=Boolean(releaseReadiness.safeToTest)&&safeMode&&!blockers.length&&!warnings.length&&fresh;
   st.className=ready?'connectionState ok':'connectionState ng';
   st.textContent=ready?'テストOK':fresh?'要確認':'再確認';
   const base=blockers.length
@@ -572,7 +573,7 @@ function finalTestGateState(){
   const keys=['shopify','webhook','order','tracking','sync','duplicate'];
   const testsComplete=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
   const testsFresh=keys.every(k=>testTimestampIsFresh(testProgress.timestamps?.[k]));
-  const releaseOk=Boolean(releaseReadiness&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length);
+  const releaseOk=Boolean(releaseReadiness&&releaseReadiness.mode==='sandbox'&&releaseReadiness.liveCjOrdersEnabled===false&&releaseReadiness.readyForLive===false&&releaseReadiness.verification==='configuration-only'&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length);
   const reconciliationOk=Boolean(reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0);
   const cjCheckedTime=new Date(cjCheckedAt||0).getTime();
   const runtimeCjOk=Boolean(cjConnected&&Number.isFinite(cjCheckedTime)&&(Date.now()-cjCheckedTime)<=24*60*60*1000);
@@ -728,8 +729,11 @@ async function checkReleaseReadiness(){
     const r=await fetch('/api/release-readiness',{headers:{Authorization:'Bearer '+key}});
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'公開準備チェックに失敗しました');
+    if(j.mode!=='sandbox'||j.liveCjOrdersEnabled!==false||j.readyForLive!==false||j.verification!=='configuration-only'){
+      throw new Error('公開準備APIの安全モードを確認できません');
+    }
     releaseReadiness=j;
-    releaseReadinessCheckedAt=new Date().toISOString();
+    releaseReadinessCheckedAt=String(j.checkedAt||new Date().toISOString());
     localStorage.setItem('aiBuyerReleaseReadiness',JSON.stringify(j));
     localStorage.setItem('aiBuyerReleaseCheckedAt',releaseReadinessCheckedAt);
     const blockers=Array.isArray(j.blockers)?j.blockers:[];
