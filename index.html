@@ -578,13 +578,28 @@ function finalTestGateState(){
   const runtimeOk=runtimeCjOk&&runtimeShopOk&&runtimeOrderOk;
   return {releaseOk,testsComplete,testsFresh,reconciliationOk,runtimeCjOk,runtimeShopOk,runtimeOrderOk,runtimeOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk&&runtimeOk};
 }
+function nextTestStepLabel(){
+  const steps=[
+    ['shopify','Shopify再認証'],
+    ['webhook','Webhook確認'],
+    ['order','CJ注文照合'],
+    ['tracking','CJ追跡確認'],
+    ['sync','Shopify追跡同期'],
+    ['duplicate','二重同期防止']
+  ];
+  for(const [key,label] of steps){
+    if(!testProgress[key])return label;
+    if(!testTimestampIsFresh(testProgress.timestamps?.[key]))return label+'（再確認）';
+  }
+  return '主要テスト';
+}
 function nextReadinessLabel(){
   const g=finalTestGateState();
   if(!g.runtimeCjOk)return '次: CJ接続を確認';
   if(!g.runtimeShopOk)return '次: Shopify接続を確認';
   if(!g.runtimeOrderOk)return '次: Webhook状態を確認';
   if(!g.releaseOk)return '次: 公開準備を確認';
-  if(!g.testsComplete||!g.testsFresh)return '次: 主要テストを確認';
+  if(!g.testsComplete||!g.testsFresh)return '次: '+nextTestStepLabel();
   if(!g.reconciliationOk)return '次: 要照合キューを確認';
   return 'すべて確認済み';
 }
