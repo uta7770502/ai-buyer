@@ -340,6 +340,11 @@ function renderTestChecklist(){
     return '<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small>'+checked+'</div>'+status+'</div>';
   }).join('');
 }
+function releaseCheckIsFresh(){
+  if(!releaseReadinessCheckedAt)return false;
+  const t=new Date(releaseReadinessCheckedAt).getTime();
+  return Number.isFinite(t)&&(Date.now()-t)<=24*60*60*1000;
+}
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
   const orderText=String(document.getElementById('orderAutoState')?.textContent||'');
@@ -355,14 +360,16 @@ function renderAutomationDashboard(){
     ['⑤','返品・キャンセル',returnAudit?'直近'+(returnAudit.orders||[]).length+'注文を安全監査済み':'注文状態・CJ状態を確認して安全判定',returnAudit?'test':orderTest?'test':'wait',returnAudit?'監査済':orderTest?'安全モード':'待機'],
     ['⑥','公開準備ゲート',
       releaseReadiness
-        ?((releaseReadiness.blockers||[]).length
-          ?'不足: '+releaseReadiness.blockers.join(', ')
-          :(releaseReadiness.warnings||[]).length
-            ?'警告: '+releaseReadiness.warnings.join(', ')
-            :releaseReadiness.safeToTest?'安全にサンドボックステスト可能':'設定確認が必要')
+        ?(!releaseCheckIsFresh()
+          ?'公開準備チェックが24時間以上前です'
+          :(releaseReadiness.blockers||[]).length
+            ?'不足: '+releaseReadiness.blockers.join(', ')
+            :(releaseReadiness.warnings||[]).length
+              ?'警告: '+releaseReadiness.warnings.join(', ')
+              :releaseReadiness.safeToTest?'安全にサンドボックステスト可能':'設定確認が必要')
         :'公開準備チェック未実行',
-      releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'ok':'wait',
-      releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'テストOK':'要確認'],
+      releaseReadiness&&releaseCheckIsFresh()&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'ok':'wait',
+      releaseReadiness&&!releaseCheckIsFresh()?'再確認':releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'テストOK':'要確認'],
     ['⑦','完全自動運用ダッシュボード',
       (()=>{
         const keys=['shopify','webhook','order','tracking','sync','duplicate'];
@@ -372,7 +379,7 @@ function renderAutomationDashboard(){
           return !ts||(Date.now()-new Date(ts).getTime())>24*60*60*1000;
         });
         if(allTests&&staleKeys.length)return '再確認が必要: '+staleKeys.join(', ');
-        if(releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests)return '主要サンドボックステスト完了';
+        if(releaseReadiness&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests)return '主要サンドボックステスト完了';
         return '本番完全自動運用はまだ開始していません';
       })(),
       (()=>{
@@ -382,7 +389,7 @@ function renderAutomationDashboard(){
           const ts=testProgress.timestamps?.[k];
           return Boolean(ts)&&(Date.now()-new Date(ts).getTime())<=24*60*60*1000;
         });
-        return allFresh&&releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests?'test':'wait';
+        return allFresh&&releaseReadiness&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests?'test':'wait';
       })(),
       (()=>{
         const keys=['shopify','webhook','order','tracking','sync','duplicate'];
@@ -391,7 +398,7 @@ function renderAutomationDashboard(){
           const ts=testProgress.timestamps?.[k];
           return Boolean(ts)&&(Date.now()-new Date(ts).getTime())<=24*60*60*1000;
         });
-        return allFresh&&releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests?'テスト完了':allTests&&!allFresh?'再確認':'未完了';
+        return allFresh&&releaseReadiness&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests?'テスト完了':allTests&&!allFresh?'再確認':'未完了';
       })()]
   ];
   box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>';
@@ -445,6 +452,8 @@ async function checkReleaseReadiness(){
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'公開準備チェックに失敗しました');
     releaseReadiness=j;
+    releaseReadinessCheckedAt=new Date().toISOString();
+    localStorage.setItem('aiBuyerReleaseCheckedAt',releaseReadinessCheckedAt);
     const blockers=Array.isArray(j.blockers)?j.blockers:[];
     if(st){
       const warnings=Array.isArray(j.warnings)?j.warnings:[];
@@ -454,13 +463,14 @@ async function checkReleaseReadiness(){
     }
     if(meta){
       const warnings=Array.isArray(j.warnings)?j.warnings:[];
-      meta.textContent=blockers.length
+      const base=blockers.length
         ?'不足: '+blockers.join(', ')
         :warnings.length
           ?'警告: '+warnings.join(', ')
           :j.safeToTest
             ?'安全にサンドボックステスト可能 / 本番CJ注文はOFF'
             :'設定確認が必要です';
+      meta.textContent=base+' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP');
     }
     renderAutomationDashboard();
   }catch(e){
@@ -529,6 +539,7 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
 }
 function maybeDailyMonitor(){if(monitorSettings.daily!=='on')return;const last=localStorage.getItem('aiBuyerLastMonitorAt');if(!last||Date.now()-new Date(last).getTime()>=30*60*1000)runMarketMonitor(true)}
 let releaseReadiness=null;
+let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
 let testCjOrderId='';
 let testShopifyOrderNumericId='';
 let testTrackingNumber='';
