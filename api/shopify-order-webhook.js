@@ -108,8 +108,7 @@ export default async function handler(req,res){
       orderFlow:1,
       products
     };
-    const shop=str(req.headers['x-shopify-shop-domain'],255).toLowerCase();
-    if(!/^[a-z0-9][a-z0-9.-]*\.myshopify\.com$/.test(shop))return res.status(400).json({ok:false,error:'Invalid Shopify shop domain'});
+    const shop=webhookShop;
     const reserved=await reserveOrder(shop,String(order.id));
     if(!reserved)return res.status(200).json({ok:true,skipped:true,reason:'Order already reserved or processed'});
     // A timeout or network error may mean CJ accepted the order. Never auto-retry
