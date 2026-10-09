@@ -230,6 +230,9 @@ async function loadReconciliationSummary(){
     reconciliationCriticalCount=Number(q.critical||0);
     reconciliationReviewCount=Number(q.review||0);
     reconciliationLoadedCount=Number(q.total||0);
+    localStorage.setItem('aiBuyerReconciliationSummaryChecked','true');
+    localStorage.setItem('aiBuyerReconciliationSummaryCheckedAt',reconciliationSummaryCheckedAt);
+    localStorage.setItem('aiBuyerReconciliationSummary',JSON.stringify({critical:reconciliationCriticalCount,review:reconciliationReviewCount,total:reconciliationLoadedCount,partial:Boolean(q.partial)}));
     if(el){
       el.className=reconciliationCriticalCount>0?'tiny fail':reconciliationReviewCount>0?'tiny':'tiny pass';
       el.textContent=(reconciliationLoadedCount===0&&!q.partial
@@ -239,6 +242,7 @@ async function loadReconciliationSummary(){
     renderAutomationDashboard();
   }catch(e){
     reconciliationSummaryChecked=false;
+    localStorage.setItem('aiBuyerReconciliationSummaryChecked','false');
     if(el){el.className='tiny fail';el.textContent=e.message||'全体照合サマリーを取得できません'}
     renderAutomationDashboard();
   }
@@ -732,8 +736,16 @@ let reconciliationRequestVersion=0;
 let reconciliationSeen=new Set();
 let reconciliationCriticalCount=0;
 let reconciliationReviewCount=0;
-let reconciliationSummaryChecked=false;
-let reconciliationSummaryCheckedAt='';
+let reconciliationSummaryChecked=localStorage.getItem('aiBuyerReconciliationSummaryChecked')==='true';
+let reconciliationSummaryCheckedAt=localStorage.getItem('aiBuyerReconciliationSummaryCheckedAt')||'';
+try{
+  const saved=JSON.parse(localStorage.getItem('aiBuyerReconciliationSummary')||'null');
+  if(saved){
+    reconciliationCriticalCount=Number(saved.critical||0);
+    reconciliationReviewCount=Number(saved.review||0);
+    reconciliationLoadedCount=Number(saved.total||0);
+  }
+}catch{}
 let releaseReadiness=(()=>{try{const saved=JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null');return saved?.checkVersion===2?saved:null}catch{return null}})();
 let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
 let testCjOrderId='';
