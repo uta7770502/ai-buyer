@@ -19,6 +19,7 @@ This application must **not** be considered ready for live, unattended fulfillme
 | `CJ_ORDER_LIMIT_CURRENCY` | ISO currency matching Shopify orders, e.g. `JPY` |
 | `CJ_MAX_FREIGHT_USD` | Mandatory positive maximum CJ freight quote, denominated in USD |
 | `CJ_SANDBOX_ORDER_ENABLED` | Set to `true` **only** for controlled sandbox tests |
+| `SHOPIFY_FULFILLMENT_SYNC_ENABLED` | Explicit opt-in for Shopify tracking/fulfillment synchronization; keep unset until manual tests pass |
 
 Do not expose secrets through client-side variables, repository files, screenshots or logs. Keep `CJ_ALLOW_REAL_SHOPIFY_ORDERS_IN_SANDBOX` unset during initial testing.
 
@@ -32,7 +33,8 @@ Do not expose secrets through client-side variables, repository files, screensho
 6. Use a Shopify test order with a verified CJ variant ID, supported shipping address, currency and limits. Verify exactly one sandbox CJ order exists even after duplicate webhook delivery.
 7. Query `GET /api/automation-order-status?shop=<shop>&orderId=<id>` with the admin key; verify the CJ order ID or a review-needed state.
 8. Inspect `GET /api/automation-reconciliation` with the admin key. If `partial: true`, do not treat the list as exhaustive. Investigate every uncertain order manually; **never automatically retry an ambiguous CJ creation**.
-9. Keep real payment, CJ live order creation, Shopify fulfillment updates and customer tracking notifications disabled until end-to-end integration tests and operational controls pass.
+9. Keep real payment and CJ live order creation disabled. Keep `SHOPIFY_FULFILLMENT_SYNC_ENABLED` unset until manual tracking-sync tests pass with a Shopify test order.
+10. Before enabling fulfillment sync, verify duplicate requests are skipped by Redis idempotency and ambiguous Shopify responses are left in `needs_review` rather than retried automatically.
 
 ## Known blockers
 
