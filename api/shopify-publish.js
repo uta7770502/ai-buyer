@@ -5,6 +5,23 @@ async function gql(shop,token,query,variables={}){
   const j=await r.json();if(!r.ok||j.errors?.length)throw Error(j.errors?.[0]?.message||'Shopify API request failed');return j.data;
 }
 function clean(v,max=5000){return String(v||'').replace(/[<>]/g,'').trim().slice(0,max)}
+function aioMetafields(p,ownerId,title,description){
+  const rows=[];
+  const audience=clean(p.adpsAudience||p.audience,500);
+  const summary=clean(p.adpsSummary||p.summary||description,2000);
+  const reasons=Array.isArray(p.adpsWhy||p.why)?(p.adpsWhy||p.why):String(p.adpsWhy||p.why||'').split(/\r?\n|\|/);
+  const why=reasons.map(x=>clean(x,500)).filter(Boolean).slice(0,6).join('\n');
+  if(audience)rows.push({ownerId,namespace:'custom',key:'adps_audience',type:'single_line_text_field',value:audience});
+  if(summary)rows.push({ownerId,namespace:'custom',key:'adps_summary',type:'multi_line_text_field',value:summary});
+  if(why)rows.push({ownerId,namespace:'custom',key:'adps_why',type:'multi_line_text_field',value:why});
+  const shippingPrice=Number(p.shippingPriceJpy);
+  if(Number.isFinite(shippingPrice)&&shippingPrice>=0)rows.push({ownerId,namespace:'custom',key:'shipping_price_jpy',type:'number_decimal',value:String(shippingPrice)});
+  const shippingCountry=clean(p.shippingCountry,2).toUpperCase();
+  if(/^[A-Z]{2}$/.test(shippingCountry))rows.push({ownerId,namespace:'custom',key:'shipping_country',type:'single_line_text_field',value:shippingCountry});
+  const returnDays=Number(p.returnDays);
+  if(Number.isInteger(returnDays)&&returnDays>0&&returnDays<=365)rows.push({ownerId,namespace:'custom',key:'return_days',type:'number_integer',value:String(returnDays)});
+  return rows;
+}
 let cjCache={token:'',expiresAt:0};
 async function cjToken(){
   if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
@@ -254,9 +271,19 @@ export default async function handler(req,res){
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
     const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),sku:cj.vid}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
+    const metafields=aioMetafields(p,ce.product.id,title,description);
+    let metadataReady=true,metadataErrors=[];
+    if(metafields.length){
+      const meta=await gql(shop,token,'mutation SetAioMetafields($metafields:[MetafieldsSetInput!]!){ metafieldsSet(metafields:$metafields){ metafields{id namespace key value} userErrors{field message code} } }',{metafields});
+      metadataErrors=(meta.metafieldsSet?.userErrors||[]).map(x=>x.message);
+      metadataReady=metadataErrors.length===0;
+    }
+    // AIO/GEO metadata is part of the publication gate. Keep the product draft
+    // if Shopify rejected the metadata instead of publishing incomplete content.
+    if(!metadataReady)return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
-    if(p.publishApproved!==true||!livePublishEnabled)return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
+    if(p.publishApproved!==true||!livePublishEnabled)return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
     // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
@@ -267,6 +294,6 @@ export default async function handler(req,res){
     const publish=await gql(shop,token,'mutation Publish($id: ID!, $input: [PublicationInput!]!) { publishablePublish(id:$id, input:$input) { userErrors { field message } } }',{id:ce.product.id,input:[{publicationId:target.id}]});
     const errs=publish.publishablePublish?.userErrors||[];
     if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
-    return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:true,publicationConfigured:true,publicationName:target.name,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
+    return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:true,metadataReady:true,publicationConfigured:true,publicationName:target.name,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'Shopify自動出品に失敗しました'})}
 }
