@@ -1,0 +1,54 @@
+import crypto from 'crypto';
+const BASE='https://developers.cjdropshipping.com/api2.0/v1';
+export const config={api:{bodyParser:false}};
+let tokenCache={token:'',expiresAt:0};
+async function readRaw(req){const chunks=[];for await(const c of req)chunks.push(Buffer.isBuffer(c)?c:Buffer.from(c));return Buffer.concat(chunks)}
+function validHmac(raw,hmac,secret){if(!hmac||!secret)return false;const digest=crypto.createHmac('sha256',secret).update(raw).digest('base64');const a=Buffer.from(digest),b=Buffer.from(String(hmac));return a.length===b.length&&crypto.timingSafeEqual(a,b)}
+async function cjToken(){if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;if(tokenCache.token&&Date.now()<tokenCache.expiresAt-60000)return tokenCache.token;if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');const r=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY})});const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');tokenCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return tokenCache.token}
+function str(v,n=200){return String(v||'').trim().slice(0,n)}
+export default async function handler(req,res){
+  if(req.method!=='POST')return res.status(405).end();
+  try{
+    const raw=await readRaw(req);
+    const secret=String(process.env.SHOPIFY_CLIENT_SECRET||'');
+    if(!validHmac(raw,req.headers['x-shopify-hmac-sha256'],secret))return res.status(401).json({ok:false,error:'Invalid Shopify webhook signature'});
+    const order=JSON.parse(raw.toString('utf8')||'{}'),addr=order.shipping_address||{};
+    const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number(x.quantity)>0);
+    if(!lines.length)return res.status(200).json({ok:true,skipped:true,reason:'CJ SKU/variant mapping not found'});
+    const countryCode=str(addr.country_code,2).toUpperCase();
+    if(!countryCode||!addr.city||!addr.address1||!addr.name)return res.status(200).json({ok:true,skipped:true,reason:'Shipping address incomplete'});
+    const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
+    const products=lines.slice(0,20).map(x=>({vid:str(x.sku,100),quantity:Math.max(1,Math.min(50,Number(x.quantity)||1)),storeLineItemId:str(x.id,125)}));
+    const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
+    const fq=await freight.json();
+    if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
+    const opts=(Array.isArray(fq.data)?fq.data:[]).map(x=>({name:str(x.logisticName,50),usd:Number(x.totalPostageFee??x.logisticPrice),days:str(x.logisticAging,50)})).filter(x=>x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
+    if(!opts.length)throw Error('CJ配送方法が見つかりません');
+    const chosen=opts[0];
+    const body={
+      orderNumber:'SHOP-'+str(order.id,40),
+      shippingZip:str(addr.zip,20),
+      shippingCountry:str(addr.country,50)||countryCode,
+      shippingCountryCode:countryCode,
+      shippingProvince:str(addr.province,50)||'-',
+      shippingCity:str(addr.city,50),
+      shippingPhone:str(addr.phone||order.phone,20),
+      shippingCustomerName:str(addr.name,50),
+      shippingAddress:str(addr.address1,200),
+      shippingAddress2:str(addr.address2,200),
+      email:str(order.email,50),
+      remark:'AI BUYER Shopify order '+str(order.name,50),
+      payType:3,
+      isSandbox:1,
+      logisticName:chosen.name,
+      fromCountryCode:'CN',
+      platform:'shopify',
+      orderFlow:1,
+      products
+    };
+    const cr=await fetch(BASE+'/shopping/order/createOrderV2',{method:'POST',headers,body:JSON.stringify(body)});
+    const cj=await cr.json();
+    if(!cr.ok||cj.result!==true)throw Error(cj.message||'CJ sandbox order creation failed');
+    return res.status(200).json({ok:true,sandbox:true,cjOrderId:cj.data?.orderId||'',cjOrderNumber:cj.data?.orderNumber||'',logisticName:chosen.name});
+  }catch(e){return res.status(500).json({ok:false,error:e.message||'CJ自動発注処理に失敗しました'})}
+}
