@@ -818,12 +818,9 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
       x.shopifySyncAt=new Date().toISOString();
       addOps('Shopify同期',x.name+' を自動停止');
     }else if(!monitorStop&&x.shopifySyncState==='stopped'&&x.testDecision!=='stop'){
-      const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'resume',productId:x.shopifyProductId})});
-      const j=await r.json();
-      if(!r.ok||!j.ok)throw new Error(j.error||'Shopify販売再開に失敗しました');
-      x.shopifySyncState='active';
+      x.shopifySyncState='resume_review';
       x.shopifySyncAt=new Date().toISOString();
-      addOps('Shopify同期',x.name+' を自動再開');
+      addOps('Shopify同期',x.name+' は再開条件を満たしましたが、本番再公開は要承認のため保留');
     }
     const currentPrice=Number(x.price||0);
     const cost=Math.round(Number(ev.price||x.costUsd||0)*fx);
@@ -864,7 +861,7 @@ try{
     reconciliationLoadedCount=Number(saved.total||0);
   }
 }catch{}
-let releaseReadiness=(()=>{try{const saved=JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null');return saved?.checkVersion===2?saved:null}catch{return null}})();
+let releaseReadiness=(()=>{try{const saved=JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null');return saved?.checkVersion===3&&saved?.safetyContract==='sandbox-v1'?saved:null}catch{return null}})();
 let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
 let testCjOrderId='';
 let testShopifyOrderNumericId='';
