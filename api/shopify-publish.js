@@ -213,6 +213,7 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true,audit:true,mode:'safe',orders,counts});
     }
     const syncAction=String(p.syncAction||'').toLowerCase();
+    const livePublishEnabled=process.env.SHOPIFY_LIVE_PUBLISH_ENABLED==='true';
     if(['stop','resume','price'].includes(syncAction)){
       const productId=String(p.productId||''),variantId=String(p.variantId||''),syncPrice=Number(p.price);
       if(!productId)return res.status(400).json({ok:false,error:'Shopify商品IDが必要です'});
@@ -221,6 +222,9 @@ export default async function handler(req,res){
         const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
         const errs=d.productVariantsBulkUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
         return res.status(200).json({ok:true,sync:true,action:'price',price:Math.round(syncPrice)});
+      }
+      if(syncAction==='resume'&&(!livePublishEnabled||p.resumeApproved!==true)){
+        return res.status(403).json({ok:false,error:'Shopify live publishing is locked; explicit server opt-in and resume approval are required'});
       }
       const status=syncAction==='stop'?'DRAFT':'ACTIVE';
       const d=await gql(shop,token,'mutation UpdateProduct($product: ProductUpdateInput!) { productUpdate(product:$product) { product { id status } userErrors { field message } } }',{product:{id:productId,status}});
@@ -247,7 +251,7 @@ export default async function handler(req,res){
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
-    if(p.publishApproved!==true)return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
+    if(p.publishApproved!==true||!livePublishEnabled)return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
     // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
