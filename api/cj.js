@@ -3,13 +3,15 @@ import cjFreight from '../lib/routes/cj-freight.js';
 import cjMonitor from '../lib/routes/cj-monitor.js';
 import cjRisk from '../lib/routes/cj-risk.js';
 import cjSearch from '../lib/routes/cj-search.js';
+import cjOrderTracking from '../lib/routes/cj-order-tracking.js';
 
 const handlers={
   'detail':cjDetail,
   'freight':cjFreight,
   'monitor':cjMonitor,
   'risk':cjRisk,
-  'search':cjSearch
+  'search':cjSearch,
+  'order-tracking':cjOrderTracking
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');
