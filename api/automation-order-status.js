@@ -25,7 +25,7 @@ export default async function handler(req,res){
     const data=await response.json();
     if(data.error)throw Error('Order database rejected query');
     const state=data.result===null?'not_found':String(data.result);
-    const status=state==='reserved'?'pending_reconciliation':state.startsWith('created:')?'sandbox_created':state==='not_found'?'not_found':'unknown';
+    const status=state==='reserved'||state.startsWith('needs_review:')?'pending_reconciliation':state.startsWith('created:')?'sandbox_created':state==='not_found'?'not_found':'unknown';
     // No customer name, address, API token or Shopify line items in the response.
     return res.status(200).json({ok:true,shop,orderId,status,needsReview:status==='pending_reconciliation',sandbox:true});
   }catch{
