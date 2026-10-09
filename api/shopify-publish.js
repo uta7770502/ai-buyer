@@ -30,6 +30,53 @@ export default async function handler(req,res){
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const p=req.body||{};
+    if(p.safeCancelOrder===true){
+      const orderId=String(p.orderId||'');
+      if(!/^gid:\/\/shopify\/Order\/\d+$/.test(orderId))return res.status(400).json({ok:false,error:'Shopify注文IDが不正です'});
+
+      const od=await gql(shop,token,'query OrderForSafeCancel($id: ID!) { order(id:$id) { id name cancelledAt displayFinancialStatus displayFulfillmentStatus } }',{id:orderId});
+      const o=od.order;
+      if(!o)return res.status(404).json({ok:false,error:'Shopify注文が見つかりません'});
+      const fin=String(o.displayFinancialStatus||''),ful=String(o.displayFulfillmentStatus||'');
+
+      if(o.cancelledAt)return res.status(409).json({ok:false,error:'この注文はすでにキャンセル済みです'});
+      if(!['VOIDED','EXPIRED'].includes(fin))return res.status(409).json({ok:false,error:'安全条件NG：決済状態 '+fin+' は自動キャンセル対象外です'});
+      if(!['UNFULFILLED','OPEN','PENDING_FULFILLMENT','ON_HOLD',''].includes(ful))return res.status(409).json({ok:false,error:'安全条件NG：発送状態 '+ful+' は自動キャンセル対象外です'});
+
+      const numericId=orderId.split('/').pop(),storeOrder='SHOP-'+numericId;
+      let cjStatus='',cjFound=false;
+      try{
+        const access=await cjToken();
+        const rr=await fetch('https://developers.cjdropshipping.com/api2.0/v1/shopping/order/getOrderDetailBatch',{
+          method:'POST',
+          headers:{'CJ-Access-Token':access,'Content-Type':'application/json'},
+          body:JSON.stringify({orderIds:[storeOrder]})
+        });
+        const jj=await rr.json();
+        if(rr.ok&&jj?.result===true){
+          const arr=Array.isArray(jj.data)?jj.data:(Array.isArray(jj.data?.list)?jj.data.list:[]);
+          const cjo=arr[0]||null;
+          if(cjo){cjFound=true;cjStatus=String(cjo.orderStatus||cjo.status||'').toUpperCase()}
+        }
+      }catch(_e){}
+
+      if(cjFound&&!['CREATED','IN_CART','UNPAID','CANCELLED',''].includes(cjStatus)){
+        return res.status(409).json({ok:false,error:'安全条件NG：CJ状態 '+cjStatus+' のため自動キャンセル禁止です'});
+      }
+
+      const d=await gql(shop,token,'mutation SafeCancel($orderId: ID!, $notifyCustomer: Boolean!, $refundMethod: OrderCancelRefundMethodInput!, $restock: Boolean!, $reason: OrderCancelReason!, $staffNote: String) { orderCancel(orderId:$orderId, notifyCustomer:$notifyCustomer, refundMethod:$refundMethod, restock:$restock, reason:$reason, staffNote:$staffNote) { job { id done } orderCancelUserErrors { field message code } userErrors { field message } } }',{
+        orderId,
+        notifyCustomer:true,
+        refundMethod:{originalPaymentMethodsRefund:false},
+        restock:true,
+        reason:'INVENTORY',
+        staffNote:'AI BUYER safe cancellation: unpaid/voided order, unfulfilled, CJ not shipped.'
+      });
+      const out=d.orderCancel||{},errs=[...(out.orderCancelUserErrors||[]),...(out.userErrors||[])];
+      if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
+      return res.status(200).json({ok:true,cancelled:true,orderId,name:o.name,financialStatus:fin,fulfillmentStatus:ful,cjFound,cjStatus,jobId:out.job?.id||'',jobDone:Boolean(out.job?.done)});
+    }
+
     if(p.orderAudit===true){
       const data=await gql(shop,token,'query RecentOrders { orders(first:20, reverse:true) { nodes { id name createdAt cancelledAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } lineItems(first:20) { nodes { name quantity sku } } } } }');
       const shopOrders=data.orders?.nodes||[];
