@@ -241,9 +241,32 @@ let cart=[];
 const yen=n=>'¥'+Number(n).toLocaleString('ja-JP');
 function card(p,rank=''){const rating=p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}）`:''}</div>`:'';return `<article class="product" id="${p.id}" data-category="${p.category||''}" data-price="${p.price}" data-audience="${p.audience||''}"><div class="thumb" onclick="openProduct('${p.id}')"><img src="${p.img}" alt="${p.name}"><button class="heart" onclick="event.stopPropagation();this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button>${rank?`<span class="rank">${rank}</span>`:''}<span class="tag">AI PICK</span></div><h3>${p.name}</h3><div class="price">${yen(p.price)}</div>${rating}<div class="meta" style="margin-top:6px">${p.category||'ライフスタイル'} ・ ${p.audience||'一般向け'}</div></article>`}
 function render(){document.getElementById('pickGrid').innerHTML=products.slice(0,5).map(p=>card(p)).join('');document.getElementById('trendGrid').innerHTML=products.slice(5,10).map((p,i)=>card(p,i+1)).join('')}
-function openProduct(id){const p=products.find(x=>x.id===id);if(!p)return;document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2>${p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}件のレビュー）`:''}</div>`:''}<div class="detailPrice">${yen(p.price)}</div><div class="meta" style="margin:8px 0 14px"><b>カテゴリ：</b>${p.category||'ライフスタイル'}<br><b>おすすめ：</b>${p.audience||'一般向け'}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+function setProductSeo(p){
+  const base='https://ai-buyer-nine.vercel.app/shop';
+  const url=base+'?product='+encodeURIComponent(p.id);
+  document.title=p.name+' | ADPS PICKS';
+  const canonical=document.querySelector('link[rel="canonical"]');if(canonical)canonical.href=url;
+  const ogTitle=document.querySelector('meta[property="og:title"]');if(ogTitle)ogTitle.content=p.name+' | ADPS PICKS';
+  const ogDesc=document.querySelector('meta[property="og:description"]');if(ogDesc)ogDesc.content=p.summary||p.why?.join('。')||'ADPS PICKSが選んだ商品';
+  const ogUrl=document.querySelector('meta[property="og:url"]');if(ogUrl)ogUrl.content=url;
+  let node=document.getElementById('adps-product-page-schema');
+  if(node)node.remove();
+  node=document.createElement('script');node.type='application/ld+json';node.id='adps-product-page-schema';
+  node.textContent=JSON.stringify({"@context":"https://schema.org","@type":"WebPage","name":p.name+' | ADPS PICKS',"url":url,"mainEntity":productStructuredData({...p,url})});
+  document.head.appendChild(node);
+}
+function resetStoreSeo(){
+  document.title='ADPS PICKS — AIが選ぶ、今ちょっと気になるもの';
+  const base='https://ai-buyer-nine.vercel.app/shop';
+  const canonical=document.querySelector('link[rel="canonical"]');if(canonical)canonical.href=base;
+  const ogTitle=document.querySelector('meta[property="og:title"]');if(ogTitle)ogTitle.content='ADPS PICKS — AIが選ぶ、今ちょっと気になるもの';
+  const ogDesc=document.querySelector('meta[property="og:description"]');if(ogDesc)ogDesc.content='AIがトレンド・価格・使いやすさ・話題性から選ぶオンラインセレクトショップ。';
+  const ogUrl=document.querySelector('meta[property="og:url"]');if(ogUrl)ogUrl.content=base;
+  const node=document.getElementById('adps-product-page-schema');if(node)node.remove();
+}
+function openProduct(id,options={}){const p=products.find(x=>x.id===id);if(!p)return;setProductSeo(p);if(options.history!==false){const u=new URL(location.href);u.searchParams.set('product',p.id);history.pushState({product:p.id},'',u)}document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2>${p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}件のレビュー）`:''}</div>`:''}<div class="detailPrice">${yen(p.price)}</div><div class="meta" style="margin:8px 0 14px"><b>カテゴリ：</b>${p.category||'ライフスタイル'}<br><b>おすすめ：</b>${p.audience||'一般向け'}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div>
 <div class="why"><h4>WHO IT'S FOR</h4><p>${p.audience||'日常を少し便利にしたい人'}</p><h4 style="margin-top:14px">ABOUT THIS ITEM</h4><p>${p.summary||p.name}</p></div></div></div>`;document.getElementById('productModal').classList.add('open')}
-function closeProduct(){document.getElementById('productModal').classList.remove('open')}
+function closeProduct(options={}){document.getElementById('productModal').classList.remove('open');resetStoreSeo();if(options.history!==false){const u=new URL(location.href);u.searchParams.delete('product');history.pushState({},'',u)}}
 function addCart(id){const p=products.find(x=>x.id===id);const row=cart.find(x=>x.id===id);if(row)row.qty++;else cart.push({...p,qty:1});renderCart();openCart()}
 function renderCart(){const root=document.getElementById('cartItems');root.innerHTML=cart.length?cart.map(p=>`<div class="cartRow"><img src="${p.img}"><div><b>${p.name}</b><div>${yen(p.price)}</div><div class="qty"><button onclick="changeQty('${p.id}',-1)">−</button><span>${p.qty}</span><button onclick="changeQty('${p.id}',1)">＋</button></div></div><button class="close" onclick="removeCart('${p.id}')">×</button></div>`).join(''):'<p style="color:#777">カートは空です。</p>';const count=cart.reduce((a,b)=>a+b.qty,0),total=cart.reduce((a,b)=>a+b.qty*b.price,0);document.getElementById('cartCount').textContent='('+count+')';document.getElementById('cartTotal').textContent=yen(total)}
 function changeQty(id,d){const x=cart.find(p=>p.id===id);if(!x)return;x.qty+=d;if(x.qty<=0)cart=cart.filter(p=>p.id!==id);renderCart()}
@@ -275,12 +298,14 @@ async function loadShopifyProducts(){
     render();
     renderCart();
     renderStructuredData();
+    openRequestedProduct();
   }catch{
     products=[...demoProducts];
     usingAuthoritativeProducts=false;
     render();
     renderCart();
     renderStructuredData();
+    openRequestedProduct();
   }
 }
 
@@ -394,7 +419,16 @@ function renderStructuredData(){
   });
   document.head.appendChild(script);
 }
-render();renderCart();renderStructuredData();loadShopifyProducts();
+function openRequestedProduct(){
+  const id=new URLSearchParams(location.search).get('product');
+  if(id&&products.some(p=>p.id===id))openProduct(id,{history:false});
+}
+addEventListener('popstate',()=>{
+  const id=new URLSearchParams(location.search).get('product');
+  if(id&&products.some(p=>p.id===id))openProduct(id,{history:false});
+  else{document.getElementById('productModal').classList.remove('open');resetStoreSeo()}
+});
+render();renderCart();renderStructuredData();openRequestedProduct();loadShopifyProducts();
 </script>
 </body>
 </html>
