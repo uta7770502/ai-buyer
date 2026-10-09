@@ -6,6 +6,29 @@ async function readRaw(req){const chunks=[];for await(const c of req)chunks.push
 function validHmac(raw,hmac,secret){if(!hmac||!secret)return false;const digest=crypto.createHmac('sha256',secret).update(raw).digest('base64');const a=Buffer.from(digest),b=Buffer.from(String(hmac));return a.length===b.length&&crypto.timingSafeEqual(a,b)}
 async function cjToken(){if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;if(tokenCache.token&&Date.now()<tokenCache.expiresAt-60000)return tokenCache.token;if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');const r=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY})});const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');tokenCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return tokenCache.token}
 function str(v,n=200){return String(v||'').trim().slice(0,n)}
+// Persistent, atomic order reservation. Never expire automatically: uncertain CJ outcomes
+// must be reconciled manually instead of allowing a duplicate purchase.
+async function reserveOrder(shop,orderId){
+  const url=process.env.UPSTASH_REDIS_REST_URL;
+  const token=process.env.UPSTASH_REDIS_REST_TOKEN;
+  if(!url||!token)throw Error('Durable idempotency storage is not configured');
+  const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
+  const r=await fetch(url.replace(/\\/$/,'')+'/set/'+encodeURIComponent(key)+'/'+encodeURIComponent('reserved')+'?NX=true',{
+    headers:{Authorization:'Bearer '+token},method:'GET'
+  });
+  if(!r.ok)throw Error('Idempotency store unavailable');
+  const j=await r.json();
+  if(j.error)throw Error('Idempotency store rejected reservation');
+  return j.result==='OK';
+}
+async function markOrder(shop,orderId,status){
+  const url=process.env.UPSTASH_REDIS_REST_URL;
+  const token=process.env.UPSTASH_REDIS_REST_TOKEN;
+  const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
+  const r=await fetch(url.replace(/\\/$/,'')+'/set/'+encodeURIComponent(key)+'/'+encodeURIComponent(status),{headers:{Authorization:'Bearer '+token}});
+  if(!r.ok)throw Error('Failed to persist order state');
+}
+
 export default async function handler(req,res){
   if(req.method!=='POST')return res.status(405).end();
   try{
@@ -53,9 +76,14 @@ export default async function handler(req,res){
       orderFlow:1,
       products
     };
+    const shop=str(req.headers['x-shopify-shop-domain'],255).toLowerCase();
+    if(!/^[a-z0-9][a-z0-9.-]*\\.myshopify\\.com$/.test(shop))return res.status(400).json({ok:false,error:'Invalid Shopify shop domain'});
+    const reserved=await reserveOrder(shop,String(order.id));
+    if(!reserved)return res.status(200).json({ok:true,skipped:true,reason:'Order already reserved or processed'});
     const cr=await fetch(BASE+'/shopping/order/createOrderV2',{method:'POST',headers,body:JSON.stringify(body)});
     const cj=await cr.json();
     if(!cr.ok||cj.result!==true)throw Error(cj.message||'CJ sandbox order creation failed');
+    await markOrder(shop,String(order.id),'created:'+str(cj.data?.orderId||cj.data?.orderNumber||'unknown',100));
     return res.status(200).json({ok:true,sandbox:true,cjOrderId:cj.data?.orderId||'',cjOrderNumber:cj.data?.orderNumber||'',logisticName:chosen.name});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'CJ自動発注処理に失敗しました'})}
 }
