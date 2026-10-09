@@ -15,8 +15,9 @@ export default async function handler(req,res){
     const j=await r.json();if(j.error)throw Error('Order store rejected query');return j.result;
   };
   try{
-    let cursor='0';const found=[];let scanned=0;let truncated=false;
+    let cursor='0';const found=[];let scanned=0;let truncated=false;let pages=0;
     do{
+      pages++;
       const result=await call(['SCAN',cursor,'MATCH','ai-buyer:cj-sandbox:*','COUNT','100']);
       if(!Array.isArray(result)||result.length!==2)throw Error('Unexpected scan result');
       cursor=String(result[0]);
@@ -30,8 +31,8 @@ export default async function handler(req,res){
         }
       }
       scanned+=keys.length;
-    }while(cursor!=='0'&&scanned<1000&&!truncated);
-    if(scanned>=1000||found.length>=100)truncated=true;
-    return res.status(200).json({ok:true,orders:found,partial:cursor!=='0'||truncated,scanned,sandbox:true,automaticRetry:false});
+    }while(cursor!=='0'&&scanned<1000&&pages<10&&!truncated);
+    if(scanned>=1000||pages>=10||found.length>=100)truncated=true;
+    return res.status(200).json({ok:true,orders:found,partial:cursor!=='0'||truncated,scanned,pages,sandbox:true,automaticRetry:false});
   }catch{return res.status(503).json({ok:false,error:'Reconciliation queue unavailable'});}
 }
