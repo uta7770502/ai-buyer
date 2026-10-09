@@ -72,6 +72,7 @@ export default async function handler(req,res){
       const amount=Number(v.price?.amount||0);
       return {
         id:String(p.handle||p.id||''),
+        productId:String(p.id||''),
         title:String(p.title||''),
         description:String(p.description||''),
         productType:String(p.productType||''),
