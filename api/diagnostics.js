@@ -15,7 +15,7 @@ const handlers={
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');
-  const selected=handlers[action];
+  const selected=Object.hasOwn(handlers,action)?handlers[action]:null;
   if(!selected)return res.status(404).json({ok:false,error:'Unknown diagnostic route'});
   return selected(req,res);
 }

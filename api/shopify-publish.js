@@ -29,6 +29,8 @@ export default async function handler(req,res){
   try{
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'');
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
+    const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+    if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowed)||shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     const p=req.body||{};
     if(p.adHealth===true){
       const metaAccountId=String(process.env.META_AD_ACCOUNT_ID||'').replace(/^act_/,'');

@@ -57,7 +57,7 @@ export default async function handler(req,res){
     const maxOrderValue=Number(process.env.CJ_MAX_ORDER_VALUE);
     const orderValue=Number(order.current_total_price??order.total_price);
     const totalItems=lines.reduce((sum,x)=>sum+Number(x.quantity),0);
-    if(!Number.isFinite(maxItems)||maxItems<=0||!Number.isFinite(maxOrderValue)||maxOrderValue<=0)
+    if(!Number.isSafeInteger(maxItems)||maxItems<=0||!Number.isFinite(maxOrderValue)||maxOrderValue<=0)
       return res.status(503).json({ok:false,error:'CJ order safety limits are not configured'});
     // Shopify order amounts are denominated in the order currency. Never compare
     // unconverted amounts against a limit configured for a different currency.
@@ -65,7 +65,7 @@ export default async function handler(req,res){
     const orderCurrency=String(order.currency||'').toUpperCase();
     if(!/^[A-Z]{3}$/.test(allowedCurrency)||orderCurrency!==allowedCurrency)
       return res.status(422).json({ok:false,error:'Order currency does not match configured spending-limit currency'});
-    if(order.test!==true&&process.env.CJ_ALLOW_REAL_SHOPIFY_ORDERS_IN_SANDBOX!=='true')
+    if(order.test!==true)
       return res.status(422).json({ok:false,error:'Only Shopify test orders are accepted by default'});
     if(!Number.isFinite(orderValue)||orderValue<0||!Number.isSafeInteger(totalItems)||totalItems>maxItems||orderValue>maxOrderValue)
       return res.status(422).json({ok:false,error:'Order exceeds safety limits or has invalid totals'});
