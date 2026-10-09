@@ -345,6 +345,27 @@ function releaseCheckIsFresh(){
   const t=new Date(releaseReadinessCheckedAt).getTime();
   return Number.isFinite(t)&&(Date.now()-t)<=24*60*60*1000;
 }
+function hydrateReleaseReadinessUI(){
+  const st=document.getElementById('releaseReadyState'),meta=document.getElementById('releaseReadyMeta');
+  if(!st||!meta)return;
+  if(!releaseReadiness){
+    st.className='connectionState';st.textContent='未確認';meta.textContent='未確認';return;
+  }
+  const blockers=Array.isArray(releaseReadiness.blockers)?releaseReadiness.blockers:[];
+  const warnings=Array.isArray(releaseReadiness.warnings)?releaseReadiness.warnings:[];
+  const fresh=releaseCheckIsFresh();
+  const ready=Boolean(releaseReadiness.safeToTest)&&!blockers.length&&!warnings.length&&fresh;
+  st.className=ready?'connectionState ok':'connectionState ng';
+  st.textContent=ready?'テストOK':fresh?'要確認':'再確認';
+  const base=blockers.length
+    ?'不足: '+blockers.join(', ')
+    :warnings.length
+      ?'警告: '+warnings.join(', ')
+      :releaseReadiness.safeToTest
+        ?'安全にサンドボックステスト可能 / 本番CJ注文はOFF'
+        :'設定確認が必要です';
+  meta.textContent=base+(releaseReadinessCheckedAt?' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP'):'')+(fresh?'':' / 24時間以上経過');
+}
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
   const orderText=String(document.getElementById('orderAutoState')?.textContent||'');
@@ -646,5 +667,5 @@ async function openDetail(id){modal.classList.add('on');detail.innerHTML='<div c
 function addDetailCandidate(p){if(!findActive(p.id)){active.push({...p,price:suggestedPrice(p.costUsd),qty:12,status:'candidate'});save()}closeModal();renderAll();if(results.length)applyFilters();showCandidateToast('販売候補に保存しました')}
 function closeModal(){modal.classList.remove('on')}
 function showPage(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('.nav button')[id==='recommend'?1:id==='profit'?2:0].classList.add('on');scrollTo(0,0)}
-q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderMonitor();renderAutomationDashboard();renderReturnAudit();setTimeout(checkConnection,700);setTimeout(checkShopify,900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setInterval(maybeDailyMonitor,30*60*1000);
+q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderMonitor();hydrateReleaseReadinessUI();renderAutomationDashboard();renderReturnAudit();setTimeout(checkConnection,700);setTimeout(checkShopify,900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setInterval(maybeDailyMonitor,30*60*1000);
 </script></body></html>
