@@ -338,10 +338,18 @@ function renderTestChecklist(){
     ?'<div class="tiny" style="margin:7px 0 3px">最終更新: '+new Date(testProgress.updatedAt).toLocaleString('ja-JP')+'</div>'
     :'';
   box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+stamp+steps.map((x,i)=>{
-    const ts=testProgress.timestamps?.[stepKeys[i]];
+    const key=stepKeys[i];
+    const ts=testProgress.timestamps?.[key];
     const stale=Boolean(ts)&&(Date.now()-new Date(ts).getTime())>24*60*60*1000;
-    const status=x[5]&&!stale?'<span class="autoState auto-ok">OK</span>':x[5]&&stale?'<span class="autoState auto-wait">再確認</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">'+x[4]+'</span>';
-    const checked=ts?'<small>確認: '+new Date(ts).toLocaleString('ja-JP')+'</small>':'';
+    const pending={
+      shopify:'Shopify権限を再確認してください',
+      webhook:'ORDERS_PAID Webhookを確認してください',
+      order:'Shopifyテスト注文→CJ照合を実行してください',
+      sync:'CJ追跡番号を取得してShopify同期を実行してください',
+      duplicate:'同じ追跡番号で二重同期防止を確認してください'
+    }[key]||'確認が必要です';
+    const status=x[5]&&!stale?'<span class="autoState auto-ok">OK</span>':x[5]&&stale?'<span class="autoState auto-wait">再確認</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">未完了</span>';
+    const checked=ts?'<small>確認: '+new Date(ts).toLocaleString('ja-JP')+'</small>':'<small>'+pending+'</small>';
     return '<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small>'+checked+'</div>'+status+'</div>';
   }).join('');
 }
