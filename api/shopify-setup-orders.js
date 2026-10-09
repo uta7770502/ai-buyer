@@ -16,10 +16,10 @@ export default async function handler(req,res){
     const nodes=existing.webhookSubscriptions?.nodes||[];
     const found=nodes.find(x=>x.topic==='ORDERS_PAID'&&x.uri===uri);
     const stale=nodes.filter(x=>x.topic==='ORDERS_PAID'&&x.uri!==uri).map(x=>({id:x.id,uri:x.uri}));
-    if(found)return res.status(200).json({ok:true,created:false,id:found.id,uri,topic:'ORDERS_PAID',verified:true,exactUriMatch:true,staleSubscriptions:stale});
+    if(found)return res.status(200).json({ok:true,created:false,id:found.id,uri,topic:'ORDERS_PAID',verified:true,exactUriMatch:true,staleSubscriptions:stale,staleCount:stale.length});
     const data=await gql(shop,token,'mutation Create($topic: WebhookSubscriptionTopic!, $input: WebhookSubscriptionInput!) { webhookSubscriptionCreate(topic:$topic, webhookSubscription:$input) { webhookSubscription { id topic uri } userErrors { field message } } }',{topic:'ORDERS_PAID',input:{uri}});
     const out=data.webhookSubscriptionCreate,errs=out?.userErrors||[];
     if(errs.length||!out?.webhookSubscription)throw Error(errs.map(x=>x.message).join(' / ')||'Webhook登録に失敗しました');
-    return res.status(200).json({ok:true,created:true,id:out.webhookSubscription.id,uri,topic:'ORDERS_PAID',verified:true,exactUriMatch:true,staleSubscriptions:stale});
+    return res.status(200).json({ok:true,created:true,id:out.webhookSubscription.id,uri,topic:'ORDERS_PAID',verified:true,exactUriMatch:true,staleSubscriptions:stale,staleCount:stale.length});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'自動発注Webhook設定に失敗しました'})}
 }
