@@ -218,7 +218,7 @@ async function syncTestTrackingToShopify(){
     if(!r.ok||!j.ok)throw new Error(j.error||'Shopify追跡同期に失敗しました');
     if(result)result.textContent=j.skipped?'重複同期をスキップしました':'Shopify追跡同期OK / Fulfillment: '+(j.fulfillmentId||'—');
     const btn=document.getElementById('testSyncBtn');if(btn)btn.style.display='none';
-    testProgress.sync=!j.skipped;
+    testProgress.sync=!j.skipped;saveTestProgress();
     const dup=document.getElementById('testDuplicateBtn');if(dup)dup.style.display='block';
     renderTestChecklist();
   }catch(e){if(result)result.textContent=e.message||'Shopify追跡同期に失敗しました'}
@@ -244,7 +244,7 @@ async function verifyDuplicateTrackingSync(){
     });
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'二重同期確認に失敗しました');
-    testProgress.duplicate=Boolean(j.skipped);
+    testProgress.duplicate=Boolean(j.skipped);saveTestProgress();
     if(result)result.textContent=j.skipped?'OK：同じ追跡同期は重複実行されません':'要確認：重複防止結果を確認できませんでした';
     renderTestChecklist();
   }catch(e){if(result)result.textContent=e.message||'二重同期確認に失敗しました'}
@@ -263,7 +263,7 @@ async function checkTestTracking(){
       if(j.trackingNumber){
         testTrackingNumber=String(j.trackingNumber);
         testTrackingCompany=String(j.logisticName||'');
-        testProgress.tracking=true;
+        testProgress.tracking=true;saveTestProgress();
         result.textContent='配送状況: '+(j.orderStatus||'不明')+' / 追跡番号: '+testTrackingNumber+(testTrackingCompany?' / '+testTrackingCompany:'');
         const btn=document.getElementById('testSyncBtn');if(btn)btn.style.display='block';
       }else{
@@ -289,7 +289,7 @@ async function checkTestOrder(){
     if(result){
       if(j.status==='sandbox_created'&&j.cjOrderId){
         testCjOrderId=String(j.cjOrderId);
-        testProgress.order=true;
+        testProgress.order=true;saveTestProgress();
         result.textContent='CJサンドボックス注文確認済み / CJ ID: '+testCjOrderId;
         const btn=document.getElementById('testTrackingBtn');if(btn)btn.style.display='block';
       }else{
@@ -423,8 +423,8 @@ async function checkReleaseReadiness(){
   }
 }
 async function checkConnection(){const st=document.getElementById('connectionState'),meta=document.getElementById('connectionMeta');if(st){st.className='connectionState';st.textContent='確認中'}try{const r=await fetch('/api/cj-health');const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'接続失敗');if(st){st.className='connectionState ok';st.textContent='接続OK'}if(meta)meta.textContent=`${j.mode==='api-key'?'API Key':'Access Token'} / ${j.latencyMs}ms / ${new Date(j.checkedAt).toLocaleString('ja-JP')}`;localStorage.setItem('aiBuyerConnectionLastOk',j.checkedAt);setTimeout(maybeDailyScan,150)}catch(e){if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'接続失敗'}}
-async function checkShopify(forceAuth=false){const st=document.getElementById('shopifyState'),meta=document.getElementById('shopifyMeta');if(st){st.className='connectionState';st.textContent='確認中'}try{const r=await fetch('/api/shopify-health');const j=await r.json();shopifyConnected=Boolean(r.ok&&j.ok);if(shopifyConnected){const missing=j.missingScopes||[];testProgress.shopify=missing.length===0;if(st){st.className=missing.length?'connectionState ng':'connectionState ok';st.textContent=missing.length?'権限不足':'接続OK'}if(meta)meta.textContent=(j.shop||j.domain||'Shopify')+' / '+Number(j.latencyMs||0)+'ms'+(missing.length?' / 不足: '+missing.join(', '):' / 権限OK');renderAutomationDashboard();if(forceAuth&&missing.length){location.href='/api/shopify-auth';return}}else if(j.authRequired){if(st){st.className='connectionState ng';st.textContent='認証必要'}if(meta)meta.textContent='Shopify認証を実行してください';if(forceAuth)location.href='/api/shopify-auth'}else{if(st){st.className='connectionState ng';st.textContent='未接続'}if(meta)meta.textContent=j.error||'Shopify未接続'}}catch(e){shopifyConnected=false;if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'Shopify接続失敗'}}
-async function setupOrderAutomation(){const st=document.getElementById('orderAutoState'),meta=document.getElementById('orderAutoMeta');if(st){st.className='connectionState';st.textContent='設定中'}try{const hr=await fetch('/api/shopify-health');const hj=await hr.json();if(!hr.ok||hj.authRequired){location.href='/api/shopify-auth';return}const missing=hj.missingScopes||[];if(missing.length){if(st){st.className='connectionState ng';st.textContent='認証必要'}if(meta)meta.textContent='不足権限: '+missing.join(', ');location.href='/api/shopify-auth';return}const r=await fetch('/api/shopify-setup-orders',{method:'POST'});const j=await r.json();if(j.authRequired){location.href='/api/shopify-auth';return}if(!r.ok||!j.ok)throw new Error(j.error||'自動発注設定に失敗しました');if(st){st.className='connectionState ok';st.textContent='テスト稼働'}if(meta)meta.textContent='Shopify注文→CJサンドボックス発注 / '+(j.created?'Webhook登録済':'Webhook確認済');testProgress.webhook=Boolean(j.verified);renderAutomationDashboard()}catch(e){if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'自動発注設定に失敗しました'}}
+async function checkShopify(forceAuth=false){const st=document.getElementById('shopifyState'),meta=document.getElementById('shopifyMeta');if(st){st.className='connectionState';st.textContent='確認中'}try{const r=await fetch('/api/shopify-health');const j=await r.json();shopifyConnected=Boolean(r.ok&&j.ok);if(shopifyConnected){const missing=j.missingScopes||[];testProgress.shopify=missing.length===0;saveTestProgress();if(st){st.className=missing.length?'connectionState ng':'connectionState ok';st.textContent=missing.length?'権限不足':'接続OK'}if(meta)meta.textContent=(j.shop||j.domain||'Shopify')+' / '+Number(j.latencyMs||0)+'ms'+(missing.length?' / 不足: '+missing.join(', '):' / 権限OK');renderAutomationDashboard();if(forceAuth&&missing.length){location.href='/api/shopify-auth';return}}else if(j.authRequired){if(st){st.className='connectionState ng';st.textContent='認証必要'}if(meta)meta.textContent='Shopify認証を実行してください';if(forceAuth)location.href='/api/shopify-auth'}else{if(st){st.className='connectionState ng';st.textContent='未接続'}if(meta)meta.textContent=j.error||'Shopify未接続'}}catch(e){shopifyConnected=false;if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'Shopify接続失敗'}}
+async function setupOrderAutomation(){const st=document.getElementById('orderAutoState'),meta=document.getElementById('orderAutoMeta');if(st){st.className='connectionState';st.textContent='設定中'}try{const hr=await fetch('/api/shopify-health');const hj=await hr.json();if(!hr.ok||hj.authRequired){location.href='/api/shopify-auth';return}const missing=hj.missingScopes||[];if(missing.length){if(st){st.className='connectionState ng';st.textContent='認証必要'}if(meta)meta.textContent='不足権限: '+missing.join(', ');location.href='/api/shopify-auth';return}const r=await fetch('/api/shopify-setup-orders',{method:'POST'});const j=await r.json();if(j.authRequired){location.href='/api/shopify-auth';return}if(!r.ok||!j.ok)throw new Error(j.error||'自動発注設定に失敗しました');if(st){st.className='connectionState ok';st.textContent='テスト稼働'}if(meta)meta.textContent='Shopify注文→CJサンドボックス発注 / '+(j.created?'Webhook登録済':'Webhook確認済');testProgress.webhook=Boolean(j.verified);saveTestProgress();renderAutomationDashboard()}catch(e){if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'自動発注設定に失敗しました'}}
 
 function shopifyDescription(p){const name=esc(p.name||'');const category=esc(p.category||'');return '<p>'+name+'</p>'+(category?'<p>カテゴリー: '+category+'</p>':'')+'<p>ご注文後、仕入先の在庫・価格・配送状況を確認して手配します。</p>'}
 async function autoPublishCandidate(x){if(!x){showCandidateToast('商品情報を取得できませんでした');return}if(!shopifyConnected){showCandidateToast('Shopify接続を確認してください');return}if(x.shopifyProductId){showCandidateToast('この商品はShopifyへ出品済みです');return}const risk=catalogRisk(x);if(risk.exclude){showCandidateToast('出品停止：'+(risk.reasons[0]||risk.label||'高リスク商品'));return}if(!hasValidShipping(x)){showCandidateToast('出品停止：CJ送料が未確定です');return}if(Number(x.price)<=0){showCandidateToast('出品停止：販売価格が未設定です');return}try{x.shopifyPublishState='publishing';save();renderAll();const images=[x.image,...(Array.isArray(x.images)?x.images:[])].filter(Boolean);const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:x.id,cjProductId:x.id,name:x.name,title:x.name,descriptionHtml:shopifyDescription(x),vendor:'AI BUYER',price:Number(x.price),images})});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'Shopify出品に失敗しました');x.shopifyProductId=j.productId;x.shopifyVariantId=j.variantId;x.shopifyHandle=j.handle;x.cjVariantId=j.cjVariantId||x.cjVariantId;x.cjVariantSku=j.cjVariantSku||x.cjVariantSku;x.shopifyPublished=Boolean(j.published);x.shopifyPublishState=j.published?'published':'created';x.shopifyPublishedAt=new Date().toISOString();save();addOps('Shopify出品',x.name+' を'+(j.published?'公開しました':'商品作成しました'));renderAll()}catch(e){x.shopifyPublishState='error';x.shopifyPublishError=e.message||'Shopify出品に失敗しました';save();addOps('Shopify出品エラー',x.name+'：'+x.shopifyPublishError);renderAll()}}
@@ -485,7 +485,8 @@ let testCjOrderId='';
 let testShopifyOrderNumericId='';
 let testTrackingNumber='';
 let testTrackingCompany='';
-let testProgress={shopify:false,webhook:false,order:false,tracking:false,sync:false,duplicate:false};
+let testProgress=(()=>{try{return {...{shopify:false,webhook:false,order:false,tracking:false,sync:false,duplicate:false},...JSON.parse(localStorage.getItem('aiBuyerTestProgress')||'{}')}}catch{return {shopify:false,webhook:false,order:false,tracking:false,sync:false,duplicate:false}}})();
+function saveTestProgress(){localStorage.setItem('aiBuyerTestProgress',JSON.stringify(testProgress))}
 let profitFilter='all';
 function setProfitFilter(value){profitFilter=['all','profitable','loss','missing'].includes(value)?value:'all';renderAll()}
 function hasValidShipping(x){return x.shippingJpy!==undefined&&x.shippingJpy!==null&&String(x.shippingJpy).trim()!==''&&Number.isFinite(Number(x.shippingJpy))&&Number(x.shippingJpy)>=0&&Number(x.shippingJpy)<=10000000}
