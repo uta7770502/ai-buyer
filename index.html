@@ -772,7 +772,7 @@ async function checkShopify(forceAuth=false){const st=document.getElementById('s
   orderMeta.textContent=j.ordersPaidWebhookReady
     ?'ORDERS_PAID Webhook確認済み'
     :j.hasExactOrdersPaidWebhook&&stale
-      ?'正しいWebhookあり / 古いWebhook '+stale+'件: '+staleRows.map(x=>x.uri).join(' , ')+'（Shopify管理画面で確認）'
+      ?'正しいWebhook: '+(j.expectedWebhookUri||'未取得')+' / 古いWebhook '+stale+'件: '+staleRows.map(x=>x.uri).join(' , ')+'（Shopify管理画面で古い方を確認）'
       :'ORDERS_PAID Webhook未確認';
 }
 testProgress.webhook=Boolean(j.ordersPaidWebhookReady);
