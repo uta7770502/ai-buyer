@@ -134,13 +134,25 @@ async function runReturnAudit(){
     renderAutomationDashboard();
   }catch(e){if(sum)sum.textContent=e.message||'注文監査に失敗しました';if(box)box.innerHTML=''}
 }
+async function runSafeCancel(orderId,name){
+  if(!confirm((name||'この注文')+'を安全キャンセルしますか？\n未発送・未決済・CJ未出荷をサーバー側で再確認してから実行します。'))return;
+  try{
+    const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({safeCancelOrder:true,orderId})});
+    const j=await r.json();
+    if(j.authRequired){location.href='/api/shopify-auth';return}
+    if(!r.ok||!j.ok)throw new Error(j.error||'安全キャンセルに失敗しました');
+    addOps('安全キャンセル',(j.name||name||'注文')+' をキャンセル要求 / Job '+(j.jobId||'—'));
+    await runReturnAudit();
+    alert('安全条件を再確認し、Shopifyへキャンセル要求を送信しました。');
+  }catch(e){alert(e.message||'安全キャンセルに失敗しました')}
+}
 function renderReturnAudit(){
   const sum=document.getElementById('returnAuditSummary'),box=document.getElementById('returnAuditRows');
   if(!sum||!box)return;
   if(!returnAudit){sum.textContent='まだ監査していません。';box.innerHTML='';return}
   const c=returnAudit.counts||{},orders=returnAudit.orders||[];
   sum.textContent='直近 '+orders.length+'注文 / 要確認 '+(c['要確認']||0)+' / キャンセル候補 '+(c['キャンセル候補']||0)+' / 保留 '+(c['保留']||0)+' / 返金済 '+(c['返金済']||0)+'。実返金・実キャンセルはまだ実行しません。';
-  box.innerHTML=orders.slice(0,10).map(o=>'<div class="budgetRank"><div style="flex:1"><b>'+esc(o.name||'注文')+'</b><div class="allocMeta">'+esc(o.reason||'')+'<br>Shopify: '+esc(o.financialStatus||'')+' / '+esc(o.fulfillmentStatus||'')+'<br>CJ: '+esc(o.cjFound?(o.cjStatus||'状態不明'):'未検出')+(o.cjOrderId?' / '+esc(o.cjOrderId):'')+'</div></div><div style="text-align:right"><b>'+esc(o.state||'確認')+'</b><div class="tiny">'+esc(o.safeAction==='cancel_candidate'?'自動実行候補':o.safeAction==='hold'?'保留':'手動確認')+'</div></div></div>').join('');
+  box.innerHTML=orders.slice(0,10).map(o=>{const canRun=o.safeAction==='cancel_candidate'&&['VOIDED','EXPIRED'].includes(String(o.financialStatus||''));return '<div class="budgetRank"><div style="flex:1"><b>'+esc(o.name||'注文')+'</b><div class="allocMeta">'+esc(o.reason||'')+'<br>Shopify: '+esc(o.financialStatus||'')+' / '+esc(o.fulfillmentStatus||'')+'<br>CJ: '+esc(o.cjFound?(o.cjStatus||'状態不明'):'未検出')+(o.cjOrderId?' / '+esc(o.cjOrderId):'')+'</div></div><div style="text-align:right"><b>'+esc(o.state||'確認')+'</b><div class="tiny">'+esc(canRun?'安全キャンセル可':o.safeAction==='cancel_candidate'?'候補・手動確認':o.safeAction==='hold'?'保留':'手動確認')+'</div>'+(canRun?'<button class="secondary" style="margin-top:6px;padding:7px 9px" onclick="runSafeCancel(\''+js(o.id)+'\',\''+js(o.name||'注文')+'\')">安全キャンセル</button>':'')+'</div></div>'}).join('');
 }
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
