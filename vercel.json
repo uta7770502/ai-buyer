@@ -39,6 +39,10 @@
     {
       "source": "/api/shopify-fulfillment-sync",
       "destination": "/api/diagnostics?action=shopify-fulfillment-sync"
+    },
+    {
+      "source": "/api/release-readiness",
+      "destination": "/api/diagnostics?action=release-readiness"
     }
   ]
 }
