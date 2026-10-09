@@ -10,7 +10,7 @@ export default async function handler(req,res){
     const j=await r.json();
     if(!r.ok||j.errors?.length||!j.data?.shop)throw Error(j.errors?.[0]?.message||'Shopify接続に失敗しました');
     const scopes=(j.data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle);
-    const required=['read_products','write_products','read_publications','write_publications'];
+    const required=['read_products','write_products','read_publications','write_publications','read_orders'];
     const missingScopes=required.filter(x=>!scopes.includes(x));
     return res.status(200).json({ok:true,configured:true,shop:j.data.shop.name,domain:j.data.shop.myshopifyDomain,latencyMs:Date.now()-started,checkedAt:new Date().toISOString(),scopes,missingScopes,publicationCount:(j.data.publications?.nodes||[]).length,publicationNames:(j.data.publications?.nodes||[]).map(x=>x.name)});
   }catch(e){return res.status(401).json({ok:false,authRequired:true,error:e.message||'Shopify再認証が必要です'})}
