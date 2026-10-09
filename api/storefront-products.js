@@ -102,7 +102,8 @@ export default async function handler(req,res){
             currencyCode:String(v.price?.currencyCode||'JPY')
           }
         },
-        authoritative:true
+        authoritative:true,
+        aioReady:Boolean(String(p.adpsSummary?.value||'').trim()&&String(p.audience?.value||'').trim()&&String(p.adpsWhy?.value||'').trim())
       };
     }).filter(p=>p.id&&p.title&&p.variant.price.amount>0);
 
@@ -110,6 +111,8 @@ export default async function handler(req,res){
       ok:true,
       source:'shopify-storefront',
       authoritative:true,
+      aioReadyCount:products.filter(p=>p.aioReady).length,
+      aioMissingCount:products.filter(p=>!p.aioReady).length,
       count:products.length,
       checkedAt:new Date().toISOString(),
       products
