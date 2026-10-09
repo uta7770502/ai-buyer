@@ -12,6 +12,7 @@ export default async function handler(req,res){
     sandboxOptIn:process.env.CJ_SANDBOX_ORDER_ENABLED==='true',
     maxItemsPerOrderConfigured:Number.isFinite(Number(process.env.CJ_MAX_ITEMS_PER_ORDER))&&Number(process.env.CJ_MAX_ITEMS_PER_ORDER)>0,
     maxOrderValueConfigured:Number.isFinite(Number(process.env.CJ_MAX_ORDER_VALUE))&&Number(process.env.CJ_MAX_ORDER_VALUE)>0,
+    maxFreightUsdConfigured:Number.isFinite(Number(process.env.CJ_MAX_FREIGHT_USD))&&Number(process.env.CJ_MAX_FREIGHT_USD)>0,
     limitCurrencyConfigured:/^[A-Z]{3}$/.test(String(process.env.CJ_ORDER_LIMIT_CURRENCY||'').toUpperCase())
   };
   let redisReachable=false;
@@ -23,6 +24,6 @@ export default async function handler(req,res){
       redisReachable=r.ok&&j.result==='PONG';
     }catch{}
   }
-  const sandboxReady=checks.shopifyWebhookSecret&&checks.allowedShopConfigured&&checks.cjCredentials&&checks.durableOrderStore&&redisReachable&&checks.sandboxOptIn&&checks.maxItemsPerOrderConfigured&&checks.maxOrderValueConfigured&&checks.limitCurrencyConfigured;
+  const sandboxReady=checks.shopifyWebhookSecret&&checks.allowedShopConfigured&&checks.cjCredentials&&checks.durableOrderStore&&redisReachable&&checks.sandboxOptIn&&checks.maxItemsPerOrderConfigured&&checks.maxOrderValueConfigured&&checks.maxFreightUsdConfigured&&checks.limitCurrencyConfigured;
   return res.status(200).json({ok:true,checks,redisReachable,sandboxReady,liveOrdersEnabled:false,note:'Live fulfillment and payment are not implemented'});
 }
