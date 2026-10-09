@@ -216,6 +216,7 @@ function resetReconciliationView(){
   reconciliationRequestVersion++;
   reconciliationCursor='0';
   reconciliationLoadedCount=0;
+  reconciliationSeen=new Set();
   document.getElementById('reconciliationRows').innerHTML='';
   document.getElementById('reconciliationResult').textContent='未確認';
   document.getElementById('reconciliationNext').style.display='none';
@@ -234,7 +235,12 @@ async function loadReconciliation(reset){
     if(requestVersion!==reconciliationRequestVersion||kind!==document.getElementById('reconciliationKind').value)return;
     if(!r.ok||!j.ok)throw new Error(j.error||'照合一覧を取得できません');
     const reasons={result_unconfirmed:'処理結果が未確定',cj_result_ambiguous:'CJの応答が未確定',cj_rejected:'CJが注文を拒否',missing_cj_order_id:'CJ注文IDが未取得',shopify_result_ambiguous:'Shopifyの応答が未確定',shopify_rejected:'Shopifyが同期を拒否',simulation_result_ambiguous:'模擬配送の結果が未確定'};
-    const rows=j.orders||[];
+    const rows=(j.orders||[]).filter(x=>{
+      const k=String(x.keyHash||'')+'|'+String(x.reason||'');
+      if(reconciliationSeen.has(k))return false;
+      reconciliationSeen.add(k);
+      return true;
+    });
     reconciliationLoadedCount+=rows.length;
     document.getElementById('reconciliationRows').insertAdjacentHTML('beforeend',rows.map(x=>'<div class="tiny" style="margin-top:8px">'+esc(x.keyHash)+'：'+esc(reasons[x.reason]||'手動照合が必要')+'</div>').join(''));
     reconciliationCursor=String(j.nextCursor||'0');
@@ -668,6 +674,7 @@ let testContextVersion=0;
 let reconciliationCursor='0';
 let reconciliationLoadedCount=0;
 let reconciliationRequestVersion=0;
+let reconciliationSeen=new Set();
 let releaseReadiness=(()=>{try{const saved=JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null');return saved?.checkVersion===2?saved:null}catch{return null}})();
 let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
 let testCjOrderId='';
