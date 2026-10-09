@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ADPS PICKS — AIが選ぶ、今ちょっと気になるもの</title>
 <meta name="description" content="ADPS PICKSは、AIがトレンド・価格・使いやすさ・話題性をもとにセレクトした商品を紹介するオンラインストア。ガジェット、ペット、キッチン、トラベル、ゴルフなど、今ちょっと気になるものを見つけられます。">
-<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<!-- Prototype safety: switch to index,follow only after Shopify real product data replaces demo content. -->
+<meta name="robots" content="noindex,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
 <link rel="canonical" href="https://ai-buyer-nine.vercel.app/shop">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ADPS PICKS">
@@ -216,7 +217,7 @@ const products=[
 ];
 let cart=[];
 const yen=n=>'¥'+Number(n).toLocaleString('ja-JP');
-function card(p,rank=''){return `<article class="product"><div class="thumb" onclick="openProduct('${p.id}')"><img src="${p.img}" alt="${p.name}"><button class="heart" onclick="event.stopPropagation();this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button>${rank?`<span class="rank">${rank}</span>`:''}<span class="tag">AI PICK</span></div><h3>${p.name}</h3><div class="price">${yen(p.price)}</div><div class="rating">★ ${p.rating}（${p.reviews}）</div></article>`}
+function card(p,rank=''){return `<article class="product" id="${p.id}"><div class="thumb" onclick="openProduct('${p.id}')"><img src="${p.img}" alt="${p.name}"><button class="heart" onclick="event.stopPropagation();this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button>${rank?`<span class="rank">${rank}</span>`:''}<span class="tag">AI PICK</span></div><h3>${p.name}</h3><div class="price">${yen(p.price)}</div><div class="rating">★ ${p.rating}（${p.reviews}）</div></article>`}
 function render(){document.getElementById('pickGrid').innerHTML=products.slice(0,5).map(p=>card(p)).join('');document.getElementById('trendGrid').innerHTML=products.slice(5,10).map((p,i)=>card(p,i+1)).join('')}
 function openProduct(id){const p=products.find(x=>x.id===id);if(!p)return;document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2><div class="rating">★ ${p.rating}（${p.reviews}件のレビュー）</div><div class="detailPrice">${yen(p.price)}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div></div></div>`;document.getElementById('productModal').classList.add('open')}
 function closeProduct(){document.getElementById('productModal').classList.remove('open')}
@@ -246,8 +247,7 @@ function renderStructuredData(){
             "description":p.why.join('。'),
             "sku":"ADPS-"+p.id.toUpperCase(),
             "brand":{"@type":"Brand","name":"ADPS PICKS"},
-            "aggregateRating":{"@type":"AggregateRating","ratingValue":p.rating,"reviewCount":String(p.reviews).replace(/,/g,'')},
-            "offers":{"@type":"Offer","priceCurrency":"JPY","price":p.price,"availability":"https://schema.org/InStock","url":"https://ai-buyer-nine.vercel.app/shop#"+p.id}
+            "url":"https://ai-buyer-nine.vercel.app/shop#"+p.id
           }
         }))
       },
