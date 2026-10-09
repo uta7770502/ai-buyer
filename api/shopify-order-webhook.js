@@ -116,7 +116,12 @@ export default async function handler(req,res){
       await markOrder(shop,String(order.id),'needs_review:cj_rejected');
       return res.status(202).json({ok:false,needsReview:true,error:'CJ rejected sandbox order; manual reconciliation required'});
     }
-    await markOrder(shop,String(order.id),'created:'+str(cj.data?.orderId||cj.data?.orderNumber||'unknown',100));
+    const confirmedCjId=str(cj.data?.orderId||cj.data?.orderNumber,100);
+    if(!confirmedCjId){
+      await markOrder(shop,String(order.id),'needs_review:missing_cj_order_id');
+      return res.status(202).json({ok:false,needsReview:true,error:'CJ acknowledged order without an identifier; manual reconciliation required'});
+    }
+    await markOrder(shop,String(order.id),'created:'+confirmedCjId);
     return res.status(200).json({ok:true,sandbox:true,cjOrderId:cj.data?.orderId||'',cjOrderNumber:cj.data?.orderNumber||'',logisticName:chosen.name});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'CJ自動発注処理に失敗しました'})}
 }
