@@ -199,7 +199,10 @@ function renderAutomationDashboard(){
     ['④','広告自動運用',adTest?'出稿・増減・停止を自動判定（実課金なし）':'広告自動運用OFF',adTest?'test':'wait',adTest?'テスト稼働':'OFF'],
     ['⑤','返品・キャンセル',returnAudit?'直近'+(returnAudit.orders||[]).length+'注文を安全監査済み':'注文状態・CJ状態を確認して安全判定',returnAudit?'test':orderTest?'test':'wait',returnAudit?'監査済':orderTest?'安全モード':'待機'],
     ['⑥','公開準備ゲート',releaseReadiness?(releaseReadiness.blockers?.length?'不足: '+releaseReadiness.blockers.join(', '):'サンドボックス準備OK'):'公開準備チェック未実行',releaseReadiness?(releaseReadiness.blockers?.length?'wait':'ok'):'wait',releaseReadiness?(releaseReadiness.blockers?.length?'要確認':'準備OK'):'未確認'],
-    ['⑦','完全自動運用ダッシュボード','①〜⑥の状態を一括表示','ok','稼働']
+    ['⑦','完全自動運用ダッシュボード',
+      releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'主要テスト準備が整っています':'本番完全自動運用はまだ開始していません',
+      releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'test':'wait',
+      releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'テスト準備':'未完了']
   ];
   box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>';
 }
