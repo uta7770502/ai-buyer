@@ -49,8 +49,9 @@ export default async function handler(req,res){
     const missingScopes=required.filter(x=>!scopes.includes(x));
     const fulfillmentScopesReady=missingScopes.filter(x=>x.includes('fulfillment_orders')).length===0;
     const fulfillmentSyncOptIn=process.env.SHOPIFY_FULFILLMENT_SYNC_ENABLED==='true';
-    const ordersPaidWebhookReady=paidWebhooks.some(x=>x.topic==='ORDERS_PAID'&&x.uri===expectedWebhookUri);
+    const hasExactOrdersPaidWebhook=paidWebhooks.some(x=>x.topic==='ORDERS_PAID'&&x.uri===expectedWebhookUri);
     const staleOrdersPaidWebhooks=paidWebhooks.filter(x=>x.topic==='ORDERS_PAID'&&x.uri!==expectedWebhookUri).map(x=>({id:x.id,uri:x.uri}));
+    const ordersPaidWebhookReady=hasExactOrdersPaidWebhook&&staleOrdersPaidWebhooks.length===0;
     return res.status(200).json({
       ok:true,configured:true,
       shop:base.shop.name,domain:base.shop.myshopifyDomain,
@@ -60,7 +61,7 @@ export default async function handler(req,res){
       publicationNames:(base.publications?.nodes||[]).map(x=>x.name),
       fulfillmentScopesReady,fulfillmentSyncOptIn,
       fulfillmentSyncReady:fulfillmentScopesReady&&fulfillmentSyncOptIn,
-      ordersPaidWebhookReady,expectedWebhookUri,staleOrdersPaidWebhooks
+      ordersPaidWebhookReady,hasExactOrdersPaidWebhook,expectedWebhookUri,staleOrdersPaidWebhooks
     });
   }catch(e){
     const authRequired=e?.status===401||e?.status===403||/unauthorized|access token|authentication/i.test(String(e?.message||''));
