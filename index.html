@@ -610,7 +610,9 @@ function renderAutomationDashboard(){
           '公開準備 '+(g.releaseOk?'OK':'要確認'),
           '主要テスト '+(g.testsComplete&&g.testsFresh?'OK':g.testsComplete?'再確認':'未完了'),
           '要照合 '+(g.reconciliationOk?'0件':'要確認'),
-          '現在接続 '+(g.runtimeOk?'OK':!g.runtimeCjOk?'CJ確認中/未接続':!g.runtimeShopOk?'Shopify確認中/未接続':'CJ発注設定要確認')
+          'CJ '+(g.runtimeCjOk?'OK':'要確認'),
+          'Shopify '+(g.runtimeShopOk?'OK':'要確認'),
+          'Webhook '+(g.runtimeOrderOk?'OK':'要確認')
         ];
         return parts.join(' / ');
       })(),
