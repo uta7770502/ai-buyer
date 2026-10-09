@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/automation-health",
+      "destination": "/api/diagnostics?action=automation-health"
+    },
+    {
+      "source": "/api/automation-order-status",
+      "destination": "/api/diagnostics?action=automation-order-status"
+    },
+    {
+      "source": "/api/automation-reconciliation",
+      "destination": "/api/diagnostics?action=automation-reconciliation"
+    },
+    {
+      "source": "/api/cj-health",
+      "destination": "/api/diagnostics?action=cj-health"
+    }
+  ]
+}
