@@ -225,6 +225,7 @@ function resetReconciliationView(){
   const kind=document.getElementById('reconciliationKind')?.value||'cj';
   const labels={cj:'CJ発注',fulfillment:'Shopify追跡同期',simulation:'配送シミュレーション'};
   const ctx=document.getElementById('reconciliationContext');if(ctx)ctx.textContent='対象: '+(labels[kind]||kind)+' / 0件取得';
+  renderAutomationDashboard();
 }
 async function loadReconciliation(reset){
   const key=getTestAdminKey();if(!key)return;
@@ -264,7 +265,8 @@ async function loadReconciliation(reset){
       ?'異常なし：要照合の処理はありません'
       :reconciliationLoadedCount+'件確認 / '+(j.partial?'未取得の処理があります。「続きを確認」を押してください。':'照合一覧の取得完了（自動再実行なし）');
     document.getElementById('reconciliationNext').style.display=j.partial?'block':'none';
-  }catch(e){result.className='tiny fail';result.textContent=e.message||'照合一覧を取得できません'}
+    renderAutomationDashboard();
+  }catch(e){result.className='tiny fail';result.textContent=e.message||'照合一覧を取得できません';renderAutomationDashboard()}
 }
 async function syncTestTrackingToShopify(){
   const result=document.getElementById('testTrackingResult');
@@ -504,6 +506,10 @@ function renderAutomationDashboard(){
     ['③','在庫・価格・配送同期',syncProducts?syncProducts+'商品を監視対象':'出品商品から自動監視',shopOk?'ok':'wait',shopOk?'稼働':'待機'],
     ['④','広告自動運用',adTest?'出稿・増減・停止を自動判定（実課金なし）':'広告自動運用OFF',adTest?'test':'wait',adTest?'テスト稼働':'OFF'],
     ['⑤','返品・キャンセル',returnAudit?'直近'+(returnAudit.orders||[]).length+'注文を安全監査済み':'注文状態・CJ状態を確認して安全判定',returnAudit?'test':orderTest?'test':'wait',returnAudit?'監査済':orderTest?'安全モード':'待機'],
+    ['⑤.5','要照合キュー',
+      reconciliationCriticalCount>0?'要対応 '+reconciliationCriticalCount+'件 / 要確認 '+reconciliationReviewCount+'件':reconciliationLoadedCount>0?'要確認 '+reconciliationReviewCount+'件':'要照合一覧は未確認または0件',
+      reconciliationCriticalCount>0?'wait':reconciliationLoadedCount>0?'test':'wait',
+      reconciliationCriticalCount>0?'要対応':reconciliationLoadedCount>0?'確認済':'未確認'],
     ['⑥','公開準備ゲート',
       releaseReadiness
         ?(!releaseCheckIsFresh()
