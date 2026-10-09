@@ -485,6 +485,8 @@ function resetTestProgress(){
   if(!confirm('テスト進捗をすべて未確認に戻します。実行しますか？'))return;
   testContextVersion++;
   testProgress={shopify:false,webhook:false,order:false,tracking:false,sync:false,duplicate:false,timestamps:{}};
+  highlightedTestStep='';
+  invalidateReconciliationSummary();
   saveTestProgress();
   testCjOrderId='';testShopifyOrderNumericId='';testTrackingNumber='';testTrackingCompany='';
   const ids=['testOrderResult','testTrackingResult','testDuplicateResult','testSimulationResult'];
