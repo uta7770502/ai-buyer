@@ -3,13 +3,15 @@ import automationOrderStatus from '../lib/routes/automation-order-status.js';
 import automationReconciliation from '../lib/routes/automation-reconciliation.js';
 import cjHealth from '../lib/routes/cj-health.js';
 import shopifyFulfillmentSync from '../lib/routes/shopify-fulfillment-sync.js';
+import releaseReadiness from '../lib/routes/release-readiness.js';
 
 const handlers={
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,
   'cj-health':cjHealth,
-  'shopify-fulfillment-sync':shopifyFulfillmentSync
+  'shopify-fulfillment-sync':shopifyFulfillmentSync,
+  'release-readiness':releaseReadiness
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');
