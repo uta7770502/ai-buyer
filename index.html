@@ -534,7 +534,8 @@ function renderTestChecklist(){
     }[key]||'確認が必要です';
     const status=x[5]&&!stale?'<span class="autoState auto-ok">OK</span>':x[5]&&stale?'<span class="autoState auto-wait">再確認</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">未完了</span>';
     const checked=latest?'<small>確認: '+new Date(latest).toLocaleString('ja-JP')+'</small>':'<small>'+pending+'</small>';
-    return '<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small>'+checked+'</div>'+status+'</div>';
+    const highlight=highlightedTestStep===key?' style="outline:2px solid currentColor;outline-offset:2px;border-radius:10px"':'';
+    return '<div class="autoStep" data-test-step="'+key+'"'+highlight+'><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small>'+checked+'</div>'+status+'</div>';
   }).join('');
 }
 function testTimestampIsFresh(value){
@@ -578,6 +579,21 @@ function finalTestGateState(){
   const runtimeOk=runtimeCjOk&&runtimeShopOk&&runtimeOrderOk;
   return {releaseOk,testsComplete,testsFresh,reconciliationOk,runtimeCjOk,runtimeShopOk,runtimeOrderOk,runtimeOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk&&runtimeOk};
 }
+let highlightedTestStep='';
+function currentNextTestKey(){
+  const steps=[
+    ['shopify','Shopify再認証'],
+    ['webhook','Webhook確認'],
+    ['order','CJ注文照合'],
+    ['tracking_sync','CJ追跡確認'],
+    ['duplicate','二重同期防止']
+  ];
+  for(const [key] of steps){
+    const keys=key==='tracking_sync'?['tracking','sync']:[key];
+    if(keys.some(k=>!testProgress[k]||!testTimestampIsFresh(testProgress.timestamps?.[k])))return key;
+  }
+  return '';
+}
 function nextTestStepLabel(){
   const steps=[
     ['shopify','Shopify再認証'],
@@ -609,7 +625,7 @@ function runNextReadinessCheck(){
   if(!g.runtimeShopOk){checkShopify(false);return}
   if(!g.runtimeOrderOk){checkShopify(false);return}
   if(!g.releaseOk){checkReleaseReadiness();return}
-  if(!g.testsComplete||!g.testsFresh){renderTestChecklist();document.getElementById('testChecklist')?.scrollIntoView({behavior:'smooth',block:'center'});return}
+  if(!g.testsComplete||!g.testsFresh){highlightedTestStep=currentNextTestKey();renderTestChecklist();document.getElementById('testChecklist')?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>{document.querySelector('[data-test-step="'+highlightedTestStep+'"]')?.scrollIntoView({behavior:'smooth',block:'center'})},250);return}
   if(!g.reconciliationOk){loadReconciliationSummary();return}
   renderTestChecklist();
 }
