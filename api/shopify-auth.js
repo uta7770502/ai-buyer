@@ -2,7 +2,7 @@ import crypto from 'crypto';
 function cfg(){
   const shop=String(process.env.SHOPIFY_SHOP||'').trim().replace(/\.myshopify\.com$/i,'');
   const clientId=String(process.env.SHOPIFY_CLIENT_ID||'').trim();
-  if(!shop||!clientId)throw Error('Shopify環境変数が未設定です');
+  const missing=[];if(!shop)missing.push('SHOPIFY_SHOP');if(!clientId)missing.push('SHOPIFY_CLIENT_ID');if(missing.length)throw Error('未設定: '+missing.join(', '));
   return {shop,clientId};
 }
 export default async function handler(req,res){
