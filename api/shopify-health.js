@@ -12,6 +12,8 @@ export default async function handler(req,res){
     const scopes=(j.data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle);
     const required=['read_products','write_products','read_publications','write_publications','read_orders','write_orders','read_merchant_managed_fulfillment_orders','write_merchant_managed_fulfillment_orders'];
     const missingScopes=required.filter(x=>!scopes.includes(x));
-    return res.status(200).json({ok:true,configured:true,shop:j.data.shop.name,domain:j.data.shop.myshopifyDomain,latencyMs:Date.now()-started,checkedAt:new Date().toISOString(),scopes,missingScopes,publicationCount:(j.data.publications?.nodes||[]).length,publicationNames:(j.data.publications?.nodes||[]).map(x=>x.name)});
+    const fulfillmentScopesReady=missingScopes.filter(x=>x.includes('fulfillment_orders')).length===0;
+    const fulfillmentSyncOptIn=process.env.SHOPIFY_FULFILLMENT_SYNC_ENABLED==='true';
+    return res.status(200).json({ok:true,configured:true,shop:j.data.shop.name,domain:j.data.shop.myshopifyDomain,latencyMs:Date.now()-started,checkedAt:new Date().toISOString(),scopes,missingScopes,publicationCount:(j.data.publications?.nodes||[]).length,publicationNames:(j.data.publications?.nodes||[]).map(x=>x.name),fulfillmentScopesReady,fulfillmentSyncOptIn,fulfillmentSyncReady:fulfillmentScopesReady&&fulfillmentSyncOptIn});
   }catch(e){return res.status(401).json({ok:false,authRequired:true,error:e.message||'Shopify再認証が必要です'})}
 }
