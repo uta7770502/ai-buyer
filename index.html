@@ -359,9 +359,26 @@ function renderAutomationDashboard(){
       releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'ok':'wait',
       releaseReadiness&&releaseReadiness.safeToTest&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length?'テストOK':'要確認'],
     ['⑦','完全自動運用ダッシュボード',
-      releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'主要テスト準備が整っています':'本番完全自動運用はまだ開始していません',
-      releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'test':'wait',
-      releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest?'テスト準備':'未完了']
+      (()=>{
+        const updatedMs=testProgress.updatedAt?new Date(testProgress.updatedAt).getTime():0;
+        const stale=updatedMs>0&&(Date.now()-updatedMs)>24*60*60*1000;
+        const allTests=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
+        if(stale)return 'テスト結果が24時間以上経過しています';
+        if(releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests)return '主要サンドボックステスト完了';
+        return '本番完全自動運用はまだ開始していません';
+      })(),
+      (()=>{
+        const updatedMs=testProgress.updatedAt?new Date(testProgress.updatedAt).getTime():0;
+        const stale=updatedMs>0&&(Date.now()-updatedMs)>24*60*60*1000;
+        const allTests=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
+        return !stale&&releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests?'test':'wait';
+      })(),
+      (()=>{
+        const updatedMs=testProgress.updatedAt?new Date(testProgress.updatedAt).getTime():0;
+        const stale=updatedMs>0&&(Date.now()-updatedMs)>24*60*60*1000;
+        const allTests=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
+        return !stale&&releaseReadiness&&!(releaseReadiness.blockers||[]).length&&shopOk&&orderTest&&allTests?'テスト完了':stale?'再確認':'未完了';
+      })()]
   ];
   box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>';
   renderTestChecklist();
