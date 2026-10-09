@@ -419,11 +419,12 @@ async function checkTestTracking(){
   const context=testContextVersion;
   if(result)result.textContent='CJ追跡情報を確認中…';
   try{
-    const r=await fetch('/api/cj?action=order-tracking&orderId='+encodeURIComponent(testCjOrderId),{headers:{Authorization:'Bearer '+key}});
+    if(!/^\d{1,30}$/.test(testShopifyOrderNumericId))throw new Error('Shopifyテスト注文IDを確認できません');
+    const r=await fetch('/api/cj?action=order-tracking&shopifyOrderId='+encodeURIComponent(testShopifyOrderNumericId),{headers:{Authorization:'Bearer '+key}});
     const j=await r.json();
     if(context!==testContextVersion)return;
     if(!r.ok||!j.ok)throw new Error(j.error||'追跡情報の確認に失敗しました');
-    if(j.sandbox!==true)throw new Error('CJ側のサンドボックス注文を確認できません。追跡同期を停止しました');
+    if(j.sandbox!==true||String(j.cjOrderId||'')!==String(testCjOrderId))throw new Error('Shopify注文に紐づくCJサンドボックス注文を確認できません。追跡同期を停止しました');
     if(result){
       if(j.trackingNumber){
         testTrackingNumber=String(j.trackingNumber);
