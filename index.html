@@ -242,7 +242,12 @@ async function loadReconciliation(reset){
       return true;
     });
     reconciliationLoadedCount+=rows.length;
-    document.getElementById('reconciliationRows').insertAdjacentHTML('beforeend',rows.map(x=>'<div class="tiny" style="margin-top:8px">'+esc(x.keyHash)+'：'+esc(reasons[x.reason]||'手動照合が必要')+'</div>').join(''));
+    document.getElementById('reconciliationRows').insertAdjacentHTML('beforeend',rows.map(x=>{
+      const reason=reasons[x.reason]||'手動照合が必要';
+      const critical=['cj_rejected','shopify_rejected'].includes(x.reason);
+      const badge=critical?'要対応':'要確認';
+      return '<div class="tiny" style="margin-top:8px"><span class="statusDot '+(critical?'status-candidate':'status-test')+'">'+badge+'</span> '+esc(x.keyHash)+'：'+esc(reason)+'</div>';
+    }).join(''));
     reconciliationCursor=String(j.nextCursor||'0');
     result.textContent=reconciliationLoadedCount+'件確認 / '+(j.partial?'未取得の処理があります。「続きを確認」を押してください。':'照合一覧の取得完了（自動再実行なし）');
     document.getElementById('reconciliationNext').style.display=j.partial?'block':'none';
