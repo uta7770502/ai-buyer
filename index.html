@@ -212,6 +212,20 @@ async function prepareSandboxTracking(){
   }catch(e){if(context===testContextVersion&&result)result.textContent=e.message||'シミュレーションを確認できませんでした'}
   finally{if(button)button.disabled=false}
 }
+function hydrateReconciliationSummaryUI(){
+  const el=document.getElementById('reconciliationSummary');if(!el)return;
+  if(!reconciliationSummaryChecked){
+    el.className='tiny';el.textContent='全体未確認';return;
+  }
+  const fresh=reconciliationSummaryIsFresh();
+  if(!fresh){
+    el.className='tiny';el.textContent='再確認：前回の全体照合から24時間以上経過 / 確認: '+new Date(reconciliationSummaryCheckedAt).toLocaleString('ja-JP');return;
+  }
+  el.className=reconciliationCriticalCount>0?'tiny fail':reconciliationReviewCount>0?'tiny':'tiny pass';
+  el.textContent=reconciliationLoadedCount===0
+    ?'異常なし：3種類すべて要照合0件 / 確認: '+new Date(reconciliationSummaryCheckedAt).toLocaleString('ja-JP')
+    :'全体 '+reconciliationLoadedCount+'件 / 要対応 '+reconciliationCriticalCount+' / 要確認 '+reconciliationReviewCount+' / 確認: '+new Date(reconciliationSummaryCheckedAt).toLocaleString('ja-JP');
+}
 function reconciliationSummaryIsFresh(){
   if(!reconciliationSummaryChecked||!reconciliationSummaryCheckedAt)return false;
   const t=new Date(reconciliationSummaryCheckedAt).getTime();
@@ -858,5 +872,5 @@ async function openDetail(id){modal.classList.add('on');detail.innerHTML='<div c
 function addDetailCandidate(p){if(!findActive(p.id)){active.push({...p,price:suggestedPrice(p.costUsd),qty:12,status:'candidate'});save()}closeModal();renderAll();if(results.length)applyFilters();showCandidateToast('販売候補に保存しました')}
 function closeModal(){modal.classList.remove('on')}
 function showPage(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('.nav button')[id==='recommend'?1:id==='profit'?2:0].classList.add('on');scrollTo(0,0)}
-q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderMonitor();hydrateReleaseReadinessUI();renderAutomationDashboard();renderReturnAudit();setTimeout(checkConnection,700);setTimeout(checkShopify,900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setInterval(maybeDailyMonitor,30*60*1000);
+q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderMonitor();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard();renderReturnAudit();setTimeout(checkConnection,700);setTimeout(checkShopify,900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setInterval(maybeDailyMonitor,30*60*1000);
 </script></body></html>
