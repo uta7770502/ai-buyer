@@ -217,6 +217,8 @@ function resetReconciliationView(){
   reconciliationCursor='0';
   reconciliationLoadedCount=0;
   reconciliationSeen=new Set();
+  reconciliationCriticalCount=0;
+  reconciliationReviewCount=0;
   document.getElementById('reconciliationRows').innerHTML='';
   document.getElementById('reconciliationResult').textContent='未確認';
   document.getElementById('reconciliationNext').style.display='none';
@@ -245,8 +247,10 @@ async function loadReconciliation(reset){
       return true;
     });
     reconciliationLoadedCount+=rows.length;
+    reconciliationCriticalCount+=rows.filter(x=>['cj_rejected','shopify_rejected'].includes(x.reason)).length;
+    reconciliationReviewCount+=rows.filter(x=>!['cj_rejected','shopify_rejected'].includes(x.reason)).length;
     const labels={cj:'CJ発注',fulfillment:'Shopify追跡同期',simulation:'配送シミュレーション'};
-    const ctx=document.getElementById('reconciliationContext');if(ctx)ctx.textContent='対象: '+(labels[kind]||kind)+' / '+reconciliationLoadedCount+'件取得';
+    const ctx=document.getElementById('reconciliationContext');if(ctx)ctx.textContent='対象: '+(labels[kind]||kind)+' / '+reconciliationLoadedCount+'件取得 / 要対応 '+reconciliationCriticalCount+' / 要確認 '+reconciliationReviewCount;
     document.getElementById('reconciliationRows').insertAdjacentHTML('beforeend',rows.map(x=>{
       const reason=reasons[x.reason]||'手動照合が必要';
       const critical=['cj_rejected','shopify_rejected'].includes(x.reason);
@@ -689,6 +693,8 @@ let reconciliationCursor='0';
 let reconciliationLoadedCount=0;
 let reconciliationRequestVersion=0;
 let reconciliationSeen=new Set();
+let reconciliationCriticalCount=0;
+let reconciliationReviewCount=0;
 let releaseReadiness=(()=>{try{const saved=JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null');return saved?.checkVersion===2?saved:null}catch{return null}})();
 let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
 let testCjOrderId='';
