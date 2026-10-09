@@ -226,7 +226,8 @@ export default async function handler(req,res){
       if(syncAction==='resume'){
         const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
         const nodes=pubs.publications?.nodes||[];
-        const target=nodes.find(x=>/online store/i.test(String(x.name||'')))||nodes.find(x=>x.autoPublish)||nodes[0];
+        const target=nodes.find(x=>/online store/i.test(String(x.name||'')));
+        if(!target)throw Error('Online Store publication not found; product remains unpublished');
         if(target){
           const pub=await gql(shop,token,'mutation Publish($id: ID!, $input: [PublicationInput!]!) { publishablePublish(id:$id, input:$input) { userErrors { field message } } }',{id:productId,input:[{publicationId:target.id}]});
           const pe=pub.publishablePublish?.userErrors||[];if(pe.length)throw Error(pe.map(x=>x.message).join(' / '));
@@ -249,8 +250,8 @@ export default async function handler(req,res){
     if(activated.productUpdate?.userErrors?.length)throw Error(activated.productUpdate.userErrors.map(x=>x.message).join(' / '));
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
-    const target=nodes.find(x=>/online store/i.test(String(x.name||'')))||nodes.find(x=>x.autoPublish)||nodes[0];
-    if(!target)throw Error('Shopify公開先を取得できませんでした');
+    const target=nodes.find(x=>/online store/i.test(String(x.name||'')));
+    if(!target)throw Error('Online Store公開先を取得できませんでした。商品は下書きとして確認してください');
     const publish=await gql(shop,token,'mutation Publish($id: ID!, $input: [PublicationInput!]!) { publishablePublish(id:$id, input:$input) { userErrors { field message } } }',{id:ce.product.id,input:[{publicationId:target.id}]});
     const errs=publish.publishablePublish?.userErrors||[];
     if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
