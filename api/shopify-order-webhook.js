@@ -100,6 +100,11 @@ export default async function handler(req,res){
     };
     const shop=str(req.headers['x-shopify-shop-domain'],255).toLowerCase();
     if(!/^[a-z0-9][a-z0-9.-]*\.myshopify\.com$/.test(shop))return res.status(400).json({ok:false,error:'Invalid Shopify shop domain'});
+    // An authenticated webhook from a different Shopify shop must never create CJ orders.
+    const allowedShop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+    if(!allowedShop||!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowedShop))
+      return res.status(503).json({ok:false,error:'Allowed Shopify shop is not configured'});
+    if(shop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     const reserved=await reserveOrder(shop,String(order.id));
     if(!reserved)return res.status(200).json({ok:true,skipped:true,reason:'Order already reserved or processed'});
     // A timeout or network error may mean CJ accepted the order. Never auto-retry
