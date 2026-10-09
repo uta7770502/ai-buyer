@@ -35,6 +35,10 @@
     {
       "source": "/api/cj-search",
       "destination": "/api/cj?action=search"
+    },
+    {
+      "source": "/api/shopify-fulfillment-sync",
+      "destination": "/api/diagnostics?action=shopify-fulfillment-sync"
     }
   ]
 }
