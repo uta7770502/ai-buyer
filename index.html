@@ -328,8 +328,12 @@ function renderTestChecklist(){
     ['5','追跡同期確認','追跡番号をShopifyへ反映するテスト','','手動',testProgress.sync],
     ['6','二重実行確認','同じ注文・追跡番号が重複登録されないことを確認','','手動',testProgress.duplicate]
   ];
-  const stamp=testProgress.updatedAt?'<div class="tiny" style="margin:7px 0 3px">最終確認: '+new Date(testProgress.updatedAt).toLocaleString('ja-JP')+'</div>':'';
-  box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+stamp+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small></div>'+(x[5]?'<span class="autoState auto-ok">OK</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">'+x[4]+'</span>')+'</div>').join('');
+  const updatedMs=testProgress.updatedAt?new Date(testProgress.updatedAt).getTime():0;
+  const stale=updatedMs>0&&(Date.now()-updatedMs)>24*60*60*1000;
+  const stamp=testProgress.updatedAt
+    ?'<div class="tiny" style="margin:7px 0 3px">最終確認: '+new Date(testProgress.updatedAt).toLocaleString('ja-JP')+(stale?' / 24時間以上経過・再確認推奨':'')+'</div>'
+    :'';
+  box.innerHTML='<b style="font-size:13px">次のテスト手順</b>'+stamp+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+x[2]+'</small></div>'+(x[5]&&!stale?'<span class="autoState auto-ok">OK</span>':x[5]&&stale?'<span class="autoState auto-wait">再確認</span>':x[3]?'<button class="secondary" style="padding:7px 9px" onclick="'+x[3]+'">'+x[4]+'</button>':'<span class="autoState auto-wait">'+x[4]+'</span>')+'</div>').join('');
 }
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
