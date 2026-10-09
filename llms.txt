@@ -1,0 +1,33 @@
+# ADPS PICKS
+
+> AI-curated online select shop for Japan.
+
+ADPS PICKS is an online store that curates products across categories such as gadgets, pet supplies, kitchen tools, travel goods, golf and lifestyle products.
+
+## Core concept
+
+- AI-curated selection rather than a single fixed product category
+- Japan-first commerce experience
+- Discovery-oriented collections such as Today's Picks, Trending Now, Under ¥3,000, Problem Solvers and Oddly Good
+- Product pages explain why an item was selected
+- Price, stock, shipping and return information should be treated as authoritative only when sourced from the live Shopify product and checkout data
+
+## Important pages
+
+- Storefront preview: https://ai-buyer-nine.vercel.app/shop
+
+## Product information policy
+
+Demo product names, prices, ratings and availability on the current prototype are not authoritative production commerce data.
+The storefront remains noindex until real Shopify product data is connected.
+When production indexing is enabled, structured product data must match the visible Shopify product data exactly.
+
+## About AI selection
+
+ADPS evaluates signals such as trend momentum, price accessibility, usability, review tendencies, shipping conditions and how clearly a product's value can be understood.
+
+## Language and market
+
+Primary launch market: Japan
+Primary language: Japanese
+Future markets may be added only when product-level shipping, regulations and support requirements are verified.
