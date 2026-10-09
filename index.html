@@ -578,6 +578,15 @@ function finalTestGateState(){
   const runtimeOk=runtimeCjOk&&runtimeShopOk&&runtimeOrderOk;
   return {releaseOk,testsComplete,testsFresh,reconciliationOk,runtimeCjOk,runtimeShopOk,runtimeOrderOk,runtimeOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk&&runtimeOk};
 }
+function runNextReadinessCheck(){
+  const g=finalTestGateState();
+  if(!g.runtimeCjOk){checkConnection();return}
+  if(!g.runtimeShopOk){checkShopify(false);return}
+  if(!g.runtimeOrderOk){checkShopify(false);return}
+  if(!g.releaseOk){checkReleaseReadiness();return}
+  if(!g.reconciliationOk){loadReconciliationSummary();return}
+  renderTestChecklist();
+}
 function renderAutomationDashboard(){
   const box=document.getElementById('automationDashboard');if(!box)return;
   const orderText=String(document.getElementById('orderAutoState')?.textContent||'');
@@ -622,7 +631,8 @@ function renderAutomationDashboard(){
       })(),
       finalTestGateState().allOk?'test':'wait',
       finalTestGateState().allOk?'テスト完了':'未完了']  ];
-  box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>';
+  const gate=finalTestGateState();
+  box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>'+(gate.allOk?'':'<button class="ghost" style="margin-top:10px" onclick="runNextReadinessCheck()">次に必要な確認を実行</button>');
   renderTestChecklist();
 }
 function renderAdAutomation(){
