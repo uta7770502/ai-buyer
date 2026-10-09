@@ -264,8 +264,28 @@ function resetStoreSeo(){
   const ogUrl=document.querySelector('meta[property="og:url"]');if(ogUrl)ogUrl.content=base;
   const node=document.getElementById('adps-product-page-schema');if(node)node.remove();
 }
-function openProduct(id,options={}){const p=products.find(x=>x.id===id);if(!p)return;setProductSeo(p);if(options.history!==false){const u=new URL(location.href);u.searchParams.set('product',p.id);history.pushState({product:p.id},'',u)}document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2>${p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}件のレビュー）`:''}</div>`:''}<div class="detailPrice">${yen(p.price)}</div><div class="meta" style="margin:8px 0 14px"><b>カテゴリ：</b>${p.category||'ライフスタイル'}<br><b>おすすめ：</b>${p.audience||'一般向け'}</div><ul class="bullets"><li>✓ 在庫あり・最短で明日お届け</li><li>✓ ¥3,000以上で送料無料</li><li>✓ 30日間返品保証</li></ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button><div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${p.why.map(x=>`<li>${x}</li>`).join('')}</ul></div>
-<div class="why"><h4>WHO IT'S FOR</h4><p>${p.audience||'日常を少し便利にしたい人'}</p><h4 style="margin-top:14px">ABOUT THIS ITEM</h4><p>${p.summary||p.name}</p></div></div></div>`;document.getElementById('productModal').classList.add('open')}
+function productFacts(p){
+  const rows=[];
+  rows.push(p.authoritative?(p.available?'✓ 現在購入可能':'在庫切れ'):'在庫・販売状況は公開前の確認中');
+  if(p.shipping){
+    const price=Number(p.shipping.price||0);
+    rows.push('配送：'+(price===0?'送料無料':yen(price))+' / '+(p.shipping.country||'JP'));
+  }else rows.push('配送条件は商品ページ・チェックアウトで確認');
+  if(p.returnPolicy){
+    rows.push('返品：'+Number(p.returnPolicy.days||0)+'日以内');
+  }else rows.push('返品条件は購入前に商品ページで確認');
+  return rows;
+}
+function productAnswerBlocks(p){
+  const caution=p.authoritative
+    ?(!p.available?'現在は在庫切れです。再入荷後に購入できます。':'価格・在庫・配送条件は購入時点の表示を確認してください。')
+    :'このプレビューの商品条件はデモです。実販売時はShopifyの最新情報を表示します。';
+  return `<div class="why"><h4>WHAT IS IT?</h4><p>${p.summary||p.name}</p></div>
+  <div class="why"><h4>WHO IS IT FOR?</h4><p>${p.audience||'日常を少し便利にしたい人'}</p></div>
+  <div class="why"><h4>WHY ADPS PICKED IT</h4><ul>${(p.why||[]).map(x=>`<li>${x}</li>`).join('')}</ul></div>
+  <div class="why"><h4>BEFORE YOU BUY</h4><p>${caution}</p></div>`;
+}
+function openProduct(id,options={}){const p=products.find(x=>x.id===id);if(!p)return;setProductSeo(p);if(options.history!==false){const u=new URL(location.href);u.searchParams.set('product',p.id);history.pushState({product:p.id},'',u)}document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${p.img}" alt="${p.name}"></div><div class="detailInfo"><div class="tag" style="position:static;display:inline-block">AI PICK</div><h2>${p.name}</h2>${p.rating?`<div class="rating">★ ${p.rating}${p.reviews?`（${p.reviews}件のレビュー）`:''}</div>`:''}<div class="detailPrice">${yen(p.price)}</div><div class="meta" style="margin:8px 0 14px"><b>カテゴリ：</b>${p.category||'ライフスタイル'}<br><b>おすすめ：</b>${p.audience||'一般向け'}</div><ul class="bullets">${productFacts(p).map(x=>`<li>${x}</li>`).join('')}</ul><button class="buyBtn" onclick="addCart('${p.id}')">カートに入れる</button>${productAnswerBlocks(p)}</div></div>`;document.getElementById('productModal').classList.add('open')}
 function closeProduct(options={}){document.getElementById('productModal').classList.remove('open');resetStoreSeo();if(options.history!==false){const u=new URL(location.href);u.searchParams.delete('product');history.pushState({},'',u)}}
 function addCart(id){const p=products.find(x=>x.id===id);const row=cart.find(x=>x.id===id);if(row)row.qty++;else cart.push({...p,qty:1});renderCart();openCart()}
 function renderCart(){const root=document.getElementById('cartItems');root.innerHTML=cart.length?cart.map(p=>`<div class="cartRow"><img src="${p.img}"><div><b>${p.name}</b><div>${yen(p.price)}</div><div class="qty"><button onclick="changeQty('${p.id}',-1)">−</button><span>${p.qty}</span><button onclick="changeQty('${p.id}',1)">＋</button></div></div><button class="close" onclick="removeCart('${p.id}')">×</button></div>`).join(''):'<p style="color:#777">カートは空です。</p>';const count=cart.reduce((a,b)=>a+b.qty,0),total=cart.reduce((a,b)=>a+b.qty*b.price,0);document.getElementById('cartCount').textContent='('+count+')';document.getElementById('cartTotal').textContent=yen(total)}
