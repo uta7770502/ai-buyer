@@ -331,7 +331,7 @@ async function loadShopifyProducts(){
         ...p,
         rating:'',
         reviews:'',
-        why:[
+        why:p.why.length?p.why:[
           p.category?'${category}カテゴリの商品':'ADPSが選定した商品',
           p.summary?'用途や特徴が分かりやすい':'商品情報を確認中',
           p.available?'現在購入可能':'在庫状況を確認してください'
@@ -364,17 +364,17 @@ function normalizeShopifyProduct(raw){
     name:String(raw?.title||raw?.name||'商品'),
     category:String(raw?.productType||raw?.category||'ライフスタイル'),
     audience:String(raw?.audience||'一般消費者'),
-    summary:String(raw?.description||raw?.summary||'').trim(),
+    summary:String(raw?.summary||raw?.description||'').trim(),
     price:Number.isFinite(price)?price:0,
     currency,
     img:String(raw?.featuredImage?.url||raw?.image||''),
-    why:Array.isArray(raw?.why)?raw.why:[],
+    why:Array.isArray(raw?.why)?raw.why.filter(Boolean).slice(0,6):[],
     available:variant.availableForSale!==false&&raw?.available!==false,
     sku:String(variant.sku||raw?.sku||''),
     brand:String(raw?.vendor||raw?.brand||''),
     url:String(raw?.onlineStoreUrl||raw?.url||''),
-    shipping:raw?.shipping||null,
-    returnPolicy:raw?.returnPolicy||null,
+    shipping:raw?.shipping&&Number.isFinite(Number(raw.shipping.price))?raw.shipping:null,
+    returnPolicy:raw?.returnPolicy&&Number(raw.returnPolicy.days)>0?raw.returnPolicy:null,
     authoritative:raw?.authoritative===true
   };
 }
