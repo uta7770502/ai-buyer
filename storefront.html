@@ -353,8 +353,10 @@ function productAnswerBlocks(p){
 }
 function openProduct(id,options={}){
   const p=products.find(x=>x.id===id);if(!p)return;
+  if(catalogLoading){announce('商品情報を更新しています。少しお待ちください。');return}
   setProductSeo(p);
   if(options.history!==false){const u=new URL(location.href);u.searchParams.set('product',p.id);history.pushState({product:p.id},'',u)}
+  document.getElementById('productModal').setAttribute('aria-labelledby','detailTitle');
   document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></div><div class="detailInfo"><div class="kicker">${previewMode?'DESIGN PREVIEW':'ADPS PICK'}</div><h2 id="detailTitle">${esc(p.name)}</h2><div class="detailPrice">${yen(p.price)}</div><p>${esc(p.category||'ライフスタイル')}</p><ul class="bullets">${productFacts(p).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><button class="buyBtn" data-action="add" data-id="${esc(p.id)}" ${!previewMode&&!p.available?'disabled':''}>${previewMode?'プレビューのカートに追加':p.available?'カートに入れる':'在庫切れ'}</button>${productAnswerBlocks(p)}</div></div>`;
   openLayer('productModal');
 }
@@ -363,7 +365,7 @@ function closeProduct(options={}){
   if(options.history!==false){const u=new URL(location.href);u.searchParams.delete('product');history.replaceState({},'',u)}
 }
 function addCart(id){
-  const p=products.find(x=>x.id===id);if(!p||(!previewMode&&!p.available))return;
+  const p=products.find(x=>x.id===id);if(catalogLoading||!p||(!previewMode&&!p.available))return;
   const row=cart.find(x=>x.id===id);if(row)row.qty=Math.min(20,row.qty+1);else cart.push({id,qty:1});
   persist();renderCart();openCart();announce('カートに追加しました');
 }
@@ -380,6 +382,15 @@ function renderCart(){
 function changeQty(id,d){const row=cart.find(p=>p.id===id);if(!row)return;row.qty=Math.min(20,row.qty+d);if(row.qty<=0)cart=cart.filter(p=>p.id!==id);persist();renderCart()}
 function removeCart(id){cart=cart.filter(p=>p.id!==id);persist();renderCart()}
 let layerFocus=new Map();
+const backgroundInert=new Map();
+function lockBackground(){
+  for(const el of document.body.children){
+    if(['SCRIPT','STYLE'].includes(el.tagName)||el.matches('[role="dialog"],#announcer'))continue;
+    if(!backgroundInert.has(el))backgroundInert.set(el,el.inert);
+    el.inert=true;
+  }
+}
+function unlockBackground(){for(const [el,inert] of backgroundInert)el.inert=inert;backgroundInert.clear()}
 function openLayer(id){
   const el=document.getElementById(id);if(el.classList.contains('open'))return;
   layerFocus.set(id,document.activeElement);
@@ -388,9 +399,10 @@ function openLayer(id){
     if(other==='productModal')closeProduct();else closeLayer(other);
   }
   el.classList.add('open');el.inert=false;el.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  lockBackground();
   el.querySelector('input,button,[tabindex]')?.focus();
 }
-function closeLayer(id){const el=document.getElementById(id);el.classList.remove('open');el.inert=true;el.setAttribute('aria-hidden','true');document.body.style.overflow='';const previous=layerFocus.get(id);if(previous?.isConnected&&!previous.closest('[inert]'))previous.focus()}
+function closeLayer(id){const el=document.getElementById(id);if(!el.classList.contains('open'))return;el.classList.remove('open');el.inert=true;el.setAttribute('aria-hidden','true');document.body.style.overflow='';unlockBackground();const previous=layerFocus.get(id);if(previous?.isConnected&&!previous.closest('[inert]'))previous.focus()}
 function openCart(){renderCart();openLayer('cartDrawer')}
 function closeCart(){closeLayer('cartDrawer')}
 function openSearch(mode='all'){searchMode=mode;document.getElementById('searchInput').value='';renderSearch('');openLayer('searchLayer');document.getElementById('searchInput').focus()}
@@ -409,11 +421,23 @@ function renderSearch(q){
   const list=searchProducts(q);document.getElementById('searchTitle').textContent=searchMode==='favorites'?'お気に入り':'何を探していますか？';
   document.getElementById('searchResults').innerHTML=`<p class="searchCount" role="status">${list.length}件</p>`+(list.length?list.map(p=>`<button class="searchResult" data-action="product" data-id="${esc(p.id)}"><img src="${esc(safeImage(p.img))}" alt=""><span><b>${esc(p.name)}</b><small>${esc(p.category||'ライフスタイル')}</small><strong>${yen(p.price)}</strong></span><span aria-hidden="true">↗</span></button>`).join(''):`<div class="emptyState">${searchMode==='favorites'?'ハートを押すと、ここに商品を保存できます。':'該当する商品がありません。検索をクリアするか、別の言葉で探してみてください。'}</div>`);
 }
+let catalogRequest=0;
+let catalogLoading=false;
+let catalogController=null;
 async function loadShopifyProducts(){
   if(previewMode){document.getElementById('shopStatus').textContent='デザインプレビュー：商品・価格・画像はサンプルです。購入はできません。';render();renderCart();openRequestedProduct();return}
+  const request=++catalogRequest;
+  catalogController?.abort();
+  const controller=new AbortController();catalogController=controller;
+  const timeout=setTimeout(()=>controller.abort(),12000);
+  catalogLoading=true;
+  document.getElementById('shopStatus').textContent='商品情報を更新しています…';
+  document.getElementById('pickGrid').setAttribute('aria-busy','true');
+  if(document.getElementById('productModal').classList.contains('open'))closeProduct({history:false});
   try{
-    const r=await fetch('/api/storefront-products',{headers:{'Accept':'application/json'}});
+    const r=await fetch('/api/storefront-products',{headers:{'Accept':'application/json'},signal:controller.signal});
     const j=await r.json();
+    if(request!==catalogRequest)return;
     if(!r.ok||!j.ok||!j.authoritative||!Array.isArray(j.products))throw new Error(j.error||'No live products');
     const mapped=j.products.map(raw=>{
       const p=normalizeShopifyProduct(raw);
@@ -433,16 +457,24 @@ async function loadShopifyProducts(){
     usingAuthoritativeProducts=true;
     render();
     renderCart();
+    catalogLoading=false;
     renderStructuredData();
+    renderSearch(document.getElementById('searchInput').value);
     openRequestedProduct();
   }catch{
+    if(request!==catalogRequest)return;
     products=[];
     document.getElementById('shopStatus').innerHTML='商品情報を取得できませんでした。<button class="linkBtn" onclick="loadShopifyProducts()">再読み込み</button>';
     usingAuthoritativeProducts=false;
     render();
     renderCart();
+    catalogLoading=false;
     renderStructuredData();
+    renderSearch(document.getElementById('searchInput').value);
     openRequestedProduct();
+  }finally{
+    clearTimeout(timeout);
+    if(request===catalogRequest){catalogLoading=false;catalogController=null;document.getElementById('pickGrid').setAttribute('aria-busy','false')}
   }
 }
 
@@ -553,6 +585,7 @@ function renderStructuredData(){
 function openRequestedProduct(){
   const id=new URLSearchParams(location.search).get('product');
   if(id&&products.some(p=>p.id===id))openProduct(id,{history:false});
+  else if(id){announce('この商品は現在表示できません。商品一覧からお探しください。')}
 }
 addEventListener('popstate',()=>{
   const id=new URLSearchParams(location.search).get('product');
