@@ -234,6 +234,28 @@ export default async function handler(req,res){
       const counts=orders.reduce((a,o)=>(a[o.state]=(a[o.state]||0)+1,a),{});
       return res.status(200).json({ok:true,audit:true,mode:'safe',orders,counts});
     }
+    if(p.createStorefrontToken===true){
+      const title=clean(p.title||'ADPS Storefront',120);
+      const data=await gql(shop,token,'mutation CreateStorefrontToken($input:StorefrontAccessTokenInput!){ storefrontAccessTokenCreate(input:$input){ storefrontAccessToken{id title accessToken accessScopes{handle} createdAt} userErrors{field message} } }',{input:{title}});
+      const result=data.storefrontAccessTokenCreate;
+      const errs=result?.userErrors||[];
+      if(errs.length)return res.status(409).json({ok:false,error:errs.map(x=>x.message).join(' / ')});
+      const created=result?.storefrontAccessToken;
+      if(!created?.accessToken)return res.status(502).json({ok:false,error:'Storefront APIトークンを取得できませんでした'});
+      const handles=(created.accessScopes||[]).map(x=>x.handle);
+      if(!handles.includes('unauthenticated_read_product_listings')){
+        return res.status(409).json({ok:false,error:'Storefront商品参照スコープが付与されていません。Shopify再認証が必要です',scopes:handles});
+      }
+      return res.status(200).json({
+        ok:true,
+        storefrontTokenCreated:true,
+        title:created.title,
+        createdAt:created.createdAt,
+        accessToken:created.accessToken,
+        scopes:handles
+      });
+    }
+
     if(p.aioBackfill===true){
       const productId=String(p.productId||'').trim();
       if(!/^gid:\/\/shopify\/Product\/\d+$/.test(productId))return res.status(400).json({ok:false,error:'Shopify商品IDが不正です'});
