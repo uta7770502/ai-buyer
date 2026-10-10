@@ -9,7 +9,7 @@ import webhook from '../api/shopify-order-webhook.js';
 import setup from '../api/shopify-setup-orders.js';
 import cj from '../api/cj.js';
 import diagnostics from '../api/diagnostics.js';
-const env={AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
+const env={SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
 const headers={authorization:'Bearer test-admin',cookie:'shopify_access_token=test-token; shopify_connected_shop=test.myshopify.com'};
 const payload={orderId:'gid://shopify/Order/123',trackingNumber:'TRACK123'};
 const target={id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]};
@@ -126,7 +126,7 @@ test('all local API calls route to known files or declared rewrites',()=>{
  for(const [,path] of html.matchAll(/['"`]\/api\/([a-z-]+)/g)){
   assert.ok(fs.existsSync(new URL('../api/'+path+'.js',import.meta.url))||config.rewrites.some(r=>r.source==='/api/'+path),path);
  }
- assert.equal(fs.readdirSync(new URL('../api/',import.meta.url)).filter(f=>f.endsWith('.js')).length,8);
+ assert.ok(fs.readdirSync(new URL('../api/',import.meta.url)).filter(f=>f.endsWith('.js')).length<=12,'Vercel Function budget');
 });
 test('reconciliation batches reads, preserves cursor and exposes no raw keys',async t=>{
  const {default:reconcile}=await import('../lib/routes/automation-reconciliation.js');let count=0;

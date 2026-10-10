@@ -70,6 +70,8 @@ export default async function handler(req,res){
     const products=nodes.map(p=>{
       const v=p.variants?.nodes?.[0]||{};
       const amount=Number(v.price?.amount||0);
+      const shippingPrice=Number(p.shippingPrice?.value);
+      const returnDays=Number(p.returnDays?.value);
       return {
         id:String(p.handle||p.id||''),
         productId:String(p.id||''),
@@ -85,13 +87,12 @@ export default async function handler(req,res){
         audience:String(p.audience?.value||''),
         summary:String(p.adpsSummary?.value||''),
         why:String(p.adpsWhy?.value||'').split(/\r?\n|\|/).map(x=>x.trim()).filter(Boolean).slice(0,6),
-        shipping:p.shippingPrice?.value?{
-          price:Number(p.shippingPrice.value||0),
+        shipping:p.shippingPrice?.value!=null&&Number.isFinite(shippingPrice)&&shippingPrice>=0?{
+          price:shippingPrice,
           country:String(p.shippingCountry?.value||'JP').toUpperCase(),
-          handlingMin:1,handlingMax:3,transitMin:1,transitMax:5
         }:null,
-        returnPolicy:p.returnDays?.value?{
-          days:Number(p.returnDays.value||0),
+        returnPolicy:Number.isInteger(returnDays)&&returnDays>0?{
+          days:returnDays,
           country:String(p.shippingCountry?.value||'JP').toUpperCase()
         }:null,
         variant:{

@@ -64,7 +64,7 @@ test('sandbox journey: paid webhook → CJ → simulated tracking → dry-run �
  const lookup=await call(status,{orderId:'123'},'GET');assert.equal(lookup.data.cjOrderId,'CJ-123');
  assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).data.ok,true);
  assert.equal((await call(simulate,{orderId:'123',phase:'tracking'})).data.ok,true);
- const track=await call(tracking,{orderId:'CJ-123'},'GET');assert.equal(track.data.sandbox,true);assert.ok(track.data.trackingNumber);
+ const track=await call(tracking,{shopifyOrderId:'123'},'GET');assert.equal(track.data.sandbox,true);assert.ok(track.data.trackingNumber);
  const p={orderId:'gid://shopify/Order/123',trackingNumber:track.data.trackingNumber};
  const pre=await call(sync,{...p,dryRun:true});assert.equal(pre.data.eligible,true);assert.equal(f.fulfillments,0);
  assert.equal((await call(sync,{...p,preflightToken:pre.data.preflightToken})).data.ok,true);
