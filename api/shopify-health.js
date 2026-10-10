@@ -45,7 +45,7 @@ export default async function handler(req,res){
     if(hasNextPage)return res.status(409).json({ok:false,partial:true,error:'Webhookが多いため全件確認できません。Shopify管理画面で確認してください'});
 
     const scopes=(base.currentAppInstallation?.accessScopes||[]).map(x=>x.handle);
-    const required=['read_products','write_products','read_publications','write_publications','read_orders','write_orders','read_merchant_managed_fulfillment_orders','write_merchant_managed_fulfillment_orders'];
+    const required=['read_products','write_products','read_publications','write_publications','read_orders','write_orders','read_merchant_managed_fulfillment_orders','write_merchant_managed_fulfillment_orders','unauthenticated_read_product_listings'];
     const missingScopes=required.filter(x=>!scopes.includes(x));
     const fulfillmentScopesReady=missingScopes.filter(x=>x.includes('fulfillment_orders')).length===0;
     const fulfillmentSyncOptIn=process.env.SHOPIFY_FULFILLMENT_SYNC_ENABLED==='true';
