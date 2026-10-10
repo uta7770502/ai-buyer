@@ -15,7 +15,7 @@ export default async function handler(req,res){
     const state=crypto.randomBytes(24).toString('hex');
     res.setHeader('Set-Cookie',`shopify_oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
     const redirectUri=appBase+'/api/shopify-callback';
-    const scopes='read_products,write_products,read_publications,write_publications,read_orders,write_orders,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders';
+    const scopes='read_products,write_products,read_publications,write_publications,read_orders,write_orders,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders,unauthenticated_read_product_listings';
     const u=new URL('https://'+shop+'.myshopify.com/admin/oauth/authorize');
     u.searchParams.set('client_id',clientId);
     u.searchParams.set('scope',scopes);
