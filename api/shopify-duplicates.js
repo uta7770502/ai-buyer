@@ -6,7 +6,7 @@ async function gql(shop,token,query,variables={}){
 }
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
-  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  if(!['GET','POST'].includes(req.method))return res.status(405).json({ok:false,error:'Method not allowed'});
   try{
     const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'').toLowerCase();
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
@@ -21,6 +21,29 @@ export default async function handler(req,res){
       for(const key of keys){if(!byKey.has(key))byKey.set(key,[]);byKey.get(key).push({id:p.id,title:p.title,handle:p.handle,sku:key.startsWith('sku:')?key.slice(4):''});}
     }
     const groups=[...byKey.entries()].filter(([,arr])=>arr.length>1).map(([key,items])=>({key,count:items.length,items}));
+    if(req.method==='POST'){
+      const confirm=String(req.body?.confirm||'');
+      if(confirm!=='REMOVE_DUPLICATE_DRAFTS')return res.status(400).json({ok:false,error:'確認コードが不正です'});
+      const deleteIds=[];
+      for(const g of groups){
+        const items=[...g.items].sort((a,b)=>{
+          const na=Number(String(a.id||'').split('/').pop())||0, nb=Number(String(b.id||'').split('/').pop())||0;
+          return na-nb;
+        });
+        for(const item of items.slice(1))deleteIds.push(item.id);
+      }
+      const unique=[...new Set(deleteIds)];
+      const deleted=[]; const errors=[];
+      for(const id of unique){
+        try{
+          const d=await gql(shop,token,'mutation DeleteProduct($input:ProductDeleteInput!){ productDelete(input:$input){ deletedProductId userErrors{field message} } }',{input:{id}});
+          const errs=d.productDelete?.userErrors||[];
+          if(errs.length)errors.push({id,error:errs.map(e=>e.message).join(' / ')});
+          else if(d.productDelete?.deletedProductId)deleted.push(d.productDelete.deletedProductId);
+        }catch(e){errors.push({id,error:e.message||'delete failed'})}
+      }
+      return res.status(errors.length?207:200).json({ok:errors.length===0,deletedCount:deleted.length,errorCount:errors.length,deleted,errors});
+    }
     return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'重複チェックに失敗しました'})}
 }
