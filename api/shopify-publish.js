@@ -346,16 +346,21 @@ export default async function handler(req,res){
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
-    const matches=await gql(shop,token,'query ExistingDrafts($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:1){nodes{id}}}} }',{q:'status:draft vendor:"AI BUYER"'});
-    const existing=(matches.products?.nodes||[]).find(v=>v.title===title&&v.status==='DRAFT'&&v.vendor==='AI BUYER');
+    // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
+    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:5){nodes{id sku}}}} }',{q:'status:draft vendor:"AI BUYER" sku:'+cj.vid});
+    const titleMatches=await gql(shop,token,'query ExistingDraftsByTitle($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:5){nodes{id sku}}}} }',{q:'status:draft vendor:"AI BUYER"'});
+    const bySku=(skuMatches.products?.nodes||[]).find(v=>v.status==='DRAFT'&&v.vendor==='AI BUYER'&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
+    const byTitle=(titleMatches.products?.nodes||[]).find(v=>v.title===title&&v.status==='DRAFT'&&v.vendor==='AI BUYER');
+    const existing=bySku||byTitle;
+    const petType=/\b(cat|dog|pet|puppy|kitten|carrier)\b/i.test(title)?'Pet Supplies':'';
     let ce;
     if(existing){
       ce={product:existing,userErrors:[]};
-      const upd=await gql(shop,token,'mutation RefreshDraft($product:ProductUpdateInput!){productUpdate(product:$product){product{id title handle status variants(first:1){nodes{id}}} userErrors{message}}}',{product:{id:existing.id,title,descriptionHtml:description,vendor}});
+      const upd=await gql(shop,token,'mutation RefreshDraft($product:ProductUpdateInput!){productUpdate(product:$product){product{id title handle status variants(first:1){nodes{id}}} userErrors{message}}}',{product:{id:existing.id,title,descriptionHtml:description,vendor,...(petType?{productType:petType}:{})}});
       if(upd.productUpdate?.userErrors?.length)throw Error(upd.productUpdate.userErrors.map(e=>e.message).join(' / '));
       ce=upd.productUpdate;
     }else{
-      const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping']}});
+      const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping'],...(petType?{productType:petType}:{})}});
       ce=create.productCreate;
     }
     if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
