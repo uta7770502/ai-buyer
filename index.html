@@ -884,6 +884,20 @@ async function checkReleaseReadiness(){
   }
 }
 async function checkConnection(){const st=document.getElementById('connectionState'),meta=document.getElementById('connectionMeta');if(st){st.className='connectionState';st.textContent='確認中'}try{const r=await fetch('/api/cj-health');const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'接続失敗');cjConnected=true;cjCheckedAt=String(j.checkedAt||new Date().toISOString());if(st){st.className='connectionState ok';st.textContent='接続OK'}if(meta)meta.textContent=`${j.mode==='api-key'?'API Key':'Access Token'} / ${j.latencyMs}ms / ${new Date(j.checkedAt).toLocaleString('ja-JP')}`;localStorage.setItem('aiBuyerConnectionLastOk',j.checkedAt);renderAutomationDashboard();setTimeout(maybeDailyScan,150)}catch(e){cjConnected=false;cjCheckedAt='';if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'接続失敗';renderAutomationDashboard()}}
+async function cleanupShopifyDuplicates(){
+  if(!confirm('AI BUYERが作成した重複下書きを整理します。各重複グループで古い1件を残し、それ以外を削除します。続行しますか？'))return;
+  const btn=document.getElementById('cleanupShopifyDuplicates');if(btn){btn.disabled=true;btn.textContent='整理中…'}
+  try{
+    const r=await fetch('/api/shopify-duplicates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'REMOVE_DUPLICATE_DRAFTS'})});
+    const j=await r.json();
+    if(!r.ok&&!j.deletedCount)throw new Error(j.error||j.errors?.[0]?.error||'重複整理に失敗しました');
+    showCandidateToast('重複下書きを '+(j.deletedCount||0)+'件整理しました');
+    setTimeout(checkShopifyDuplicates,500);
+  }catch(e){
+    showCandidateToast('重複整理エラー: '+(e.message||e));
+    if(btn){btn.disabled=false;btn.textContent='重複下書きを整理'}
+  }
+}
 async function checkShopifyDuplicates(){
   const meta=document.getElementById('shopifyDuplicateMeta'),state=document.getElementById('shopifyDuplicateState');
   if(meta)meta.textContent='確認中…'; if(state){state.textContent='確認中';state.className='connectionState'}
@@ -896,7 +910,7 @@ async function checkShopifyDuplicates(){
     if(j.duplicateGroups){
       const card=state?.closest('.connection');if(card){
         const box=document.createElement('div');box.id='shopifyDuplicateDetail';box.style.cssText='grid-column:1/-1;width:100%;margin-top:8px;font-size:12px;line-height:1.5;color:#444';
-        box.innerHTML=j.groups.map((g,i)=>'<div style="padding:8px 0;border-top:1px solid #eee"><b>重複'+(i+1)+'：</b>'+esc(g.items?.[0]?.title||g.key)+' <span class="muted">('+g.count+'件)</span></div>').join('');
+        box.innerHTML=j.groups.map((g,i)=>'<div style="padding:8px 0;border-top:1px solid #eee"><b>重複'+(i+1)+'：</b>'+esc(g.items?.[0]?.title||g.key)+' <span class="muted">('+g.count+'件)</span></div>').join('')+'<button type="button" id="cleanupShopifyDuplicates" class="secondary" style="margin-top:10px;width:100%">重複下書きを整理</button>';setTimeout(()=>{const b=document.getElementById('cleanupShopifyDuplicates');if(b)b.onclick=cleanupShopifyDuplicates},0);
         card.appendChild(box);
       }
     }
