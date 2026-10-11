@@ -44,6 +44,19 @@ export default async function handler(req,res){
       }
       return res.status(errors.length?207:200).json({ok:errors.length===0,deletedCount:deleted.length,errorCount:errors.length,deleted,errors});
     }
-    return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups,drafts:rows.map(p=>({id:p.id,title:p.title,handle:p.handle,productType:p.productType||'',image:p.featuredMedia?.preview?.image?.url||'',skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean),prices:(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean)}))});
+    return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups,drafts:rows.map(p=>{
+      const skus=(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean);
+      const prices=(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean);
+      const image=p.featuredMedia?.preview?.image?.url||'';
+      const productType=p.productType||'';
+      const pet=/\b(cat|dog|pet|puppy|kitten|carrier)\b/i.test(String(p.title||''));
+      const issues=[];
+      if(!skus.length)issues.push('SKU未設定');
+      if(!prices.length||prices.some(v=>!(Number(v)>0)))issues.push('価格未設定');
+      if(!image)issues.push('画像未設定');
+      if(!productType)issues.push('カテゴリ未設定');
+      if(pet&&!/pet/i.test(productType))issues.push('Petカテゴリ未設定');
+      return {id:p.id,title:p.title,handle:p.handle,productType,image,skus,prices,ready:issues.length===0,issues};
+    })});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'重複チェックに失敗しました'})}
 }
