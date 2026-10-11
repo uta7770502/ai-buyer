@@ -344,8 +344,20 @@ export default async function handler(req,res){
     const title=clean(p.title||p.name,255),description=cleanHtml(p.descriptionHtml||p.description,5000),vendor=clean(p.vendor||'AI BUYER',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
-    const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping']}});
-    const ce=create.productCreate;if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
+    // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
+    const matches=await gql(shop,token,'query ExistingDrafts($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:1){nodes{id}}}} }',{q:'status:draft vendor:"AI BUYER"'});
+    const existing=(matches.products?.nodes||[]).find(v=>v.title===title&&v.status==='DRAFT'&&v.vendor==='AI BUYER');
+    let ce;
+    if(existing){
+      ce={product:existing,userErrors:[]};
+      const upd=await gql(shop,token,'mutation RefreshDraft($product:ProductUpdateInput!){productUpdate(product:$product){product{id title handle status variants(first:1){nodes{id}}} userErrors{message}}}',{product:{id:existing.id,title,descriptionHtml:description,vendor}});
+      if(upd.productUpdate?.userErrors?.length)throw Error(upd.productUpdate.userErrors.map(e=>e.message).join(' / '));
+      ce=upd.productUpdate;
+    }else{
+      const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping']}});
+      ce=create.productCreate;
+    }
+    if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
     const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),inventoryItem:{sku:cj.vid,tracked:false}}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
