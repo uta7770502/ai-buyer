@@ -12,8 +12,10 @@ export default async function handler(req,res){
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
-    const d=await gql(shop,token,'query DuplicateDrafts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor productType featuredMedia { preview { image { url } } } variants(first:10){nodes{id sku price}} } } }',{q:'status:draft vendor:AI BUYER'});
-    const rows=d.products?.nodes||[];
+    const d=await gql(shop,token,'query AiBuyerProducts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor productType featuredMedia { preview { image { url } } } variants(first:10){nodes{id sku price}} } } }',{q:'vendor:AI BUYER'});
+    const allRows=d.products?.nodes||[];
+    const rows=allRows.filter(p=>p.status==='DRAFT');
+    const activeRows=allRows.filter(p=>p.status==='ACTIVE');
     const items=rows.map(p=>({id:p.id,title:p.title,handle:p.handle,skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean)}));
     const parent=items.map((_,i)=>i);
     const find=i=>parent[i]===i?i:(parent[i]=find(parent[i]));
@@ -51,7 +53,7 @@ export default async function handler(req,res){
       }
       return res.status(errors.length?207:200).json({ok:errors.length===0,deletedCount:deleted.length,errorCount:errors.length,deleted,errors});
     }
-    return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups,drafts:rows.map(p=>{
+    return res.status(200).json({ok:true,totalDrafts:rows.length,totalActive:activeRows.length,duplicateGroups:groups.length,groups,published:activeRows.map(p=>({id:p.id,title:p.title,handle:p.handle,productType:p.productType||'',image:p.featuredMedia?.preview?.image?.url||'',skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean),prices:(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean)})),drafts:rows.map(p=>{
       const skus=(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean);
       const prices=(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean);
       const image=p.featuredMedia?.preview?.image?.url||'';
