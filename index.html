@@ -917,7 +917,7 @@ async function checkShopifyDuplicates(){
     if(!j.duplicateGroups&&Array.isArray(j.drafts)&&j.drafts.length){
       const card=state?.closest('.connection');if(card){
         const box=document.createElement('div');box.id='shopifyDuplicateDetail';box.style.cssText='grid-column:1/-1;width:100%;margin-top:8px;font-size:12px;line-height:1.5;color:#444';
-        box.innerHTML=j.drafts.map((d,i)=>'<div style="padding:8px 0;border-top:1px solid #eee;display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:start">'+(d.image?'<img src="'+esc(d.image)+'" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:10px">':'<div></div>')+'<div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>下書き'+(i+1)+'：</b><span class="'+(d.ready?'ok':'err')+'">'+(d.ready?'公開準備OK':'要修正')+'</span></div>'+esc(d.title||'')+'<div class="muted">'+(d.skus?.length?'SKU '+esc(d.skus.join(', '))+' / ':'')+(d.prices?.length?'価格 '+esc(d.prices.join(', '))+' / ':'')+'カテゴリ '+esc(d.productType||'未設定')+'</div>'+(d.issues?.length?'<div style="margin-top:4px;color:#b42318">'+esc(d.issues.join(' / '))+'</div>':'')+'</div></div>').join('');
+        box.innerHTML=j.drafts.map((d,i)=>'<div style="padding:8px 0;border-top:1px solid #eee;display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:start">'+(d.image?'<img src="'+esc(d.image)+'" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:10px">':'<div></div>')+'<div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>下書き'+(i+1)+'：</b><span class="'+(d.ready?'ok':'err')+'">'+(d.ready?'公開準備OK':'要修正')+'</span></div>'+esc(d.title||'')+'<div class="muted">'+(d.skus?.length?'SKU '+esc(d.skus.join(', '))+' / ':'')+(d.prices?.length?'価格 '+esc(d.prices.join(', '))+' / ':'')+'カテゴリ '+esc(d.productType||'未設定')+'</div>'+(d.issues?.length?'<div style="margin-top:4px;color:#b42318">'+esc(d.issues.join(' / '))+'</div>':'')+(!d.ready?'<button type="button" class="secondary" style="margin-top:8px;width:100%" data-repair-shopify-title="'+esc(d.title||'')+'">この下書きを再同期</button>':'')+'</div></div>').join('');
         card.appendChild(box);
       }
     }
@@ -1159,6 +1159,19 @@ function addDetailCandidate(p){if(!findActive(p.id)){active.push({...p,price:sug
 function closeModal(){modal.classList.remove('on')}
 function showPage(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('.nav button')[id==='recommend'?1:id==='profit'?2:0].classList.add('on');scrollTo(0,0)}
 document.addEventListener('click',e=>{const btn=e.target.closest('[data-publish-id]');if(!btn)return;e.preventDefault();e.stopPropagation();const id=btn.getAttribute('data-publish-id');btn.disabled=true;btn.textContent='確認中…';publishById(id)});
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('[data-repair-shopify-title]');if(!btn)return;
+  e.preventDefault();e.stopPropagation();
+  const title=btn.getAttribute('data-repair-shopify-title')||'';
+  const x=active.find(v=>String(v.name||'').trim()===title.trim())||results.find(v=>String(v.name||'').trim()===title.trim());
+  if(!x){showCandidateToast('AI BUYER側の元商品が見つかりません。AI推薦で猫バッグを検索してください');return}
+  btn.disabled=true;btn.textContent='再同期中…';
+  autoPublishCandidate(x).then(()=>setTimeout(checkShopifyDuplicates,1200)).catch(err=>{
+    btn.disabled=false;btn.textContent='この下書きを再同期';
+    showCandidateToast('再同期エラー: '+(err?.message||err));
+  });
+});
+
 (()=>{
   const p=new URLSearchParams(location.search);
   if(p.get('publish')==='done'){
