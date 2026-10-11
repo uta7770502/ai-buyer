@@ -12,7 +12,7 @@ export default async function handler(req,res){
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
-    const d=await gql(shop,token,'query AiBuyerProducts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor productType featuredMedia { preview { image { url } } } variants(first:10){nodes{id sku price}} } } }',{q:'vendor:AI BUYER'});
+    const d=await gql(shop,token,'query AiBuyerProducts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor productType featuredMedia { preview { image { url } } } audience:metafield(namespace:"custom",key:"adps_audience"){value} adpsSummary:metafield(namespace:"custom",key:"adps_summary"){value} adpsWhy:metafield(namespace:"custom",key:"adps_why"){value} variants(first:10){nodes{id sku price}} } } }',{q:'vendor:AI BUYER'});
     const allRows=d.products?.nodes||[];
     const rows=allRows.filter(p=>p.status==='DRAFT');
     const activeRows=allRows.filter(p=>p.status==='ACTIVE');
@@ -53,7 +53,7 @@ export default async function handler(req,res){
       }
       return res.status(errors.length?207:200).json({ok:errors.length===0,deletedCount:deleted.length,errorCount:errors.length,deleted,errors});
     }
-    return res.status(200).json({ok:true,totalDrafts:rows.length,totalActive:activeRows.length,duplicateGroups:groups.length,groups,published:activeRows.map(p=>({id:p.id,title:p.title,handle:p.handle,productType:p.productType||'',image:p.featuredMedia?.preview?.image?.url||'',skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean),prices:(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean)})),drafts:rows.map(p=>{
+    return res.status(200).json({ok:true,totalDrafts:rows.length,totalActive:activeRows.length,duplicateGroups:groups.length,groups,published:activeRows.map(p=>{const audience=String(p.audience?.value||'').trim(),summary=String(p.adpsSummary?.value||'').trim(),why=String(p.adpsWhy?.value||'').trim();return {id:p.id,title:p.title,handle:p.handle,productType:p.productType||'',image:p.featuredMedia?.preview?.image?.url||'',skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean),prices:(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean),audience,summary,why,aioReady:Boolean(audience&&summary&&why)}}),drafts:rows.map(p=>{
       const skus=(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean);
       const prices=(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean);
       const image=p.featuredMedia?.preview?.image?.url||'';
