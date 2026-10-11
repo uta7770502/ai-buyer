@@ -6,7 +6,7 @@ function safeShop(v){
 }
 
 export default async function handler(req,res){
-  res.setHeader('Cache-Control','public, s-maxage=120, stale-while-revalidate=300');
+  res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
   if(req.method!=='GET'){
     res.setHeader('Allow','GET');
     return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -56,6 +56,7 @@ export default async function handler(req,res){
         'X-Shopify-Storefront-Access-Token':token
       },
       body:JSON.stringify({query,variables:{first:24}}),
+      cache:'no-store',
       signal:AbortSignal.timeout(10000)
     });
 
