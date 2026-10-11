@@ -12,7 +12,7 @@ export default async function handler(req,res){
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
-    const d=await gql(shop,token,'query DuplicateDrafts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor variants(first:10){nodes{id sku}} } } }',{q:'status:draft vendor:AI BUYER'});
+    const d=await gql(shop,token,'query DuplicateDrafts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor productType featuredMedia { preview { image { url } } } variants(first:10){nodes{id sku price}} } } }',{q:'status:draft vendor:AI BUYER'});
     const rows=d.products?.nodes||[];
     const byKey=new Map();
     for(const p of rows){
@@ -44,6 +44,6 @@ export default async function handler(req,res){
       }
       return res.status(errors.length?207:200).json({ok:errors.length===0,deletedCount:deleted.length,errorCount:errors.length,deleted,errors});
     }
-    return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups,drafts:rows.map(p=>({id:p.id,title:p.title,handle:p.handle,skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean)}))});
+    return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups,drafts:rows.map(p=>({id:p.id,title:p.title,handle:p.handle,productType:p.productType||'',image:p.featuredMedia?.preview?.image?.url||'',skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean),prices:(p.variants?.nodes||[]).map(v=>String(v.price||'')).filter(Boolean)}))});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'重複チェックに失敗しました'})}
 }
