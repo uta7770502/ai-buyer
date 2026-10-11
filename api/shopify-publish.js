@@ -356,11 +356,13 @@ export default async function handler(req,res){
     let ce;
     if(existing){
       ce={product:existing,userErrors:[]};
-      const upd=await gql(shop,token,'mutation RefreshDraft($product:ProductUpdateInput!){productUpdate(product:$product){product{id title handle status variants(first:1){nodes{id}}} userErrors{message}}}',{product:{id:existing.id,title,descriptionHtml:description,vendor,...(petType?{productType:petType}:{})}});
+      const media=(Array.isArray(p.images)?p.images:[]).filter(Boolean).slice(0,6).map((url,i)=>({originalSource:String(url),mediaContentType:'IMAGE',alt:i===0?title:(title+' '+(i+1))}));
+      const upd=await gql(shop,token,'mutation RefreshDraft($product:ProductUpdateInput!,$media:[CreateMediaInput!]){productUpdate(product:$product,media:$media){product{id title handle status variants(first:1){nodes{id}}} userErrors{message}}}',{product:{id:existing.id,title,descriptionHtml:description,vendor,...(petType?{productType:petType}:{})},media});
       if(upd.productUpdate?.userErrors?.length)throw Error(upd.productUpdate.userErrors.map(e=>e.message).join(' / '));
       ce=upd.productUpdate;
     }else{
-      const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping'],...(petType?{productType:petType}:{})}});
+      const media=(Array.isArray(p.images)?p.images:[]).filter(Boolean).slice(0,6).map((url,i)=>({originalSource:String(url),mediaContentType:'IMAGE',alt:i===0?title:(title+' '+(i+1))}));
+      const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!,$media:[CreateMediaInput!]) { productCreate(product:$product,media:$media) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping'],...(petType?{productType:petType}:{})},media});
       ce=create.productCreate;
     }
     if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
