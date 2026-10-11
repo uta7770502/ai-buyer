@@ -892,6 +892,14 @@ async function checkShopifyDuplicates(){
     if(!r.ok||!j.ok)throw new Error(j.error||'重複チェックに失敗しました');
     if(state){state.textContent=j.duplicateGroups?('重複 '+j.duplicateGroups+'組'):'重複なし';state.className='connectionState '+(j.duplicateGroups?'warn':'ok')}
     if(meta)meta.textContent='AI BUYER下書き '+j.totalDrafts+'件 / 重複グループ '+j.duplicateGroups+'組';
+    const old=document.getElementById('shopifyDuplicateDetail');if(old)old.remove();
+    if(j.duplicateGroups){
+      const card=state?.closest('.connection');if(card){
+        const box=document.createElement('div');box.id='shopifyDuplicateDetail';box.style.cssText='grid-column:1/-1;width:100%;margin-top:8px;font-size:12px;line-height:1.5;color:#444';
+        box.innerHTML=j.groups.map((g,i)=>'<div style="padding:8px 0;border-top:1px solid #eee"><b>重複'+(i+1)+'：</b>'+esc(g.items?.[0]?.title||g.key)+' <span class="muted">('+g.count+'件)</span></div>').join('');
+        card.appendChild(box);
+      }
+    }
     showCandidateToast(j.duplicateGroups?'Shopifyに重複下書きがあります':'Shopify重複なし');
   }catch(e){
     if(state){state.textContent='要確認';state.className='connectionState err'} if(meta)meta.textContent=e.message||'重複チェック失敗';
