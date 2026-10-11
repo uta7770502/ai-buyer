@@ -635,6 +635,19 @@ function nextReadinessLabel(){
   if(!g.reconciliationOk)return document.getElementById('adminKeyInput')?.value?.trim()?'次: 要照合キューを確認':'次: テスト管理者キーを入力して要照合を確認';
   return 'すべて確認済み';
 }
+async function runSafeReadinessSweep(){
+  const btn=document.getElementById('readinessSweepBtn');if(btn){btn.disabled=true;btn.textContent='安全チェック中…'}
+  try{
+    await checkConnection();
+    await checkShopify(false);
+    await checkReleaseReadiness();
+    await checkAioGeoAudit();
+    if(String(document.getElementById('adminKeyInput')?.value||'').trim())await loadReconciliationSummary();
+    renderAutomationDashboard();
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='安全チェックを一括実行'}
+  }
+}
 function runNextReadinessCheck(){
   const g=finalTestGateState();
   if(!g.runtimeCjOk){checkConnection();return}
@@ -699,7 +712,7 @@ function renderAutomationDashboard(){
       finalTestGateState().allOk?'test':'wait',
       finalTestGateState().allOk?'テスト完了':'未完了']  ];
   const gate=finalTestGateState();
-  box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>'+(gate.allOk?'':'<div class="tiny" style="margin-top:9px">'+esc(nextReadinessLabel())+'</div><button class="ghost" style="margin-top:8px" onclick="runNextReadinessCheck()">次に必要な確認を実行</button>');
+  box.innerHTML='<div class="autoFlow">'+steps.map(x=>'<div class="autoStep"><div><b>'+x[0]+' '+x[1]+'</b><small>'+esc(x[2])+'</small></div><span class="autoState auto-'+x[3]+'">'+x[4]+'</span></div>').join('')+'</div>'+(gate.allOk?'<div class="tiny pass" style="margin-top:9px">主要な安全チェックはすべて完了しています。</div>':'<div class="tiny" style="margin-top:9px">'+esc(nextReadinessLabel())+'</div><button id="readinessSweepBtn" class="ghost" style="margin-top:8px;width:100%" onclick="runSafeReadinessSweep()">安全チェックを一括実行</button><button class="ghost" style="margin-top:8px;width:100%" onclick="runNextReadinessCheck()">次に必要な確認を実行</button>');
   renderTestChecklist();
 }
 function renderAdAutomation(){
