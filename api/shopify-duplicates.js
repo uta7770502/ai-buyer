@@ -44,6 +44,6 @@ export default async function handler(req,res){
       }
       return res.status(errors.length?207:200).json({ok:errors.length===0,deletedCount:deleted.length,errorCount:errors.length,deleted,errors});
     }
-    return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups});
+    return res.status(200).json({ok:true,totalDrafts:rows.length,duplicateGroups:groups.length,groups,drafts:rows.map(p=>({id:p.id,title:p.title,handle:p.handle,skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean)}))});
   }catch(e){return res.status(500).json({ok:false,error:e.message||'重複チェックに失敗しました'})}
 }
