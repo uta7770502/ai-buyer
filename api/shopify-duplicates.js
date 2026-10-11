@@ -14,13 +14,20 @@ export default async function handler(req,res){
     if(shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     const d=await gql(shop,token,'query DuplicateDrafts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor productType featuredMedia { preview { image { url } } } variants(first:10){nodes{id sku price}} } } }',{q:'status:draft vendor:AI BUYER'});
     const rows=d.products?.nodes||[];
-    const byKey=new Map();
-    for(const p of rows){
-      const skus=(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean);
-      const keys=skus.length?skus.map(s=>'sku:'+s):['title:'+String(p.title||'').trim().toLowerCase()];
-      for(const key of keys){if(!byKey.has(key))byKey.set(key,[]);byKey.get(key).push({id:p.id,title:p.title,handle:p.handle,sku:key.startsWith('sku:')?key.slice(4):''});}
+    const items=rows.map(p=>({id:p.id,title:p.title,handle:p.handle,skus:(p.variants?.nodes||[]).map(v=>String(v.sku||'').trim()).filter(Boolean)}));
+    const parent=items.map((_,i)=>i);
+    const find=i=>parent[i]===i?i:(parent[i]=find(parent[i]));
+    const union=(a,b)=>{a=find(a);b=find(b);if(a!==b)parent[b]=a};
+    for(let i=0;i<items.length;i++){
+      for(let j=i+1;j<items.length;j++){
+        const sameTitle=String(items[i].title||'').trim().toLowerCase()===String(items[j].title||'').trim().toLowerCase();
+        const sameSku=items[i].skus.some(s=>items[j].skus.includes(s));
+        if(sameTitle||sameSku)union(i,j);
+      }
     }
-    const groups=[...byKey.entries()].filter(([,arr])=>arr.length>1).map(([key,items])=>({key,count:items.length,items}));
+    const buckets=new Map();
+    items.forEach((it,i)=>{const r=find(i);if(!buckets.has(r))buckets.set(r,[]);buckets.get(r).push({id:it.id,title:it.title,handle:it.handle,sku:it.skus[0]||''})});
+    const groups=[...buckets.values()].filter(arr=>arr.length>1).map(arr=>({key:'duplicate',count:arr.length,items:arr}));
     if(req.method==='POST'){
       const confirm=String(req.body?.confirm||'');
       if(confirm!=='REMOVE_DUPLICATE_DRAFTS')return res.status(400).json({ok:false,error:'確認コードが不正です'});
