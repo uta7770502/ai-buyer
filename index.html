@@ -808,11 +808,12 @@ async function checkAioGeoAudit(){
   const st=document.getElementById('aioGeoState'),meta=document.getElementById('aioGeoMeta'),card=document.getElementById('aioGeoAuditCard'),rows=document.getElementById('aioGeoRows');
   if(st){st.className='connectionState';st.textContent='確認中'}
   try{
-    const r=await fetch('/api/storefront-products',{headers:{Accept:'application/json'}});
+    const r=await fetch('/api/shopify-duplicates',{cache:'no-store'});
     const j=await r.json();
-    if(!r.ok||!j.ok||!Array.isArray(j.products))throw new Error(j.error||'AIO/GEO監査に失敗しました');
-    const missing=j.products.filter(p=>p.aioReady!==true).map(p=>({id:p.id,productId:p.productId||'',title:p.title||p.id}));
-    aioAudit={checked:true,total:Number(j.count||j.products.length),ready:Number(j.aioReadyCount||0),missing:Number(j.aioMissingCount||missing.length),items:missing,checkedAt:new Date().toISOString()};
+    if(!r.ok||!j.ok||!Array.isArray(j.published))throw new Error(j.error||'AIO/GEO監査に失敗しました');
+    const products=j.published;
+    const missing=products.filter(p=>p.aioReady!==true).map(p=>({id:p.handle||p.id,productId:p.id||'',title:p.title||p.id}));
+    aioAudit={checked:true,total:products.length,ready:products.filter(p=>p.aioReady===true).length,missing:missing.length,items:missing,checkedAt:new Date().toISOString()};
     localStorage.setItem('aiBuyerAioAudit',JSON.stringify(aioAudit));
     if(st){
       st.className=aioAudit.missing===0?'connectionState ok':'connectionState ng';
@@ -834,10 +835,6 @@ async function checkAioGeoAudit(){
     if(st){st.className='connectionState ng';st.textContent='要確認'}
     if(meta)meta.textContent=e.message||'AIO/GEO監査に失敗しました';
     if(card)card.style.display='none';
-    const sfBtn=document.getElementById('storefrontTokenBtn'),sfBadge=document.getElementById('storefrontTokenBadge'),sfConnected=document.getElementById('storefrontTokenConnected');
-    if(sfBtn){sfBtn.style.display='';sfBtn.disabled=false}
-    if(sfBadge)sfBadge.textContent='商品公開データ取得用';
-    if(sfConnected)sfConnected.style.display='none';
     renderAutomationDashboard();
   }
 }
