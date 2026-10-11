@@ -57,7 +57,8 @@ export default async function handler(req,res){
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowed)||shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     const raw=req.body||{}; const formPublish=String(raw.formPublish||'')==='1'; const p=raw;
-    if(formPublish){p.images=p.image?[p.image]:[];p.descriptionHtml='';p.publishApproved=false;}\n    if(p.adHealth===true){
+    if(formPublish){p.images=p.image?[p.image]:[];p.descriptionHtml='';p.publishApproved=false;}
+    if(p.adHealth===true){
       const metaAccountId=String(process.env.META_AD_ACCOUNT_ID||'').replace(/^act_/,'');
       const metaToken=String(process.env.META_ACCESS_TOKEN||'');
       const metaPageId=String(process.env.META_PAGE_ID||'');
