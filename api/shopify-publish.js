@@ -5,6 +5,7 @@ async function gql(shop,token,query,variables={}){
   const j=await r.json();if(!r.ok||j.errors?.length)throw Error(j.errors?.[0]?.message||'Shopify API request failed');return j.data;
 }
 function clean(v,max=5000){return String(v||'').replace(/[<>]/g,'').trim().slice(0,max)}
+function cleanHtml(v,max=5000){return String(v||'').replace(/<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi,'').replace(/<\s*style\b[^>]*>[\s\S]*?<\s*\/\s*style\s*>/gi,'').replace(/\son\w+\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)/gi,'').replace(/javascript:/gi,'').trim().slice(0,max)}
 function aioMetafields(p,ownerId,title,description){
   const rows=[];
   const audience=clean(p.adpsAudience||p.audience,500);
@@ -334,7 +335,7 @@ export default async function handler(req,res){
       }
       return res.status(200).json({ok:true,sync:true,action:syncAction,status});
     }
-    const title=clean(p.title||p.name,255),description=clean(p.description||p.descriptionHtml,5000),vendor=clean(p.vendor||'AI BUYER',255),price=Number(p.price);
+    const title=clean(p.title||p.name,255),description=cleanHtml(p.descriptionHtml||p.description,5000),vendor=clean(p.vendor||'AI BUYER',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
     const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product:$product) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping']}});
@@ -342,6 +343,9 @@ export default async function handler(req,res){
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
     const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),sku:cj.vid}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
+    const updatedVariant=update.productVariantsBulkUpdate?.productVariants?.[0];
+    const confirmedPrice=Number(updatedVariant?.price);
+    if(!Number.isFinite(confirmedPrice)||Math.round(confirmedPrice)!==Math.round(price))throw Error('Shopify価格の反映確認に失敗しました。下書きを保持します。');
     const metafields=aioMetafields(p,ce.product.id,title,description);
     let metadataReady=true,metadataErrors=[];
     if(metafields.length){
