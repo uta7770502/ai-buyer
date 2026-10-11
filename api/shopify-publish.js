@@ -56,8 +56,8 @@ export default async function handler(req,res){
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowed)||shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
-    const p=req.body||{};
-    if(p.adHealth===true){
+    const raw=req.body||{}; const formPublish=String(raw.formPublish||'')==='1'; const p=raw;
+    if(formPublish){p.images=p.image?[p.image]:[];p.descriptionHtml='';p.publishApproved=false;}\n    if(p.adHealth===true){
       const metaAccountId=String(process.env.META_AD_ACCOUNT_ID||'').replace(/^act_/,'');
       const metaToken=String(process.env.META_ACCESS_TOKEN||'');
       const metaPageId=String(process.env.META_PAGE_ID||'');
@@ -373,10 +373,10 @@ export default async function handler(req,res){
     }
     // AIO/GEO metadata is part of the publication gate. Keep the product draft
     // if Shopify rejected the metadata instead of publishing incomplete content.
-    if(!metadataReady)return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});
+    if(!metadataReady){if(formPublish)return res.redirect(303,'/?publish=error&reason=metadata');return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});}
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
-    if(p.publishApproved!==true||!livePublishEnabled)return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
+    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done');return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});}
     // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
@@ -388,5 +388,5 @@ export default async function handler(req,res){
     const errs=publish.publishablePublish?.userErrors||[];
     if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
     return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:true,metadataReady:true,publicationConfigured:true,publicationName:target.name,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});
-  }catch(e){return res.status(500).json({ok:false,error:e.message||'Shopify自動出品に失敗しました'})}
+  }catch(e){if(String(req.body?.formPublish||'')==='1')return res.redirect(303,'/?publish=error&reason='+encodeURIComponent(e.message||'Shopify自動出品に失敗しました'));return res.status(500).json({ok:false,error:e.message||'Shopify自動出品に失敗しました'})}
 }
