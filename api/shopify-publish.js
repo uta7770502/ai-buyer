@@ -35,7 +35,13 @@ async function cjToken(){
 async function cjVariant(productId){
   if(!productId)throw Error('CJ商品IDが不足しています');
   const u=new URL('https://developers.cjdropshipping.com/api2.0/v1/product/query');u.searchParams.set('pid',String(productId));
-  const r=await fetch(u,{headers:{'CJ-Access-Token':await cjToken()},signal:AbortSignal.timeout(10000)});const j=await r.json();
+  let r,j;
+  for(let attempt=0;attempt<3;attempt++){
+    if(attempt)await new Promise(resolve=>setTimeout(resolve,1200*attempt));
+    r=await fetch(u,{headers:{'CJ-Access-Token':await cjToken()},signal:AbortSignal.timeout(10000)});
+    j=await r.json();
+    if(r.status!==429&&!/too many requests|qps limit|rate limit/i.test(String(j.message||'')))break;
+  }
   if(!r.ok||j.result!==true)throw Error(j.message||'CJ商品情報を取得できません');
   const p=j.data||{},vs=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
   const v=vs.find(x=>x&&(x.vid||x.id||x.variantId));
