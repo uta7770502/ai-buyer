@@ -786,7 +786,11 @@ async function backfillAllAioGeo(){
   }
   if(status)status.textContent='一括補完完了：成功 '+ok+' / 失敗 '+fail+(aioAudit.items.length>10?' / 残りは次回処理':'');
   if(btn)btn.disabled=false;
-  await checkAioGeoAudit();
+  for(let retry=0;retry<3;retry++){
+    if(retry)await new Promise(r=>setTimeout(r,1800));
+    await checkAioGeoAudit();
+    if(aioAudit.missing===0)break;
+  }
 }
 
 async function backfillAioGeo(productId,title){
