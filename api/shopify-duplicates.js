@@ -12,7 +12,7 @@ export default async function handler(req,res){
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
     const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
     if(shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
-    const d=await gql(shop,token,'query { products(first:100, query:"status:draft vendor:\"AI BUYER\"") { nodes { id title handle status vendor variants(first:10){nodes{id sku}} } } }');
+    const d=await gql(shop,token,'query DuplicateDrafts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor variants(first:10){nodes{id sku}} } } }',{q:'status:draft vendor:AI BUYER'});
     const rows=d.products?.nodes||[];
     const byKey=new Map();
     for(const p of rows){
