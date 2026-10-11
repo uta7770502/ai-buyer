@@ -917,7 +917,7 @@ async function checkShopifyDuplicates(){
     if(!j.duplicateGroups&&Array.isArray(j.drafts)&&j.drafts.length){
       const card=state?.closest('.connection');if(card){
         const box=document.createElement('div');box.id='shopifyDuplicateDetail';box.style.cssText='grid-column:1/-1;width:100%;margin-top:8px;font-size:12px;line-height:1.5;color:#444';
-        box.innerHTML=j.drafts.map((d,i)=>'<div style="padding:8px 0;border-top:1px solid #eee"><b>下書き'+(i+1)+'：</b>'+esc(d.title||'')+(d.skus?.length?' <span class="muted">SKU '+esc(d.skus.join(', '))+'</span>':'')+'</div>').join('');
+        box.innerHTML=j.drafts.map((d,i)=>'<div style="padding:8px 0;border-top:1px solid #eee;display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:start">'+(d.image?'<img src="'+esc(d.image)+'" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:10px">':'<div></div>')+'<div><b>下書き'+(i+1)+'：</b>'+esc(d.title||'')+'<div class="muted">'+(d.skus?.length?'SKU '+esc(d.skus.join(', '))+' / ':'')+(d.prices?.length?'価格 '+esc(d.prices.join(', '))+' / ':'')+'カテゴリ '+esc(d.productType||'未設定')+'</div></div></div>').join('');
         card.appendChild(box);
       }
     }
