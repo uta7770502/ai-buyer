@@ -905,7 +905,7 @@ async function checkShopifyDuplicates(){
     const r=await fetch('/api/shopify-duplicates',{cache:'no-store'});const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'重複チェックに失敗しました');
     if(state){state.textContent=j.duplicateGroups?('重複 '+j.duplicateGroups+'組'):'重複なし';state.className='connectionState '+(j.duplicateGroups?'warn':'ok')}
-    if(meta){const unique=Math.max(0,(j.totalDrafts||0)-((j.groups||[]).reduce((n,g)=>n+Math.max(0,(g.count||0)-1),0)));meta.textContent='AI BUYER下書き '+j.totalDrafts+'件 / 重複グループ '+j.duplicateGroups+'組 / 整理後 '+unique+'件';}
+    if(meta){const unique=Math.max(0,(j.totalDrafts||0)-((j.groups||[]).reduce((n,g)=>n+Math.max(0,(g.count||0)-1),0)));meta.textContent='下書き '+j.totalDrafts+'件 / 公開済み '+(j.totalActive||0)+'件 / 重複 '+j.duplicateGroups+'組 / 整理後 '+unique+'件';}
     const old=document.getElementById('shopifyDuplicateDetail');if(old)old.remove();
     if(j.duplicateGroups){
       const card=state?.closest('.connection');if(card){
