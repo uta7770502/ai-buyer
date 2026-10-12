@@ -188,29 +188,44 @@ export default async function handler(req,res){
 
     if(p.salesSummary===true){
       const now=new Date();
-      const y=now.getFullYear(),m=now.getMonth();
-      const dayStart=new Date(y,m,now.getDate());
-      const monthStart=new Date(y,m,1);
-      const yearStart=new Date(y,0,1);
+      const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
+        timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'
+      }).formatToParts(now).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+      const y=Number(parts.year),m=Number(parts.month),d=Number(parts.day);
+      const jstUtc=(yy,mm,dd)=>new Date(Date.UTC(yy,mm-1,dd)-9*60*60*1000);
+      const dayStart=jstUtc(y,m,d);
+      const monthStart=jstUtc(y,m,1);
+      const yearStart=jstUtc(y,1,1);
       const queryStart=yearStart.toISOString();
       let after=null,nodes=[],pages=0;
       do{
-        const data=await gql(shop,token,'query SalesSummary($first:Int!,$after:String,$q:String!){orders(first:$first,after:$after,query:$q,sortKey:CREATED_AT){nodes{id createdAt cancelledAt displayFinancialStatus totalPriceSet{shopMoney{amount currencyCode}}} pageInfo{hasNextPage endCursor}}}',{first:100,after,q:'created_at:>='+queryStart});
+        const data=await gql(shop,token,'query SalesSummary($first:Int!,$after:String,$q:String!){orders(first:$first,after:$after,query:$q,sortKey:CREATED_AT){nodes{id createdAt cancelledAt displayFinancialStatus totalPriceSet{shopMoney{amount currencyCode}} totalRefundedSet{shopMoney{amount currencyCode}} currentTotalPriceSet{shopMoney{amount currencyCode}}} pageInfo{hasNextPage endCursor}}}',{first:100,after,q:'created_at:>='+queryStart});
         nodes.push(...(data.orders?.nodes||[]));
         after=data.orders?.pageInfo?.endCursor||null;
         pages++;
         if(!data.orders?.pageInfo?.hasNextPage)break;
       }while(after&&pages<10);
-      const valid=o=>{
+      const eligible=o=>{
         if(o.cancelledAt)return false;
-        return ['PAID','PARTIALLY_PAID','AUTHORIZED'].includes(String(o.displayFinancialStatus||''));
+        return ['PAID','PARTIALLY_PAID','AUTHORIZED','PARTIALLY_REFUNDED','REFUNDED'].includes(String(o.displayFinancialStatus||''));
       };
-      const amount=o=>Math.max(0,Number(o.totalPriceSet?.shopMoney?.amount||0));
-      const sumFrom=start=>Math.round(nodes.filter(o=>valid(o)&&new Date(o.createdAt)>=start).reduce((a,o)=>a+amount(o),0));
+      const gross=o=>Math.max(0,Number(o.totalPriceSet?.shopMoney?.amount||0));
+      const refunded=o=>Math.max(0,Number(o.totalRefundedSet?.shopMoney?.amount||0));
+      const net=o=>{
+        const current=Number(o.currentTotalPriceSet?.shopMoney?.amount);
+        if(Number.isFinite(current)&&current>=0)return current;
+        return Math.max(0,gross(o)-refunded(o));
+      };
+      const sumFrom=(start,fn)=>Math.round(nodes.filter(o=>eligible(o)&&new Date(o.createdAt)>=start).reduce((a,o)=>a+fn(o),0));
       const currency=nodes.find(o=>o.totalPriceSet?.shopMoney?.currencyCode)?.totalPriceSet?.shopMoney?.currencyCode||'JPY';
+      const dailyGross=sumFrom(dayStart,gross),monthlyGross=sumFrom(monthStart,gross),yearlyGross=sumFrom(yearStart,gross);
+      const dailyRefunded=sumFrom(dayStart,refunded),monthlyRefunded=sumFrom(monthStart,refunded),yearlyRefunded=sumFrom(yearStart,refunded);
+      const daily=sumFrom(dayStart,net),monthly=sumFrom(monthStart,net),yearly=sumFrom(yearStart,net);
       return res.status(200).json({
-        ok:true,salesSummary:true,
-        daily:sumFrom(dayStart),monthly:sumFrom(monthStart),yearly:sumFrom(yearStart),
+        ok:true,salesSummary:true,timeZone:'Asia/Tokyo',
+        daily,monthly,yearly,
+        gross:{daily:dailyGross,monthly:monthlyGross,yearly:yearlyGross},
+        refunded:{daily:dailyRefunded,monthly:monthlyRefunded,yearly:yearlyRefunded},
         currency,checkedAt:new Date().toISOString(),ordersScanned:nodes.length,truncated:Boolean(after&&pages>=10)
       });
     }
