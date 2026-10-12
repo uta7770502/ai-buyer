@@ -498,13 +498,13 @@ async function runGrowthEngine(silent=false){
     }
   }
   if(goal.phase==='chase'){
-    const openSlots=Math.max(0,Number(growthSettings.testProducts||5)-pool.filter(x=>x.status==='test').length);
+    const openSlots=Math.max(0,Number(growthSettings.testProducts||5)-pool.filter(x=>x.shopifyPublishState!=='published'&&(x.status==='test'||['queued','shipping','draft','ready'].includes(x.autoSetupState))).length);
     const candidates=(today?.products||[]).filter(p=>!findActive(p.id)).sort((a,b)=>(b.aiScore||metrics(b).score)-(a.aiScore||metrics(a).score)).slice(0,openSlots);
     for(const p of candidates){
       const m=metrics(p);
-      const added={...p,costUsd:Number(p.costUsd??m.cost),price:Number(p.price??m.sell),qty:0,status:'candidate',aiScore:Number(p.aiScore||m.score),aiReasons:p.aiReasons||m.reasons,growthAutoAddedAt:now};
+      const added={...p,costUsd:Number(p.costUsd??m.cost),price:Number(p.price??m.sell),qty:0,status:'candidate',aiScore:Number(p.aiScore||m.score),aiReasons:p.aiReasons||m.reasons,growthAutoAddedAt:now,shippingDestination:'JP',autoSetupState:'queued',autoSetupMessage:'AIが自動準備を開始します'};
       active.push(added);
-      actions.push({type:'test',tag:'自動補充',text:(p.name||'商品')+'：目標到達用の空きテスト枠へ自動追加。AI '+(added.aiScore||m.score)+'。送料確認後に出品テストへ。'});
+      actions.push({type:'test',tag:'自動補充',text:(p.name||'商品')+'：目標到達用の空きテスト枠へ自動追加。AI '+(added.aiScore||m.score)+'。送料確認→売価→Shopify下書き→ページ最適化まで自動準備します。'});
     }
   }else{
     actions.push({type:'wait',tag:'新規抑制',text:'日商目標が見えているため、新規商品の自動補充は停止。勝ち商品の利益維持を優先。'});
@@ -538,6 +538,8 @@ async function runGrowthEngine(silent=false){
   growthState={lastRunAt:now,summary:'成長判定完了',actions};
   localStorage.setItem('aiBuyerGrowthState',JSON.stringify(growthState));
   save();
+  const queuedAuto=active.find(x=>!x.archived&&x.autoSetupState==='queued'&&x.growthAutoAddedAt===now);
+  if(queuedAuto)setTimeout(()=>autoPrepareSelectedProduct(queuedAuto,0),350);
   renderGrowthMode();renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();renderDailyActions();
   addOps('AI売上成長モード',(goal.phase==='chase'?'目標追跡':'利益最大化')+' / 日商下限 '+yen(growthSettings.dailySalesFloor)+' / '+actions.length+'件を判定');
   if(!silent)alert('AI売上成長モードの判定が完了しました。実広告費は現在の安全ゲート設定を超えて使用しません。');
