@@ -13,6 +13,7 @@ on:
       - 'tests/storefront.test.mjs'
       - 'tests/shopify-publish.test.mjs'
       - 'storefront.html'
+      - 'index.html'
       - 'tests/readiness-behavior.test.mjs'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
@@ -32,6 +33,7 @@ on:
       - 'tests/storefront.test.mjs'
       - 'tests/shopify-publish.test.mjs'
       - 'storefront.html'
+      - 'index.html'
       - 'tests/readiness-behavior.test.mjs'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
@@ -57,6 +59,7 @@ jobs:
           node --check lib/routes/cj-readiness.js
           node --check api/cj.js
           node --check api/shopify-publish.js
+          node -e "const fs=require('fs'); const html=fs.readFileSync('index.html','utf8'); const scripts=[...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)].map(m=>m[1]); if(!scripts.length)process.exit(1); for(const script of scripts)new Function(script); console.log('Inline scripts parsed:',scripts.length)"
           node -e "const fs=require('fs'); const routes=JSON.parse(fs.readFileSync('vercel.json','utf8')).rewrites; if(!routes.some(r=>r.source==='/api/cj-readiness'&&r.destination==='/api/cj?action=readiness')) process.exit(1)"
       - name: Run tracking safety contract tests
         run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs tests/webhook-behavior.test.mjs tests/readiness-behavior.test.mjs tests/safety.test.mjs tests/storefront.test.mjs tests/shopify-publish.test.mjs
