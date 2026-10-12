@@ -175,7 +175,13 @@ export default async function handler(req,res){
       await markOrder(shop,String(order.id),'needs_review:missing_cj_order_id');
       return res.status(202).json({ok:false,needsReview:true,error:'CJ acknowledged order without an identifier; manual reconciliation required'});
     }
-    await markOrder(shop,String(order.id),'created:'+confirmedCjId);
+    try{
+      await markOrder(shop,String(order.id),'created:'+confirmedCjId);
+    }catch{
+      // The NX reservation remains held; never replay an order after a
+      // successful CJ response just because persisting its final state failed.
+      return res.status(202).json({ok:false,needsReview:true,error:'CJ order was created but final state persistence failed; do not retry automatically'});
+    }
     return res.status(200).json({ok:true,sandbox:true,cjOrderId:cj.data?.orderId||'',cjOrderNumber:cj.data?.orderNumber||'',logisticName:chosen.name});
   }catch(e){return res.status(e.statusCode===413?413:500).json({ok:false,error:e.statusCode===413?'Webhook payload too large':'CJ order processing failed'})}
 }
