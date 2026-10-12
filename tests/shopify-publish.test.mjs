@@ -187,3 +187,29 @@ test('growth page optimization refuses an active Shopify product before mutation
   if(oldShop===undefined)delete process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;else process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=oldShop;
  }
 });
+
+test('growth page optimization updates a verified draft without publishing',async()=>{
+ const previousFetch=globalThis.fetch,oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+ const requests=[];
+ globalThis.fetch=async(_url,opts)=>{
+  const payload=JSON.parse(opts.body);requests.push(payload);
+  if(payload.query.includes('GrowthPageDraftCheck'))return {ok:true,json:async()=>({data:{product:{id:'gid://shopify/Product/12',status:'DRAFT'}}})};
+  if(payload.query.includes('GrowthPageOptimize'))return {ok:true,json:async()=>({data:{productUpdate:{product:{id:'gid://shopify/Product/12',title:'Sample',handle:'sample',status:'DRAFT'},userErrors:[]}}})};
+  throw Error('Unexpected Shopify request');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{growthPageOptimize:true,productId:'gid://shopify/Product/12',descriptionHtml:'Japanese description'}},res);
+  assert.equal(res.code,200);
+  assert.equal(res.body.growthPageOptimized,true);
+  assert.equal(res.body.product.status,'DRAFT');
+  assert.equal(requests.length,2);
+  assert.equal(requests[1].variables.product.id,'gid://shopify/Product/12');
+  assert.equal(requests[1].variables.product.descriptionHtml,'Japanese description');
+  assert.ok(requests.every(x=>!x.query.includes('publishablePublish')));
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(oldShop===undefined)delete process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;else process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=oldShop;
+ }
+});
