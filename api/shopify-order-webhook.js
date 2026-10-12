@@ -87,7 +87,11 @@ export default async function handler(req,res){
       return res.status(422).json({ok:false,error:'Only Shopify test orders are accepted by default'});
     if(!Number.isFinite(orderValue)||orderValue<0||!Number.isSafeInteger(totalItems)||totalItems>maxItems||orderValue>maxOrderValue)
       return res.status(422).json({ok:false,error:'Order exceeds safety limits or has invalid totals'});
+    // Restrict unattended fulfillment to the configured destination country.
+    const allowedDestination=String(process.env.CJ_ALLOWED_DESTINATION_COUNTRY||'JP').trim().toUpperCase();
+    if(!/^[A-Z]{2}$/.test(allowedDestination))return res.status(503).json({ok:false,error:'Allowed destination country is misconfigured'});
     const countryCode=str(addr.country_code,2).toUpperCase();
+    if(countryCode!==allowedDestination)return res.status(422).json({ok:false,needsReview:true,error:'Shipping destination is outside the approved fulfillment country'});
     if(!countryCode||!addr.city||!addr.address1||!addr.name)return res.status(422).json({ok:false,error:'Shipping address incomplete; order requires review'});
     // Require explicit CJ variant identifiers; a merchant SKU is not a CJ VID.
     if(lines.some(x=>!/^[A-Za-z0-9_-]{6,100}$/.test(String(x.sku||''))))
