@@ -18,13 +18,14 @@ export default async function handler(req,res){
     if(json.errors?.length)return res.status(502).send('Product service unavailable');
     const p=json.data?.product;
     if(!p)return res.status(404).send('Product not found');
-    const v=p.variants?.nodes?.[0],price=Number(v?.price?.amount),currency=v?.price?.currencyCode;
+    const v=p.variants?.nodes?.[0],price=v?.price?.amount==null?NaN:Number(v.price.amount),currency=v?.price?.currencyCode;
     const base='https://ai-buyer-nine.vercel.app';
     const url=base+'/shop/products/'+encodeURIComponent(handle);
     const image=String(p.featuredImage?.url||'');
     const validImage=/^https:\/\//.test(image)?image:'';
     const description=String(p.description||'').trim();
-    const schema={'@context':'https://schema.org','@type':'Product',name:p.title,description:description||undefined,image:validImage?[validImage]:undefined,url,offers:Number.isFinite(price)&&price>0&&currency==='JPY'?{'@type':'Offer',price:price.toFixed(0),priceCurrency:'JPY',availability:v.availableForSale?'https://schema.org/InStock':'https://schema.org/OutOfStock',url}:undefined};
+    const hasValidOffer=Number.isFinite(price)&&price>0&&currency==='JPY'&&typeof v?.availableForSale==='boolean';
+    const schema={'@context':'https://schema.org','@type':'Product',name:p.title,description:description||undefined,image:validImage?[validImage]:undefined,url,offers:hasValidOffer?{'@type':'Offer',price:price.toFixed(0),priceCurrency:'JPY',availability:v.availableForSale?'https://schema.org/InStock':'https://schema.org/OutOfStock',url}:undefined};
     const ld=JSON.stringify(schema).replace(/</g,'\\u003c');
     res.setHeader('Content-Type','text/html; charset=utf-8');
     res.setHeader('X-Robots-Tag',searchIndexEnabled?'index, follow':'noindex, follow');
