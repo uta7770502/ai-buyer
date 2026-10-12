@@ -1406,6 +1406,52 @@ if(j.ordersPaidWebhookReady){
   saveTestProgress();
 }
 renderAutomationDashboard();renderOrderFlowOverview();checkAioGeoAudit();if(forceAuth&&(missing.length||!j.fulfillmentScopesReady)){location.href='/api/shopify-auth';return}}else if(j.authRequired){shopifyCheckedAt='';webhookCheckedAt='';testProgress.shopify=false;testProgress.webhook=false;if(testProgress.timestamps){delete testProgress.timestamps.shopify;delete testProgress.timestamps.webhook}saveTestProgress();if(st){st.className='connectionState ng';st.textContent='認証必要'}if(meta)meta.textContent='Shopify認証を実行してください';if(orderSt){orderSt.className='connectionState ng';orderSt.textContent='要確認'}if(forceAuth)location.href='/api/shopify-auth'}else{shopifyConnected=false;shopifyCheckedAt='';webhookCheckedAt='';if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=j.error||'Shopify状態を確認できません';if(orderSt){orderSt.className='connectionState ng';orderSt.textContent='要確認'}renderAutomationDashboard()}}catch(e){shopifyConnected=false;shopifyCheckedAt='';webhookCheckedAt='';if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'Shopify接続失敗';if(orderSt){orderSt.className='connectionState ng';orderSt.textContent='要確認'}renderAutomationDashboard()}}
+async function ensureOrderAutomationSilently(){
+  try{
+    const hr=await fetch('/api/shopify-health',{cache:'no-store'});
+    const hj=await hr.json();
+    const st=document.getElementById('orderAutoState'),meta=document.getElementById('orderAutoMeta');
+    if(hj.authRequired){
+      if(st){st.className='connectionState ng';st.textContent='要確認'}
+      if(meta)meta.textContent='Shopify再認証が必要です';
+      renderOrderFlowOverview();
+      return {ok:false,reason:'auth'};
+    }
+    if(!hr.ok||!hj.ok)return {ok:false,reason:'health'};
+    const missing=hj.missingScopes||[];
+    if(missing.length||!hj.fulfillmentScopesReady){
+      if(st){st.className='connectionState ng';st.textContent='要確認'}
+      if(meta)meta.textContent=missing.length?'Shopify権限の確認が必要です':'Fulfillment権限の確認が必要です';
+      renderOrderFlowOverview();
+      return {ok:false,reason:'scope'};
+    }
+    if(hj.ordersPaidWebhookReady){
+      testProgress.webhook=true;webhookCheckedAt=new Date().toISOString();saveTestProgress('webhook');
+      if(st){st.className='connectionState ok';st.textContent='準備済'}
+      if(meta)meta.textContent='Shopify注文の自動検知を確認済み';
+      renderOrderFlowOverview();
+      return {ok:true,ready:true};
+    }
+    const r=await fetch('/api/shopify-setup-orders',{method:'POST'});
+    const j=await r.json();
+    if(!r.ok||!j.ok){
+      if(st){st.className='connectionState ng';st.textContent='要確認'}
+      if(meta)meta.textContent=j.authRequired?'Shopify再認証が必要です':'受注後自動化を確認できません';
+      renderOrderFlowOverview();
+      return {ok:false,reason:j.authRequired?'auth':'setup'};
+    }
+    testProgress.webhook=Boolean(j.verified&&j.exactUriMatch&&!j.staleCount);
+    if(testProgress.webhook){webhookCheckedAt=new Date().toISOString();saveTestProgress('webhook')}else saveTestProgress();
+    if(st){st.className=testProgress.webhook?'connectionState ok':'connectionState ng';st.textContent=testProgress.webhook?'準備済':'要確認'}
+    if(meta)meta.textContent=testProgress.webhook?'Shopify注文の自動検知を自動設定済み':'Webhook設定の確認が必要です';
+    renderAutomationDashboard();renderOrderFlowOverview();
+    return {ok:testProgress.webhook,ready:testProgress.webhook};
+  }catch(e){
+    addOps('受注後自動化 保留',String(e?.message||e||'一時エラー'));
+    renderOrderFlowOverview();
+    return {ok:false,reason:'temporary'};
+  }
+}
 async function setupOrderAutomation(){testProgress.webhook=false;webhookCheckedAt='';if(testProgress.timestamps)delete testProgress.timestamps.webhook;saveTestProgress();const st=document.getElementById('orderAutoState'),meta=document.getElementById('orderAutoMeta');if(st){st.className='connectionState';st.textContent='設定中'}try{const hr=await fetch('/api/shopify-health');const hj=await hr.json();if(hj.authRequired){if(st){st.className='connectionState ng';st.textContent='認証必要'}if(meta)meta.textContent='Shopify再認証が必要です';location.href='/api/shopify-auth';return}if(!hr.ok||!hj.ok){if(st){st.className='connectionState ng';st.textContent='一時障害'}if(meta)meta.textContent=hj.error||'Shopify状態を確認できません';return}const missing=hj.missingScopes||[];if(missing.length){if(st){st.className='connectionState ng';st.textContent='権限不足'}if(meta)meta.textContent='不足権限: '+missing.join(', ');location.href='/api/shopify-auth';return}const r=await fetch('/api/shopify-setup-orders',{method:'POST'});const j=await r.json();if(j.authRequired){if(st){st.className='connectionState ng';st.textContent='認証必要'}if(meta)meta.textContent='Shopify再認証が必要です';location.href='/api/shopify-auth';return}if(!r.ok||!j.ok){if(st){st.className='connectionState ng';st.textContent=r.status===503?'一時障害':'設定要確認'}if(meta)meta.textContent=j.error||'自動発注設定に失敗しました';return}if(st){st.className=j.verified&&j.exactUriMatch&&!j.staleCount?'connectionState ok':'connectionState ng';st.textContent=j.verified&&j.exactUriMatch&&!j.staleCount?'テスト稼働':'要確認'}if(meta){const staleRows=Array.isArray(j.staleSubscriptions)?j.staleSubscriptions:[];const stale=staleRows.length;meta.textContent='Shopify注文→CJサンドボックス発注 / '+(j.created?'Webhook登録済':'Webhook確認済')+(j.exactUriMatch?' / URL一致':' / URL不一致')+(stale?' / 古いWebhook '+stale+'件: '+staleRows.map(x=>x.uri).join(' , ')+'（自動削除はしません。不要な登録をShopify管理画面で確認してください）':'')}testProgress.webhook=Boolean(j.verified&&j.exactUriMatch&&!j.staleCount);
 if(testProgress.webhook){
   webhookCheckedAt=new Date().toISOString();
@@ -1842,5 +1888,5 @@ document.addEventListener('click',e=>{
     showCandidateToast('出品エラー: '+reason);
   }
 })();
-q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderAutoOverview();renderMonitor();applyUiMode();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();hydrateTestContextUI();hydrateGrowthSettings();hydrateSalesGoals();const __admin=document.getElementById('adminKeyInput');if(__admin){const __k=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();if(__k)__admin.value=__k;}renderTestChecklist();renderAutomationDashboard();renderOrderFlowOverview();renderReturnAudit();refreshSalesSummary();maybeDailyGrowth();setTimeout(checkConnection,700);setTimeout(async()=>{await checkShopify(false);const params=new URLSearchParams(location.search);const pending=sessionStorage.getItem('aiBuyerPendingPublishId');if(params.get('shopify')==='connected'&&pending&&shopifyConnected){sessionStorage.removeItem('aiBuyerPendingPublishId');history.replaceState({},'',location.pathname);const x=findActive(pending);if(x){showCandidateToast('Shopify認証完了。出品を再開します…');setTimeout(()=>autoPublishCandidate(x),300)}}},900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setTimeout(resumeAutoPreparation,1800);setTimeout(()=>{if(active.some(x=>!x.archived&&(x.status==='test'||x.autoSetupState==='ready')))queueAutomationCycle(1200)},2200);setInterval(maybeDailyMonitor,30*60*1000);setInterval(resumeAutoPreparation,30*60*1000);setInterval(()=>{hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard()},5*60*1000);
+q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderAutoOverview();renderMonitor();applyUiMode();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();hydrateTestContextUI();hydrateGrowthSettings();hydrateSalesGoals();const __admin=document.getElementById('adminKeyInput');if(__admin){const __k=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();if(__k)__admin.value=__k;}renderTestChecklist();renderAutomationDashboard();renderOrderFlowOverview();renderReturnAudit();refreshSalesSummary();maybeDailyGrowth();setTimeout(checkConnection,700);setTimeout(async()=>{await checkShopify(false);if(shopifyConnected)await ensureOrderAutomationSilently();const params=new URLSearchParams(location.search);const pending=sessionStorage.getItem('aiBuyerPendingPublishId');if(params.get('shopify')==='connected'&&pending&&shopifyConnected){sessionStorage.removeItem('aiBuyerPendingPublishId');history.replaceState({},'',location.pathname);const x=findActive(pending);if(x){showCandidateToast('Shopify認証完了。出品を再開します…');setTimeout(()=>autoPublishCandidate(x),300)}}},900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setTimeout(resumeAutoPreparation,1800);setTimeout(()=>{if(active.some(x=>!x.archived&&(x.status==='test'||x.autoSetupState==='ready')))queueAutomationCycle(1200)},2200);setInterval(maybeDailyMonitor,30*60*1000);setInterval(resumeAutoPreparation,30*60*1000);setInterval(()=>{if(shopifyConnected)ensureOrderAutomationSilently()},60*60*1000);setInterval(()=>{hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard()},5*60*1000);
 </script></body></html>
