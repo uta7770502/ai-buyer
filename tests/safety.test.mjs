@@ -151,3 +151,29 @@ for(const sandboxFlag of [0,undefined])test('real or unconfirmed CJ orders canno
  const m=mockStore();configure(t,async(url,opts)=>String(url).includes('/shopping/order/getOrderDetail')?json({result:true,data:{isSandbox:sandboxFlag,trackNumber:'TRACK123'}}):m.fetcher(url,opts));
  const r=await invoke(sync,{...payload,dryRun:true});assert.equal(r.data.ok,false);assert.equal(m.mutations,0);
 });
+
+test('release readiness distinguishes Redis ping from unverified external integrations',async t=>{
+ configure(t,async()=>json({result:'PONG'}));
+ const r=await invoke(readiness,{},'GET');
+ assert.equal(r.code,200);
+ assert.equal(r.data.redisReachable,true);
+ assert.equal(r.data.externalChecks.redisPing,true);
+ for(const key of ['shopifyAdminVerified','cjApiVerified','shopifyWebhookVerified','fulfillmentVerified']){
+  assert.equal(r.data.externalChecks[key],false,key);
+ }
+ assert.equal(r.data.liveIntegrationVerified,false);
+ assert.equal(r.data.readyForLive,false);
+ assert.match(r.data.verification,/redis-ping/);
+});
+test('release readiness fails closed for missing numeric safety limits',async t=>{
+ configure(t,async()=>json({result:'PONG'}));
+ for(const key of ['CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_MAX_FREIGHT_USD']){
+  const saved=process.env[key];
+  for(const invalid of ['', ' ', 'Infinity', '-1']){
+   process.env[key]=invalid;
+   const r=await invoke(readiness,{},'GET');
+   assert.equal(r.data.safeToTest,false,key+' '+invalid);
+  }
+  process.env[key]=saved;
+ }
+});
