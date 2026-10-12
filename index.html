@@ -1915,7 +1915,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
 function resumeAutoPreparation(){
   const now=Date.now();
   for(const x of active){
-    if(!x||x.archived||x.shopifyPublishState==='published'||x.autoSetupState==='ready')continue;
+    if(!x||x.archived||x.shopifyPublishState==='published'||x.autoSetupState==='ready'||autoPreparationInFlight.has(String(x.id))||autoPreparationRetryTimers.has(String(x.id)))continue;
     const attempts=Math.max(0,Number(x.autoSetupAttempts||0));
     const last=Date.parse(x.autoSetupLastAttemptAt||'');
     if(attempts>=3)continue;
