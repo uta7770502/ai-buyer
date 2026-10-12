@@ -1919,6 +1919,7 @@ function resumeAutoPreparation(){
     const attempts=Math.max(0,Number(x.autoSetupAttempts||0));
     const last=Date.parse(x.autoSetupLastAttemptAt||'');
     if(attempts>=3)continue;
+    if(x.autoSetupState==='needs_review'&&!Number.isFinite(last))continue;
     if(Number.isFinite(last)&&now-last<10*60*1000)continue;
     if(x.autoSetupState==='needs_review'&&!autoPrepareRetryable(x.autoSetupLastError||x.autoSetupMessage))continue;
     if(x.autoSetupState==='queued'||x.autoSetupState==='shipping'||x.autoSetupState==='draft'){
