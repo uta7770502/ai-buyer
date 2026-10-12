@@ -121,3 +121,19 @@ test('readiness accepts CJ API key when direct access token is absent',async()=>
   assert.equal(x.body.configured.cjAuthentication,true);
   assert.ok(!JSON.stringify(x.body).includes('CJ_API_KEY_VALUE'));
 });
+
+test('readiness fails closed on blank, exponential and fractional CJ order limits',async()=>{
+ for(const limit of ['', ' ', '1e3', '0', '-2', '2.5', 'Infinity']){
+  const x=await invoke({configured:true,overrides:{CJ_MAX_ITEMS_PER_ORDER:limit}});
+  assert.equal(x.body.configured.orderLimits,false,'Unexpected valid item limit: '+JSON.stringify(limit));
+  assert.equal(x.body.readyForSandboxConfiguration,false);
+ }
+ for(const amount of ['', ' ', 'Infinity', 'NaN', '-100', '0']){
+  const x=await invoke({configured:true,overrides:{CJ_MAX_ORDER_VALUE:amount}});
+  assert.equal(x.body.configured.orderLimits,false,'Unexpected valid order value: '+JSON.stringify(amount));
+ }
+ for(const freight of ['', ' ', 'Infinity', 'NaN', '-5', '0']){
+  const x=await invoke({configured:true,overrides:{CJ_MAX_FREIGHT_USD:freight}});
+  assert.equal(x.body.configured.freightLimit,false,'Unexpected valid freight cap: '+JSON.stringify(freight));
+ }
+});
