@@ -166,3 +166,24 @@ test('truncated Shopify draft search stops before product creation',async()=>{
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
 });
+
+test('growth page optimization refuses an active Shopify product before mutation',async()=>{
+ const previousFetch=globalThis.fetch,oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+ const queries=[];
+ globalThis.fetch=async(_url,opts)=>{
+  const payload=JSON.parse(opts.body);queries.push(payload.query);
+  assert.match(payload.query,/GrowthPageDraftCheck/);
+  return {ok:true,json:async()=>({data:{product:{id:'gid://shopify/Product/12',status:'ACTIVE'}}})};
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{growthPageOptimize:true,productId:'gid://shopify/Product/12',descriptionHtml:'Test product description'}},res);
+  assert.equal(res.code,409);
+  assert.match(res.body.error,/公開中/);
+  assert.equal(queries.length,1);
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(oldShop===undefined)delete process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;else process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=oldShop;
+ }
+});
