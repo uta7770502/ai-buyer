@@ -99,3 +99,13 @@ test('readiness status distinguishes missing setup from pending external verific
   assert.equal(configured.body.readinessStatus,'awaiting_live_verification');
   assert.equal(configured.body.liveIntegrationVerified,false);
 });
+
+test('readiness summary counts configuration and unverified integration checks',async()=>{
+  const missing=await invoke();
+  assert.equal(missing.body.summary.configuredChecks,0);
+  assert.equal(missing.body.summary.totalConfigurationChecks,8);
+  assert.equal(missing.body.summary.remainingExternalChecks,5);
+  const configured=await invoke({configured:true});
+  assert.equal(configured.body.summary.configuredChecks,8);
+  assert.equal(configured.body.summary.remainingExternalChecks,5);
+});
