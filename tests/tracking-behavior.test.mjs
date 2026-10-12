@@ -192,3 +192,19 @@ test('Shopify read-after-write mismatch never confirms fulfillment',async()=>{
   assert.equal(x.reads,2);
   assert.equal(x.locks,1);
 });
+
+test('matching Shopify fulfillment is idempotent without a second mutation',async()=>{
+  const existing=order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}]);
+  const x=await invoke({shopifyOrder:existing});
+  assert.equal(x.statusCode,200);
+  assert.equal(x.body.alreadySynced,true);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+});
+test('unrelated tracking number is not treated as already synced',async()=>{
+  const existing=order([{id:fulfillmentId,trackingInfo:[{number:'OTHER123'}]}]);
+  const x=await invoke({shopifyOrder:existing});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+});
