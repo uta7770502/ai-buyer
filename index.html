@@ -1833,8 +1833,10 @@ function queueAutomationCycle(delay=800){
     }finally{autoCycleRunning=false}
   },delay);
 }
+async const autoPreparationInFlight=new Set();
 async function autoPrepareSelectedProduct(x,attempt=0){
-  if(!x||!findActive(x.id))return;
+  if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(String(x.id)))return;
+  autoPreparationInFlight.add(String(x.id));
   x.autoSetupAttempts=Math.max(Number(x.autoSetupAttempts||0),attempt);
   x.autoSetupState='shipping';
   x.autoSetupMessage=attempt>0?'AIが自動再試行中（'+attempt+'/2）':'CJ送料を自動確認中';
@@ -1899,6 +1901,8 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     save();renderAll();
     addOps('商品自動準備 保留',x.name+'：'+message);
     showCandidateToast('AIが確認必要と判断しました');
+  }finally{
+    autoPreparationInFlight.delete(String(x.id));
   }
 }
 function resumeAutoPreparation(){
