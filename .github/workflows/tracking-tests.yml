@@ -70,6 +70,7 @@ jobs:
           node --check api/cj.js
           node --check api/shopify-publish.js
           node -e "const fs=require('fs'); const html=fs.readFileSync('index.html','utf8'); const scripts=[...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)].map(m=>m[1]); if(!scripts.length)process.exit(1); for(const script of scripts)new Function(script); console.log('Inline scripts parsed:',scripts.length)"
+          node -e "const fs=require('fs'); const html=fs.readFileSync('storefront.html','utf8'); const scripts=[...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)].map(m=>m[1]).filter(s=>s.trim()&&!s.trim().startsWith('{')); if(!scripts.length)process.exit(1); for(const script of scripts)new Function(script); console.log('Storefront inline scripts parsed:',scripts.length)"
           node -e "const fs=require('fs'); const routes=JSON.parse(fs.readFileSync('vercel.json','utf8')).rewrites; if(!routes.some(r=>r.source==='/api/cj-readiness'&&r.destination==='/api/cj?action=readiness')) process.exit(1)"
       - name: Check all backend and test JavaScript syntax
         run: |
