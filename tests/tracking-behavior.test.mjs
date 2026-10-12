@@ -22,7 +22,7 @@ const order=(fulfillments=[])=>({
   }]}
 });
 const json=(data)=>({ok:true,json:async()=>data});
-async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=1,shipped=true,shopifyOrder=order(),afterWrite=order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}]),mutationId=fulfillmentId}={}){
+async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=1,shipped=true,shopifyOrder=order(),afterWrite=order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}]),mutationId=fulfillmentId,lockClaim='OK',shopifyApiError=false}={}){
   const previous={};
   for(const [k,v] of Object.entries({...env,CJ_SANDBOX_TRACKING_SYNC_ENABLED:enabled})){previous[k]=process.env[k];process.env[k]=v;}
   const fetchBefore=globalThis.fetch;
@@ -31,11 +31,12 @@ async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=
     if(url.startsWith('https://example.test/redis')){
       const cmd=JSON.parse(opts.body);
       if(cmd[0]==='GET')return json({result:'created:CJTEST123'});
-      if(cmd[0]==='SET'){locks++;return json({result:'OK'});}
+      if(cmd[0]==='SET'){locks++;return json({result:locks===1?lockClaim:'OK'});}
       throw Error('unexpected redis operation');
     }
     if(url.includes('getOrderDetail'))return json({result:true,data:{isSandbox:sandbox,orderStatus:shipped?'SHIPPED':'CREATED',trackNumber:'TRACK123'}});
     if(url.includes('graphql.json')){
+      if(shopifyApiError)return json({errors:[{message:'API unavailable'}]});
       const body=JSON.parse(opts.body);
       if(body.query.includes('fulfillmentCreate')){writes++;return json({data:{fulfillmentCreate:{fulfillment:{id:mutationId},userErrors:[]}}});}
       reads++;return json({data:{node:reads===1?shopifyOrder:afterWrite}});
@@ -81,4 +82,27 @@ test('mismatched fulfillment ID never reports success',async()=>{
 test('already fulfilled Shopify order does not create another fulfillment',async()=>{
   const x=await invoke({shopifyOrder:order([{id:'gid://shopify/Fulfillment/OTHER',trackingInfo:[{number:'DIFFERENT'}]}])});
   assert.equal(x.statusCode,409);assert.equal(x.writes,0);
+});
+
+test('Redis idempotency conflict blocks all Shopify writes',async()=>{
+  const x=await invoke({lockClaim:null});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.body.automaticRetry,false);
+  assert.equal(x.writes,0);
+});
+test('Shopify verification failure never creates a fulfillment',async()=>{
+  const x=await invoke({shopifyApiError:true});
+  assert.equal(x.statusCode,503);
+  assert.equal(x.body.automaticRetry,false);
+  assert.equal(x.writes,0);
+});
+test('Shopify test flag is required',async()=>{
+  const x=await invoke({shopifyOrder:{...order(),test:false}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
+test('Shopify payment must be paid',async()=>{
+  const x=await invoke({shopifyOrder:{...order(),displayFinancialStatus:'PENDING'}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
 });
