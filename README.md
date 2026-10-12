@@ -71,3 +71,16 @@ It requires a CJ sandbox order previously linked to a Shopify test order in Upst
 **Important:** Any `needsReview` response means stop; inspect both Shopify and CJ manually. Never automatically repeat a write request after an ambiguous result. Redis stores an idempotency marker that deliberately blocks automatic reattempts. The endpoint never creates CJ orders or charges payment.
 
 These checks are not proof of a production-ready integration. GitHub Actions checks source contracts and syntax only; a real end-to-end sandbox run is required separately.
+
+## Preflight readiness (admin-only)
+
+Use the deployed **test environment** to request `GET /api/cj?action=readiness` with `Authorization: Bearer <AI_BUYER_ADMIN_KEY>`. Do not put the key in a query string or browser address bar.
+
+- `readinessStatus=configuration_incomplete`: follow the `remediation` items and re-check.
+- `readinessStatus=awaiting_live_verification`: configuration is present, **not** validated. The five `nextChecks` remain unverified.
+- `summary.configuredChecks` counts configured settings; `summary.remainingExternalChecks` counts unverified integration steps. Neither is an app-completion percentage.
+- Both `CJ_SANDBOX_ORDER_ENABLED` and `CJ_SANDBOX_TRACKING_SYNC_ENABLED` must remain disabled except during separately authorized, isolated sandbox tests.
+- Verify Shopify webhook delivery, SKU mapping, CJ sandbox order reconciliation, Redis idempotency, and Shopify test fulfillment with recorded evidence before enabling any live automation.
+- Never paste API keys or bearer tokens into GitHub issues, screenshots, public logs, or this checklist.
+
+**Safety gate:** An all-green configuration check does not authorize real CJ purchases. A human must verify the complete sandbox flow and approve any subsequent production rollout.
