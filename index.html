@@ -1878,7 +1878,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     const minPrice=Math.ceil((cost/.595)/100)*100;
     const existingPrice=Number(x.price);
     x.price=Math.max(Number.isFinite(existingPrice)?existingPrice:0,minPrice,980);
-    if(!Number.isFinite(x.price)||x.price<=0)throw new Error('販売価格を安全に計算できません');
+    if(!Number.isSafeInteger(x.price)||x.price<=0||x.price>10000000)throw new Error('販売価格が安全な範囲を超えています。原価・送料・為替を確認してください');
     x.autoSetupState='draft';
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
     save();renderAll();
