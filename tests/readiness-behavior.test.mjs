@@ -83,3 +83,11 @@ test('readiness distinguishes configured credentials from verified live integrat
   ]);
   assert.ok(x.body.nextChecks.every(v=>v.verified===false));
 });
+
+test('readiness gives actionable setup guidance only for missing checks',async()=>{
+  const missing=await invoke();
+  assert.equal(missing.body.remediation.length,missing.body.missing.length);
+  assert.ok(missing.body.remediation.every(v=>missing.body.missing.includes(v.id)&&typeof v.instruction==='string'));
+  const configured=await invoke({configured:true});
+  assert.deepEqual(configured.body.remediation,[]);
+});
