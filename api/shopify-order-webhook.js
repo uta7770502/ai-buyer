@@ -68,7 +68,7 @@ export default async function handler(req,res){
       return res.status(503).json({ok:false,error:'Durable order deduplication is not configured'});
     if(!process.env.CJ_ACCESS_TOKEN&&!process.env.CJ_API_KEY)
       return res.status(503).json({ok:false,error:'CJ authentication is not configured'});
-    const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number(x.quantity)>0);
+    const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number.isSafeInteger(Number(x.quantity))&&Number(x.quantity)>0);
     if(!lines.length||lines.length!==(Array.isArray(order.line_items)?order.line_items.length:0))return res.status(422).json({ok:false,error:'CJ variant mapping is incomplete; order requires review'});
     // Spending limits are mandatory even in sandbox mode. No live CJ payments here.
     const maxItems=Number(process.env.CJ_MAX_ITEMS_PER_ORDER);
