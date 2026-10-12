@@ -121,6 +121,7 @@ export default async function handler(req,res){
       if(requestedBudgetJpy>effectiveCap)reasons.push('要求予算が日次上限を超過');
       if(currentSpendJpy>=effectiveCap&&['create','increase','resume'].includes(action))reasons.push('本日上限に到達');
       if(requestedBudgetJpy>effectiveCap-currentSpendJpy&&['create','increase','resume'].includes(action))reasons.push('本日上限を超過する可能性');
+      if(['create','increase','resume'].includes(action)&&requestedBudgetJpy<=0)reasons.push('配信開始・増額・再開には正の予算が必要');
       const testApproved=reasons.length===0;
       const liveApproved=testApproved&&liveEnabled&&serverCap>0;
       return res.status(200).json({
