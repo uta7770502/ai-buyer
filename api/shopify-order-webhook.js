@@ -100,6 +100,7 @@ export default async function handler(req,res){
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
     // Shopify line-item properties are buyer-editable and cannot prove CJ mapping.
     // Confirm each SKU against the actual Shopify product variant before ordering.
+    // Require an independently provisioned server token; browser cookies are never trusted here.
     const shopifyToken=String(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||'');
     if(!shopifyToken)return res.status(503).json({ok:false,needsReview:true,error:'Server-side Shopify verification token is not configured'});
     const verifiedProducts=[];
@@ -111,7 +112,8 @@ export default async function handler(req,res){
         body:JSON.stringify({query:'query($id:ID!){node(id:$id){... on ProductVariant{id sku product{id vendor}}}}',variables:{id:gid}}),
         signal:AbortSignal.timeout(10000)
       });
-      const data=await response.json();
+      let data={};
+      try{data=await response.json()}catch{return res.status(503).json({ok:false,needsReview:true,error:'Shopify catalog verification response was invalid'})}
       const variant=data.data?.node;
       if(!response.ok||data.errors?.length||!variant||variant.id!==gid||variant.sku!==String(line.sku)||variant.product?.vendor!=='AI BUYER'||variant.product?.id!=='gid://shopify/Product/'+String(line.product_id))
         return res.status(422).json({ok:false,needsReview:true,error:'CJ variant SKU could not be verified against Shopify catalog'});
