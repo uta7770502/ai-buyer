@@ -41,6 +41,10 @@ export default async function handler(req,res){
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
     if(order.cancelled_at||order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
     if(!order.id||!req.headers['x-shopify-webhook-id'])return res.status(400).json({ok:false,error:'Missing order or event identifier'});
+    // Never forward orders containing refunds or partial fulfillment to CJ automatically.
+    // These require human reconciliation of the remaining quantities and payment.
+    if((Array.isArray(order.refunds)&&order.refunds.length>0)||order.fulfillment_status==='partial'||order.financial_status==='partially_refunded'||order.financial_status==='refunded')
+      return res.status(200).json({ok:true,skipped:true,needsReview:true,reason:'Refunded or partially fulfilled order requires review'});
     // Shopify may send an orders/paid event while fulfillment is already complete.
     // Do not create a new CJ order for fulfilled or closed Shopify orders.
     if(order.closed_at||order.fulfillment_status==='fulfilled'||order.fulfillment_status==='restocked')
