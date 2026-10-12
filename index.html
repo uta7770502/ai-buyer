@@ -1836,7 +1836,7 @@ function queueAutomationCycle(delay=800){
     }finally{autoCycleRunning=false}
   },delay);
 }
-async const autoPreparationInFlight=new Set();
+const autoPreparationInFlight=new Set();
 const autoPreparationRetryTimers=new Map();
 function cancelAutoPreparationRetry(id){const key=String(id);const timer=autoPreparationRetryTimers.get(key);if(timer!==undefined){clearTimeout(timer);autoPreparationRetryTimers.delete(key)}}
 async function autoPrepareSelectedProduct(x,attempt=0){
