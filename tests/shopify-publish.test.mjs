@@ -263,3 +263,17 @@ test('ad guard never approves without a valid server-side daily cap',async()=>{
   }
  }finally{if(previous===undefined)delete process.env.ADS_MAX_DAILY_JPY;else process.env.ADS_MAX_DAILY_JPY=previous}
 });
+
+test('ad guard respects both user daily budget and server cap',async()=>{
+ const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ const previous=process.env.ADS_MAX_DAILY_JPY;
+ try{
+  process.env.ADS_MAX_DAILY_JPY='2000';
+  for(const [daily,current,requested,approved,cap] of [[1000,900,200,false,1000],[1000,900,100,true,1000],[0,0,100,false,0],[3000,1900,200,false,2000]]){
+   const r=await invoke({cookie,body:{adGuard:true,provider:'meta',action:'create',dailyBudgetJpy:daily,currentSpendJpy:current,requestedBudgetJpy:requested}});
+   assert.equal(r.code,200);
+   assert.equal(r.body.effectiveCapJpy,cap);
+   assert.equal(r.body.testApproved,approved);
+  }
+ }finally{if(previous===undefined)delete process.env.ADS_MAX_DAILY_JPY;else process.env.ADS_MAX_DAILY_JPY=previous}
+});
