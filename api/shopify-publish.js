@@ -108,11 +108,12 @@ export default async function handler(req,res){
       const allowedActions=['create','increase','decrease','pause','resume','hold'];
       if(!allowedProviders.includes(provider))return res.status(400).json({ok:false,error:'広告プロバイダーが不正です'});
       if(!allowedActions.includes(action))return res.status(400).json({ok:false,error:'広告アクションが不正です'});
-      const serverCapRaw=Number(process.env.ADS_MAX_DAILY_JPY||0);
-      const serverCap=Number.isFinite(serverCapRaw)&&serverCapRaw>0?Math.round(serverCapRaw):0;
+      const serverCapRaw=Number(process.env.ADS_MAX_DAILY_JPY);
+      const serverCap=String(process.env.ADS_MAX_DAILY_JPY||'').trim()!==''&&Number.isSafeInteger(serverCapRaw)&&serverCapRaw>0?serverCapRaw:0;
       const liveEnabled=String(process.env.ADS_LIVE_ENABLED||'').toLowerCase()==='true';
       const effectiveCap=serverCap>0?serverCap:dailyBudgetJpy;
       const reasons=[];
+      if(serverCap<=0)reasons.push('サーバー側の日次上限が未設定または不正');
       if(effectiveCap<=0)reasons.push('日次上限が未設定');
       if(requestedBudgetJpy>effectiveCap)reasons.push('要求予算が日次上限を超過');
       if(currentSpendJpy>=effectiveCap&&['create','increase','resume'].includes(action))reasons.push('本日上限に到達');
