@@ -51,6 +51,11 @@ export default async function handler(req,res){
     if(webhookShop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     // Fail closed: sandbox CJ order creation is opt-in until durable idempotency is configured.
     if(process.env.CJ_SANDBOX_ORDER_ENABLED!=='true')return res.status(503).json({ok:false,error:'CJ sandbox order automation is disabled'});
+    // Refuse processing before any CJ API call if durable deduplication is unavailable.
+    if(!process.env.UPSTASH_REDIS_REST_URL||!process.env.UPSTASH_REDIS_REST_TOKEN)
+      return res.status(503).json({ok:false,error:'Durable order deduplication is not configured'});
+    if(!process.env.CJ_ACCESS_TOKEN&&!process.env.CJ_API_KEY)
+      return res.status(503).json({ok:false,error:'CJ authentication is not configured'});
     const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number(x.quantity)>0);
     if(!lines.length||lines.length!==(Array.isArray(order.line_items)?order.line_items.length:0))return res.status(422).json({ok:false,error:'CJ variant mapping is incomplete; order requires review'});
     // Spending limits are mandatory even in sandbox mode. No live CJ payments here.
