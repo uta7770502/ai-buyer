@@ -97,7 +97,7 @@ test('invalid Shopify catalog SKU stops before any CJ endpoint',async()=>{
     enabled:'true',validLine:true,
     fetchMock:async(url)=>{
       urls.push(String(url));
-      assert.match(String(url),/myshopify\\.com/);
+      assert.match(String(url),/myshopify\.com/);
       return {ok:true,json:async()=>({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'WRONG_SKU',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}})};
     }
   });
