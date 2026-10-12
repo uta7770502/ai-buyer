@@ -103,18 +103,28 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&l
 function js(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
 function catalogRisk(p){const inv=Number(p.verifiedInventory??p.inventory??0),delivery=String(p.deliveryCycle||''),sale=String(p.saleStatus??''),complaint=p.complaintRisk||null;let level='low',label='低リスク',reasons=[];if(sale&&sale!=='3'){level='high';label='販売停止';reasons.push('CJ販売状態が停止')}if(inv<=0){level='high';label='在庫リスク';reasons.push('検証済み在庫0')}else if(inv<=20&&level!=='high'){level='mid';label='低在庫';reasons.push('検証済み在庫'+inv)}const nums=(delivery.match(new RegExp('\\d+','g'))||[]).map(Number);if(nums.length&&Math.max(...nums)>=10&&level==='low'){level='mid';label='配送注意';reasons.push('配送目安'+delivery+'日')}if(complaint&&complaint.level==='high'){level='high';label='クレーム多め';reasons.push('低評価レビューが多い')}else if(complaint&&complaint.level==='mid'&&level==='low'){level='mid';label='クレーム注意';reasons.push('低評価レビューあり')}return {level,label,reasons,exclude:level==='high'||Boolean(complaint&&complaint.exclude)}}
 async function enrichRiskList(list,limit=6){const targets=list.filter(x=>x&&x.id&&!x.complaintRisk).slice(0,limit);await Promise.all(targets.map(async p=>{try{const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id));const j=await r.json();if(r.ok&&j.ok)p.complaintRisk=j.risk}catch(e){}}));return list}
-function publishEligibility(x){
+function launchEligibility(x){
   if(!x)return {ready:false,reasons:['商品情報なし']};
-  const reasons=[],lm=learnedMetrics(x),risk=catalogRisk(x);
+  const reasons=[],risk=catalogRisk(x),unit=growthUnitEconomics(x);
   if(!hasValidShipping(x))reasons.push('送料未確定');
-  if(!x.shopifyProductId||x.shopifyPublishState==='error')reasons.push('Shopify下書き未完了');
-  if(risk.exclude||x.monitorRisk==='stop'||x.stopCandidate)reasons.push('販売リスクあり');
-  if(lm.net<=0)reasons.push('実利益が未確認または赤字');
+  if(!x.shopifyProductId||!x.shopifyVariantId||x.shopifyPublishState==='error')reasons.push('Shopify下書き未完了');
+  if(!x.growthPageOptimized)reasons.push('商品ページ最適化未完了');
+  if(risk.exclude||x.monitorRisk==='stop'||x.monitorStopCandidate||x.stopCandidate)reasons.push('販売リスクあり');
+  if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
+  if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
+  return {ready:reasons.length===0,reasons,unit};
+}
+function scaleEligibility(x){
+  if(!x)return {ready:false,reasons:['商品情報なし']};
+  const reasons=[],lm=learnedMetrics(x);
+  if(lm.net<=0)reasons.push('実利益が赤字');
   if(lm.orders<2)reasons.push('注文実績2件未満');
   if(lm.orders>=2&&lm.roas!==99&&lm.roas<Number(adAutomationSettings.scaleRoas||2.5))reasons.push('ROAS基準未達');
   if(lm.rr>.15)reasons.push('返品率15%超');
+  if(x.monitorRisk==='stop'||x.monitorStopCandidate||x.stopCandidate)reasons.push('販売停止リスク');
   return {ready:reasons.length===0,reasons,lm};
 }
+function publishEligibility(x){return launchEligibility(x)}
 function simpleProductState(x){
   if(!x)return {key:'',label:''};
   const gate=publishEligibility(x);
@@ -477,7 +487,7 @@ async function runGrowthEngine(silent=false){
       x.publishQueueState='waiting';
       x.publishQueuedAt=x.publishQueuedAt||now;
       x.publishQueueMessage='最終条件クリア。公開待ち';
-      actions.push({type:'up',tag:'公開待ち',text:(x.name||'商品')+'：最終条件をクリア。AIが公開待ちキューへ移動しました。実公開は本番ロック解除後のみ実行します。'});
+      actions.push({type:'up',tag:'公開待ち',text:(x.name||'商品')+'：送料・価格・限界利益・Shopify下書き・商品ページ・販売リスクの初回公開条件をクリア。AIが公開待ちキューへ移動しました。'});
     }else if(x.publishQueueState==='waiting'){
       x.publishQueueState='hold';
       x.publishQueueMessage='条件変化のため公開待ちを保留';
@@ -518,8 +528,8 @@ function evaluateLiveLifecycle(x){
   let state='hold',message='現状維持';
   if(x.monitorRisk==='stop'||x.monitorStopCandidate||x.stopCandidate||lm.net<0||(lm.orders>0&&lm.roas!==99&&lm.roas<Number(adAutomationSettings.stopRoas||1.2))){
     state='stop';message='利益・ROAS・在庫のいずれかが停止基準';
-  }else if(sd.state==='up'&&lm.net>0){
-    state='scale';message='利益・ROAS・返品率が拡大基準';
+  }else if(scaleEligibility(x).ready&&sd.state==='up'&&lm.net>0){
+    state='scale';message='販売実績・利益・ROAS・返品率が拡大基準';
   }else if(lm.orders>0&&lm.roas!==99&&lm.roas<Number(adAutomationSettings.scaleRoas||2.5)){
     state='reduce';message='利益は維持しているが広告効率が弱い';
   }
