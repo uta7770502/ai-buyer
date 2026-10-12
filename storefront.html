@@ -413,7 +413,7 @@ function renderCart(){
   document.getElementById('checkoutButton').disabled=true;
   document.getElementById('checkoutButton').textContent=previewMode?'プレビューのため購入できません':'購入機能は準備中です';
 }
-function changeQty(id,d){const row=cart.find(p=>p.id===id);if(!row)return;row.qty=Math.min(20,row.qty+d);if(row.qty<=0)cart=cart.filter(p=>p.id!==id);persist();renderCart()}
+function changeQty(id,d){const row=cart.find(p=>p.id===id);if(!row||!Number.isSafeInteger(d)||Math.abs(d)!==1)return;row.qty=Math.min(20,Math.max(0,(Number.isSafeInteger(row.qty)?row.qty:0)+d));if(row.qty<=0)cart=cart.filter(p=>p.id!==id);persist();renderCart();announce(row.qty>0?'数量を'+row.qty+'点に変更しました':'商品をカートから削除しました')}
 function removeCart(id){cart=cart.filter(p=>p.id!==id);persist();renderCart()}
 let layerFocus=new Map();
 const backgroundInert=new Map();
