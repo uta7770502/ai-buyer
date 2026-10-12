@@ -19,9 +19,10 @@ export default async function handler(req,res){
 
   const shop=safeShop(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN);
   const token=String(process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN||'').trim();
-  const urls=[{loc:ORIGIN+'/shop',priority:'1.0'}];
+  const enabled=process.env.ODDLY_SEARCH_INDEX_ENABLED==='true';
+  const urls=enabled?[{loc:ORIGIN+'/shop',priority:'1.0'}]:[];
 
-  if(shop&&token){
+  if(enabled&&shop&&token){
     const query=`query SitemapProducts($first:Int!,$after:String){
       products(first:$first,after:$after,sortKey:UPDATED_AT,reverse:true){
         nodes{handle updatedAt}
@@ -44,7 +45,7 @@ export default async function handler(req,res){
         for(const p of connection.nodes){
           if(!p?.handle)continue;
           urls.push({
-            loc:ORIGIN+'/shop?product='+encodeURIComponent(p.handle),
+            loc:ORIGIN+'/shop/products/'+encodeURIComponent(p.handle),
             lastmod:p.updatedAt||''
           });
         }
