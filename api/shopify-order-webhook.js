@@ -37,8 +37,7 @@ export default async function handler(req,res){
     const secret=String(process.env.SHOPIFY_CLIENT_SECRET||'');
     if(!validHmac(raw,req.headers['x-shopify-hmac-sha256'],secret))return res.status(401).json({ok:false,error:'Invalid Shopify webhook signature'});
     const order=JSON.parse(raw.toString('utf8')||'{}'),addr=order.shipping_address||{};
-    // Fail closed: sandbox CJ order creation is opt-in until a durable idempotency store exists.
-    if(process.env.CJ_SANDBOX_ORDER_ENABLED!=='true')return res.status(503).json({ok:false,error:'CJ sandbox order automation is disabled'});
+    // Verify the originating shop before any order processing, including disabled-mode responses.
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
     if(order.cancelled_at||order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
     if(!order.id||!req.headers['x-shopify-webhook-id'])return res.status(400).json({ok:false,error:'Missing order or event identifier'});
@@ -50,6 +49,8 @@ export default async function handler(req,res){
     if(!allowedShop||!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowedShop))
       return res.status(503).json({ok:false,error:'Allowed Shopify shop is not configured'});
     if(webhookShop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
+    // Fail closed: sandbox CJ order creation is opt-in until durable idempotency is configured.
+    if(process.env.CJ_SANDBOX_ORDER_ENABLED!=='true')return res.status(503).json({ok:false,error:'CJ sandbox order automation is disabled'});
     const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number(x.quantity)>0);
     if(!lines.length||lines.length!==(Array.isArray(order.line_items)?order.line_items.length:0))return res.status(422).json({ok:false,error:'CJ variant mapping is incomplete; order requires review'});
     // Spending limits are mandatory even in sandbox mode. No live CJ payments here.
