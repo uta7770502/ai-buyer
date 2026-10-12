@@ -217,3 +217,18 @@ test('Shopify mutation timeout is ambiguous and prevents automatic retry',async(
   assert.equal(x.writes,1);
   assert.equal(x.locks,1);
 });
+
+test('oversized CJ tracking number cannot create Shopify fulfillment',async()=>{
+  const x=await invoke({trackingNumber:'T'.repeat(101)});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+  assert.equal(x.reads,0);
+});
+test('control characters in CJ tracking number are rejected before Shopify calls',async()=>{
+  const x=await invoke({trackingNumber:'TRACK\n123'});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+  assert.equal(x.reads,0);
+});
