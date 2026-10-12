@@ -445,6 +445,7 @@ async function checkTestTracking(){
       if(j.trackingNumber){
         testTrackingNumber=String(j.trackingNumber);
         testTrackingCompany=String(j.logisticName||'');
+        saveTestContext();
         testProgress.tracking=true;saveTestProgress('tracking');
         result.textContent='配送状況: '+(j.orderStatus||'不明')+' / 追跡番号: '+testTrackingNumber+(testTrackingCompany?' / '+testTrackingCompany:'');
         const btn=document.getElementById('testSyncBtn');if(btn)btn.style.display='block';
@@ -461,7 +462,7 @@ async function checkTestOrder(){
   const orderId=String(document.getElementById('testShopifyOrderId')?.value||'').trim();
   invalidateOrderEvidence(['order','tracking','sync','duplicate']);
   testCjOrderId='';testTrackingNumber='';testTrackingCompany='';
-  testShopifyOrderNumericId=orderId;
+  testShopifyOrderNumericId=orderId;saveTestContext();
   const result=document.getElementById('testOrderResult');
   if(!/^\d{1,30}$/.test(orderId)){if(result)result.textContent='Shopify注文IDは数字で入力してください';return}
   const key=getTestAdminKey();
@@ -484,6 +485,7 @@ async function checkTestOrder(){
     if(result){
       if(j.status==='sandbox_created'&&j.cjOrderId){
         testCjOrderId=String(j.cjOrderId);
+        saveTestContext();
         testProgress.order=true;saveTestProgress('order');
         result.textContent='CJサンドボックス注文確認済み / CJ ID: '+testCjOrderId;
         const sim=document.getElementById('testSimulationBtn');if(sim)sim.style.display='block';
@@ -513,7 +515,7 @@ function resetTestProgress(){
   highlightedTestStep='';
   invalidateReconciliationSummary();
   saveTestProgress();
-  testCjOrderId='';testShopifyOrderNumericId='';testTrackingNumber='';testTrackingCompany='';
+  clearTestContext();
   const ids=['testOrderResult','testTrackingResult','testDuplicateResult','testSimulationResult'];
   for(const id of ids){const el=document.getElementById(id);if(el)el.textContent=id==='testOrderResult'?'未確認':''}
   const simulationBtn=document.getElementById('testSimulationBtn');if(simulationBtn)simulationBtn.style.display='none';
@@ -521,6 +523,22 @@ function resetTestProgress(){
   const syncBtn=document.getElementById('testSyncBtn');if(syncBtn)syncBtn.style.display='none';
   const dupBtn=document.getElementById('testDuplicateBtn');if(dupBtn)dupBtn.style.display='none';
   renderTestChecklist();
+}
+function hydrateTestContextUI(){
+  const orderInput=document.getElementById('testShopifyOrderId');
+  const orderResult=document.getElementById('testOrderResult');
+  const trackResult=document.getElementById('testTrackingResult');
+  if(orderInput&&testShopifyOrderNumericId)orderInput.value=testShopifyOrderNumericId;
+  if(orderResult&&testCjOrderId){
+    orderResult.textContent='CJサンドボックス注文確認済み / CJ ID: '+testCjOrderId;
+    const sim=document.getElementById('testSimulationBtn');if(sim)sim.style.display='block';
+    const track=document.getElementById('testTrackingBtn');if(track)track.style.display='block';
+  }
+  if(trackResult&&testTrackingNumber){
+    trackResult.textContent='追跡番号: '+testTrackingNumber+(testTrackingCompany?' / '+testTrackingCompany:'');
+    const sync=document.getElementById('testSyncBtn');if(sync)sync.style.display=testProgress.sync?'none':'block';
+    const dup=document.getElementById('testDuplicateBtn');if(dup)dup.style.display=testProgress.sync&&!testProgress.duplicate?'block':'none';
+  }
 }
 function renderTestChecklist(){
   const box=document.getElementById('testChecklist');if(!box)return;
@@ -923,7 +941,8 @@ async function checkReleaseReadiness(){
     if(st){st.className='connectionState ng';st.textContent='要確認'}
     if(meta)meta.textContent=(e.message||'公開準備チェックに失敗しました')+(releaseReadiness?' / 前回結果を保持':'');
     renderAutomationDashboard();
-    renderTestChecklist();
+    hydrateTestContextUI();
+renderTestChecklist();
   }
 }
 async function checkConnection(){const st=document.getElementById('connectionState'),meta=document.getElementById('connectionMeta');if(st){st.className='connectionState';st.textContent='確認中'}try{const r=await fetch('/api/cj-health');const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'接続失敗');cjConnected=true;cjCheckedAt=String(j.checkedAt||new Date().toISOString());if(st){st.className='connectionState ok';st.textContent='接続OK'}if(meta)meta.textContent=`${j.mode==='api-key'?'API Key':'Access Token'} / ${j.latencyMs}ms / ${new Date(j.checkedAt).toLocaleString('ja-JP')}`;localStorage.setItem('aiBuyerConnectionLastOk',j.checkedAt);renderAutomationDashboard();setTimeout(maybeDailyScan,150)}catch(e){cjConnected=false;cjCheckedAt='';if(st){st.className='connectionState ng';st.textContent='要確認'}if(meta)meta.textContent=e.message||'接続失敗';renderAutomationDashboard()}}
@@ -1083,10 +1102,24 @@ try{
 }catch{}
 let releaseReadiness=(()=>{try{const saved=JSON.parse(localStorage.getItem('aiBuyerReleaseReadiness')||'null');return saved?.checkVersion===3&&saved?.safetyContract==='sandbox-v1'?saved:null}catch{return null}})();
 let releaseReadinessCheckedAt=localStorage.getItem('aiBuyerReleaseCheckedAt')||'';
-let testCjOrderId='';
-let testShopifyOrderNumericId='';
-let testTrackingNumber='';
-let testTrackingCompany='';
+let testContext=(()=>{try{return JSON.parse(localStorage.getItem('aiBuyerTestContext')||'null')||{}}catch{return {}}})();
+let testCjOrderId=String(testContext.cjOrderId||'');
+let testShopifyOrderNumericId=String(testContext.shopifyOrderId||'');
+let testTrackingNumber=String(testContext.trackingNumber||'');
+let testTrackingCompany=String(testContext.trackingCompany||'');
+function saveTestContext(){
+  localStorage.setItem('aiBuyerTestContext',JSON.stringify({
+    shopifyOrderId:testShopifyOrderNumericId,
+    cjOrderId:testCjOrderId,
+    trackingNumber:testTrackingNumber,
+    trackingCompany:testTrackingCompany,
+    updatedAt:new Date().toISOString()
+  }));
+}
+function clearTestContext(){
+  testCjOrderId='';testShopifyOrderNumericId='';testTrackingNumber='';testTrackingCompany='';
+  localStorage.removeItem('aiBuyerTestContext');
+}
 let testProgress=(()=>{
   const empty={shopify:false,webhook:false,order:false,tracking:false,sync:false,duplicate:false,timestamps:{},schemaVersion:2};
   try{const saved=JSON.parse(localStorage.getItem('aiBuyerTestProgress')||'{}');return saved.schemaVersion===2?{...empty,...saved}:empty}catch{return empty}
