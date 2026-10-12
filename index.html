@@ -1878,15 +1878,15 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       if(!page.ok)throw new Error(page.reason||'商品ページ最適化に失敗');
       x.status='test';
       x.autoSetupState='ready';
-      x.autoSetupMessage='AI自動準備完了。テスト運用中';
+      x.autoSetupMessage='AI自動準備完了。Shopify下書きで公開待ち';
       x.autoPreparedAt=new Date().toISOString();
       x.autoSetupAttempts=0;
       x.autoSetupLastError='';
       x.growthCreatives=growthCreativeDrafts(x);
       save();renderAll();renderGrowthMode();renderDailyActions();
-      addOps('商品自動準備',x.name+'：送料・売価・Shopify下書き・日本向けページ・テスト設定を完了');
+      addOps('商品自動準備',x.name+'：送料・売価・Shopify下書き・日本向けページの準備完了（公開・実注文は未実施）');
       queueAutomationCycle(500);
-      showCandidateToast('AI自動準備が完了しました。自動運用を開始します');
+      showCandidateToast('AI自動準備が完了しました。Shopify下書きで待機中');
     }else{
       throw new Error(x.shopifyPublishError||'Shopify下書きを作成できませんでした');
     }
