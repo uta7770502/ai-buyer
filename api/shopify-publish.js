@@ -186,6 +186,35 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true,cancelled:true,orderId,name:o.name,financialStatus:fin,fulfillmentStatus:ful,cjFound,cjStatus,jobId:out.job?.id||'',jobDone:Boolean(out.job?.done)});
     }
 
+    if(p.salesSummary===true){
+      const now=new Date();
+      const y=now.getFullYear(),m=now.getMonth();
+      const dayStart=new Date(y,m,now.getDate());
+      const monthStart=new Date(y,m,1);
+      const yearStart=new Date(y,0,1);
+      const queryStart=yearStart.toISOString();
+      let after=null,nodes=[],pages=0;
+      do{
+        const data=await gql(shop,token,'query SalesSummary($first:Int!,$after:String,$q:String!){orders(first:$first,after:$after,query:$q,sortKey:CREATED_AT){nodes{id createdAt cancelledAt displayFinancialStatus totalPriceSet{shopMoney{amount currencyCode}}} pageInfo{hasNextPage endCursor}}}',{first:100,after,q:'created_at:>='+queryStart});
+        nodes.push(...(data.orders?.nodes||[]));
+        after=data.orders?.pageInfo?.endCursor||null;
+        pages++;
+        if(!data.orders?.pageInfo?.hasNextPage)break;
+      }while(after&&pages<10);
+      const valid=o=>{
+        if(o.cancelledAt)return false;
+        return ['PAID','PARTIALLY_PAID','AUTHORIZED'].includes(String(o.displayFinancialStatus||''));
+      };
+      const amount=o=>Math.max(0,Number(o.totalPriceSet?.shopMoney?.amount||0));
+      const sumFrom=start=>Math.round(nodes.filter(o=>valid(o)&&new Date(o.createdAt)>=start).reduce((a,o)=>a+amount(o),0));
+      const currency=nodes.find(o=>o.totalPriceSet?.shopMoney?.currencyCode)?.totalPriceSet?.shopMoney?.currencyCode||'JPY';
+      return res.status(200).json({
+        ok:true,salesSummary:true,
+        daily:sumFrom(dayStart),monthly:sumFrom(monthStart),yearly:sumFrom(yearStart),
+        currency,checkedAt:new Date().toISOString(),ordersScanned:nodes.length,truncated:Boolean(after&&pages>=10)
+      });
+    }
+
     if(p.orderAudit===true){
       const data=await gql(shop,token,'query RecentOrders { orders(first:20, reverse:true) { nodes { id name createdAt cancelledAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } lineItems(first:20) { nodes { name quantity sku } } } } }');
       const shopOrders=data.orders?.nodes||[];
