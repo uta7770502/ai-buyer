@@ -117,3 +117,30 @@ test('duplicate CJ SKU drafts block creation before any Shopify mutation',async(
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
 });
+
+test('single matching CJ SKU draft is updated rather than creating a duplicate',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN,oldLive=process.env.SHOPIFY_LIVE_PUBLISH_ENABLED;
+ const previousFetch=globalThis.fetch,queries=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+ process.env.CJ_ACCESS_TOKEN='test-cj';
+ process.env.SHOPIFY_LIVE_PUBLISH_ENABLED='false';
+ globalThis.fetch=async(url,opts={})=>{
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  const req=JSON.parse(opts.body);queries.push(req);
+  if(req.query.includes('ExistingDraftsBySku'))return {ok:true,json:async()=>({data:{products:{nodes:[{id:'gid://shopify/Product/1',status:'DRAFT',vendor:'AI BUYER',variants:{nodes:[{sku:'cj-variant'}],pageInfo:{hasNextPage:false}}}],pageInfo:{hasNextPage:false}}}})};
+  if(req.query.includes('RefreshDraft'))return {ok:true,json:async()=>({data:{productUpdate:{product:{id:'gid://shopify/Product/1',title:'Updated',handle:'updated',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2'}]}},userErrors:[]}}})};
+  if(req.query.includes('UpdateVariant'))return {ok:true,json:async()=>({data:{productVariantsBulkUpdate:{productVariants:[{id:'gid://shopify/ProductVariant/2',price:'1200'}],userErrors:[]}}})};
+  throw Error('Unexpected Shopify request');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Updated',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.code,200);assert.equal(res.body.status,'DRAFT');
+  assert.equal(res.body.productId,'gid://shopify/Product/1');
+  assert.ok(queries.some(x=>x.query.includes('RefreshDraft')));
+  assert.ok(queries.every(x=>!x.query.includes('CreateProduct')));
+ }finally{
+  globalThis.fetch=previousFetch;
+  for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj],['SHOPIFY_LIVE_PUBLISH_ENABLED',oldLive]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
+ }
+});
