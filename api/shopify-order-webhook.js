@@ -98,17 +98,26 @@ export default async function handler(req,res){
       return res.status(422).json({ok:false,error:'CJ variant identifiers must be validated before ordering'});
     if(lines.length>20||lines.some(x=>!Number.isSafeInteger(Number(x.quantity))||Number(x.quantity)>50))return res.status(422).json({ok:false,error:'Unsupported order size; manual review required'});
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
-    // A Shopify SKU alone is not proof of a CJ variant mapping. Require a
-    // dedicated, validated CJ variant ID on every purchased line item.
-    const cjVariantId=line=>{
-      const properties=Array.isArray(line.properties)?line.properties:[];
-      const mapping=properties.find(p=>p&&p.name==='_adps_cj_variant_id');
-      const vid=String(mapping?.value||'').trim();
-      return /^[A-Za-z0-9_-]{6,100}$/.test(vid)&&vid===String(line.sku||'').trim()?vid:'';
-    };
-    if(lines.some(line=>!cjVariantId(line)))
-      return res.status(422).json({ok:false,needsReview:true,error:'Verified CJ variant mapping is missing; manual review required'});
-    const products=lines.map(x=>({vid:cjVariantId(x),quantity:Number(x.quantity),storeLineItemId:str(x.id,125)}));
+    // Shopify line-item properties are buyer-editable and cannot prove CJ mapping.
+    // Confirm each SKU against the actual Shopify product variant before ordering.
+    const shopifyToken=String(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||'');
+    if(!shopifyToken)return res.status(503).json({ok:false,needsReview:true,error:'Server-side Shopify verification token is not configured'});
+    const verifiedProducts=[];
+    for(const line of lines){
+      if(!line.variant_id||!line.product_id)return res.status(422).json({ok:false,needsReview:true,error:'Shopify variant identity is missing'});
+      const gid='gid://shopify/ProductVariant/'+String(line.variant_id);
+      const response=await fetch('https://'+allowedShop+'/admin/api/2026-10/graphql.json',{
+        method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':shopifyToken},
+        body:JSON.stringify({query:'query($id:ID!){node(id:$id){... on ProductVariant{id sku product{id vendor}}}}',variables:{id:gid}}),
+        signal:AbortSignal.timeout(10000)
+      });
+      const data=await response.json();
+      const variant=data.data?.node;
+      if(!response.ok||data.errors?.length||!variant||variant.id!==gid||variant.sku!==String(line.sku)||variant.product?.vendor!=='AI BUYER'||variant.product?.id!=='gid://shopify/Product/'+String(line.product_id))
+        return res.status(422).json({ok:false,needsReview:true,error:'CJ variant SKU could not be verified against Shopify catalog'});
+      verifiedProducts.push({vid:variant.sku,quantity:Number(line.quantity),storeLineItemId:str(line.id,125)});
+    }
+    const products=verifiedProducts;
     const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
