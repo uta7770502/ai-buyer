@@ -10,7 +10,7 @@ const validOrder={
   currency:'JPY',line_items:[],shipping_address:{country_code:'JP'}
 };
 const keys=['SHOPIFY_CLIENT_SECRET','SHOPIFY_ALLOWED_SHOP_DOMAIN','CJ_SANDBOX_ORDER_ENABLED','SHOPIFY_ADMIN_ACCESS_TOKEN','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','CJ_ACCESS_TOKEN','CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_ORDER_LIMIT_CURRENCY','CJ_ALLOWED_DESTINATION_COUNTRY'];
-async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify.com',hmacValid=true,enabled='false',validLine=false}={}){
+async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify.com',hmacValid=true,enabled='false',validLine=false,fetchMock=null}={}){
   const prior=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
   const before=globalThis.fetch;
   process.env.SHOPIFY_CLIENT_SECRET=secret;
@@ -25,7 +25,7 @@ async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify
   process.env.CJ_ORDER_LIMIT_CURRENCY='JPY';
   process.env.CJ_ALLOWED_DESTINATION_COUNTRY='JP';
   let calls=0;
-  globalThis.fetch=async()=>{calls++;throw Error('External API must not be called in rejected webhook tests');};
+  globalThis.fetch=async(...args)=>{calls++;if(fetchMock)return fetchMock(...args);throw Error('External API must not be called in rejected webhook tests');};
   if(validLine){order={...order,shipping_address:{country_code:'JP',city:'Tokyo',address1:'1-2-3',name:'Test Customer'},line_items:[{id:9,sku:'CJVARIANT123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}]};}
   const raw=Buffer.from(JSON.stringify(order));
   const signature=crypto.createHmac('sha256',secret).update(raw).digest('base64');
@@ -89,4 +89,20 @@ test('missing Shopify order IDs are rejected',async()=>{
   const x=await invoke({order:{...validOrder,id:null}});
   assert.equal(x.statusCode,400);
   assert.equal(x.calls,0);
+});
+
+test('invalid Shopify catalog SKU stops before any CJ endpoint',async()=>{
+  const urls=[];
+  const x=await invoke({
+    enabled:'true',validLine:true,
+    fetchMock:async(url)=>{
+      urls.push(String(url));
+      assert.match(String(url),/myshopify\\.com/);
+      return {ok:true,json:async()=>({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'WRONG_SKU',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}})};
+    }
+  });
+  assert.equal(x.statusCode,422);
+  assert.equal(x.body.needsReview,true);
+  assert.equal(x.calls,1);
+  assert.equal(urls.some(u=>u.includes('cjdropshipping.com')),false);
 });
