@@ -71,7 +71,7 @@ test('sandbox journey: paid webhook → CJ → simulated tracking → dry-run �
  assert.equal((await call(sync,{...p,preflightToken:pre.data.preflightToken})).data.ok,true);
  const duplicate=await call(sync,{...p,checkOnly:true});assert.equal(duplicate.data.duplicateConfirmed,true);assert.equal(f.fulfillments,1);
  assert.equal((await call(simulate,{orderId:'123',phase:'tracking'})).data.localSimulation,true);
- assert.equal(f.calls.filter(x=>x.url.endsWith('/shopping/sandbox/updateTrackNumber')).length,1);
+ assert.equal(f.calls.filter(x=>x.url.endsWith('/shopping/sandbox/updateTrackNumber')).length,0);
 });
 test('unknown CJ creation remains reserved and never auto-retries',async t=>{
  const f=fixture(t,{cjTimeout:true});assert.equal((await f.paidWebhook()).data.needsReview,true);
