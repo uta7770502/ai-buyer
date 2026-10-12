@@ -10,6 +10,8 @@ on:
       - 'vercel.json'
       - 'api/shopify-publish.js'
       - 'tests/safety.test.mjs'
+      - 'tests/storefront.test.mjs'
+      - 'storefront.html'
       - 'tests/readiness-behavior.test.mjs'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
@@ -26,6 +28,8 @@ on:
       - 'vercel.json'
       - 'api/shopify-publish.js'
       - 'tests/safety.test.mjs'
+      - 'tests/storefront.test.mjs'
+      - 'storefront.html'
       - 'tests/readiness-behavior.test.mjs'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
@@ -53,4 +57,4 @@ jobs:
           node --check api/shopify-publish.js
           node -e "const fs=require('fs'); const routes=JSON.parse(fs.readFileSync('vercel.json','utf8')).rewrites; if(!routes.some(r=>r.source==='/api/cj-readiness'&&r.destination==='/api/cj?action=readiness')) process.exit(1)"
       - name: Run tracking safety contract tests
-        run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs tests/webhook-behavior.test.mjs tests/readiness-behavior.test.mjs tests/safety.test.mjs
+        run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs tests/webhook-behavior.test.mjs tests/readiness-behavior.test.mjs tests/safety.test.mjs tests/storefront.test.mjs
