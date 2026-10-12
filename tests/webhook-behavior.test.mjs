@@ -146,3 +146,31 @@ test('sandbox order is created once and duplicate delivery is skipped',async()=>
   assert.equal(second.body.skipped,true);
   assert.equal(seen.filter(u=>u.includes('createOrderV2')).length,1);
 });
+
+test('ambiguous CJ timeout is held for review and never retried',async()=>{
+  const redis=new Map();
+  let attempts=0;
+  const fetchMock=async(url,options={})=>{
+    const target=String(url);
+    const json=data=>({ok:true,json:async()=>data});
+    if(target.includes('myshopify.com'))return json({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJVARIANT123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
+    if(target.includes('freightCalculate'))return json({result:true,data:[{logisticName:'Test Shipping',totalPostageFee:5}]});
+    if(target==='https://redis.test/'){
+      const [cmd,key,value,flag]=JSON.parse(options.body);
+      if(cmd!=='SET')throw Error('Unexpected Redis command');
+      if(flag==='NX'&&redis.has(key))return json({result:null});
+      redis.set(key,value);
+      return json({result:'OK'});
+    }
+    if(target.includes('createOrderV2')){attempts++;throw Error('Simulated CJ timeout');}
+    throw Error('Unexpected request: '+target);
+  };
+  const first=await invoke({enabled:'true',validLine:true,fetchMock});
+  const second=await invoke({enabled:'true',validLine:true,fetchMock});
+  assert.equal(first.statusCode,202);
+  assert.equal(first.body.needsReview,true);
+  assert.equal(second.statusCode,200);
+  assert.equal(second.body.skipped,true);
+  assert.equal(attempts,1);
+  assert.ok([...redis.values()].some(v=>v==='needs_review:unknown_cj_result'));
+});
