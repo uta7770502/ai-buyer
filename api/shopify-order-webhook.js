@@ -58,6 +58,8 @@ export default async function handler(req,res){
     // Do not create a new CJ order for fulfilled or closed Shopify orders.
     if(order.closed_at||order.fulfillment_status==='fulfilled'||order.fulfillment_status==='restocked')
       return res.status(200).json({ok:true,skipped:true,reason:'Order already closed or fulfilled'});
+    if(order.test!==true)
+      return res.status(422).json({ok:false,error:'Only Shopify test orders are accepted by default'});
     // Without durable event deduplication, retrying this handler may duplicate CJ sandbox orders.
     // Keep this endpoint disabled for live fulfillment.
     // A valid HMAC proves app origin, not that the order belongs to the configured merchant.
@@ -87,8 +89,6 @@ export default async function handler(req,res){
     const orderCurrency=String(order.currency||'').toUpperCase();
     if(!/^[A-Z]{3}$/.test(allowedCurrency)||orderCurrency!==allowedCurrency)
       return res.status(422).json({ok:false,error:'Order currency does not match configured spending-limit currency'});
-    if(order.test!==true)
-      return res.status(422).json({ok:false,error:'Only Shopify test orders are accepted by default'});
     if(!Number.isFinite(orderValue)||orderValue<=0||!Number.isSafeInteger(totalItems)||totalItems<=0||totalItems>maxItems||orderValue>maxOrderValue)
       return res.status(422).json({ok:false,error:'Order exceeds safety limits or has invalid totals'});
     // Restrict unattended fulfillment to the configured destination country.
