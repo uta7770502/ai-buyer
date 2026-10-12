@@ -79,3 +79,14 @@ test('catalog verification happens before any CJ request',async()=>{
   assert.equal(x.statusCode,500);
   assert.equal(x.calls,1);
 });
+
+test('non-numeric Shopify order IDs are rejected',async()=>{
+  const x=await invoke({order:{...validOrder,id:'../../other'}});
+  assert.equal(x.statusCode,400);
+  assert.equal(x.calls,0);
+});
+test('missing Shopify order IDs are rejected',async()=>{
+  const x=await invoke({order:{...validOrder,id:null}});
+  assert.equal(x.statusCode,400);
+  assert.equal(x.calls,0);
+});
