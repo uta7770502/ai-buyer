@@ -103,7 +103,7 @@ export default async function handler(req,res){
     if(p.adGuard===true){
       const provider=String(p.provider||'').toLowerCase();
       const action=String(p.action||'').toLowerCase();
-      const amounts=[p.dailyBudgetJpy,p.currentSpendJpy,p.requestedBudgetJpy].map(v=>v===null||v===undefined||typeof v==='boolean'||(typeof v==='string'&&!v.trim())?NaN:Number(v));
+      const amounts=[p.dailyBudgetJpy,p.currentSpendJpy,p.requestedBudgetJpy].map(v=>typeof v==='number'?v:(typeof v==='string'&&/^(0|[1-9][0-9]*)$/.test(v.trim())?Number(v.trim()):NaN));
       if(amounts.some(v=>!Number.isFinite(v)||v<0||!Number.isSafeInteger(v)))return res.status(400).json({ok:false,error:'広告予算・使用額は0以上の整数（円）で指定してください'});
       const [dailyBudgetJpy,currentSpendJpy,requestedBudgetJpy]=amounts;
       const allowedProviders=['meta','google'];
