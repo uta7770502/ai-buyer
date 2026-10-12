@@ -213,3 +213,26 @@ test('growth page optimization updates a verified draft without publishing',asyn
   if(oldShop===undefined)delete process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;else process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=oldShop;
  }
 });
+
+test('incomplete Shopify duplicate-search pagination fails closed before creating a product',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN;
+ const previousFetch=globalThis.fetch,queries=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+ process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url,opts={})=>{
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  const payload=JSON.parse(opts.body);queries.push(payload.query);
+  assert.match(payload.query,/ExistingDraftsBySku/);
+  return {ok:true,json:async()=>({data:{products:{nodes:[],pageInfo:{hasNextPage:true}}}})};
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.code,409);
+  assert.equal(queries.length,1);
+  assert.ok(queries.every(q=>!q.includes('CreateProduct')));
+ }finally{
+  globalThis.fetch=previousFetch;
+  for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
+ }
+});
