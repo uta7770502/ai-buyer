@@ -4,6 +4,9 @@ on:
     paths:
       - 'lib/routes/cj-order-tracking.js'
       - 'lib/routes/cj-tracking-sync.js'
+      - 'lib/routes/cj-readiness.js'
+      - 'api/cj.js'
+      - 'tests/readiness-behavior.test.mjs'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
       - 'tests/tracking-behavior.test.mjs'
@@ -14,6 +17,9 @@ on:
     paths:
       - 'lib/routes/cj-order-tracking.js'
       - 'lib/routes/cj-tracking-sync.js'
+      - 'lib/routes/cj-readiness.js'
+      - 'api/cj.js'
+      - 'tests/readiness-behavior.test.mjs'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
       - 'tests/tracking-behavior.test.mjs'
@@ -35,5 +41,7 @@ jobs:
           node --check lib/routes/cj-order-tracking.js
           node --check lib/routes/cj-tracking-sync.js
           node --check lib/sandbox-order.js
+          node --check lib/routes/cj-readiness.js
+          node --check api/cj.js
       - name: Run tracking safety contract tests
-        run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs tests/webhook-behavior.test.mjs
+        run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs tests/webhook-behavior.test.mjs tests/readiness-behavior.test.mjs
