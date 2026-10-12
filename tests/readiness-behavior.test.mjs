@@ -109,3 +109,15 @@ test('readiness summary counts configuration and unverified integration checks',
   assert.equal(configured.body.summary.configuredChecks,8);
   assert.equal(configured.body.summary.remainingExternalChecks,5);
 });
+
+test('readiness rejects invalid Shopify domains and destination codes',async()=>{
+  const domain=await invoke({configured:true,overrides:{SHOPIFY_ALLOWED_SHOP_DOMAIN:'evil.example.com'}});
+  assert.equal(domain.body.configured.shopifyMerchant,false);
+  const country=await invoke({configured:true,overrides:{CJ_ALLOWED_DESTINATION_COUNTRY:'JPN'}});
+  assert.equal(country.body.configured.destinationCountry,false);
+});
+test('readiness accepts CJ API key when direct access token is absent',async()=>{
+  const x=await invoke({configured:true,overrides:{CJ_ACCESS_TOKEN:'',CJ_API_KEY:'CJ_API_KEY_VALUE'}});
+  assert.equal(x.body.configured.cjAuthentication,true);
+  assert.ok(!JSON.stringify(x.body).includes('CJ_API_KEY_VALUE'));
+});
