@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/shop/products/:handle",
+      "destination": "/api/oddly-product?handle=:handle"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     },
