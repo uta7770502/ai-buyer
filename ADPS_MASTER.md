@@ -37,3 +37,5 @@
 <!-- Deployment trigger after Git reconnect: 2026-10-12 -->
 
 <!-- Production retrigger after reconnect: 2026-10-12T20:45+09:00 -->
+
+<!-- Hobby-limit retrigger: 2026-10-12T20:53+09:00 -->
