@@ -22,7 +22,7 @@ const order=(fulfillments=[])=>({
   }]}
 });
 const json=(data)=>({ok:true,json:async()=>data});
-async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=1,shipped=true,shopifyOrder=order(),afterWrite=order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}]),mutationId=fulfillmentId,lockClaim='OK',shopifyApiError=false,trackingNumber='TRACK123'}={}){
+async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=1,shipped=true,shopifyOrder=order(),afterWrite=order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}]),mutationId=fulfillmentId,mutationErrors=[],lockClaim='OK',shopifyApiError=false,trackingNumber='TRACK123'}={}){
   const previous={};
   for(const [k,v] of Object.entries({...env,CJ_SANDBOX_TRACKING_SYNC_ENABLED:enabled})){previous[k]=process.env[k];process.env[k]=v;}
   const fetchBefore=globalThis.fetch;
@@ -38,7 +38,7 @@ async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=
     if(url.includes('graphql.json')){
       if(shopifyApiError)return json({errors:[{message:'API unavailable'}]});
       const body=JSON.parse(opts.body);
-      if(body.query.includes('fulfillmentCreate')){writes++;return json({data:{fulfillmentCreate:{fulfillment:{id:mutationId},userErrors:[]}}});}
+      if(body.query.includes('fulfillmentCreate')){writes++;return json({data:{fulfillmentCreate:{fulfillment:{id:mutationId},userErrors:mutationErrors}}});}
       reads++;return json({data:{node:reads===1?shopifyOrder:afterWrite}});
     }
     throw Error('unexpected request '+url);
@@ -172,4 +172,13 @@ test('overlong CJ tracking number prevents Shopify writes',async()=>{
   assert.equal(x.statusCode,409);
   assert.equal(x.writes,0);
   assert.equal(x.locks,0);
+});
+
+test('Shopify fulfillment user errors never report successful tracking sync',async()=>{
+  const x=await invoke({mutationErrors:[{field:['fulfillment'],message:'Invalid fulfillment order'}]});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.body.needsReview,true);
+  assert.equal(x.writes,1);
+  assert.equal(x.reads,1);
+  assert.equal(x.locks,1);
 });
