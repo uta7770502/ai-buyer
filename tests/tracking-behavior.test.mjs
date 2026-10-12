@@ -131,3 +131,16 @@ test('zero remaining quantity prevents fulfillment',async()=>{
   assert.equal(x.statusCode,409);
   assert.equal(x.writes,0);
 });
+
+test('existing identical Shopify tracking is treated as already synced without writing',async()=>{
+  const x=await invoke({shopifyOrder:order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}])});
+  assert.equal(x.statusCode,200);
+  assert.equal(x.body.alreadySynced,true);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+});
+test('unavailable CJ shipment status does not write',async()=>{
+  const x=await invoke({shipped:false});
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+});
