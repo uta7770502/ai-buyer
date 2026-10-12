@@ -423,6 +423,7 @@ async function verifyDuplicateTrackingSync(){
     testProgress.duplicate=j.duplicateConfirmed===true;saveTestProgress('duplicate');
     if(result)result.textContent=j.duplicateConfirmed===true?'OK：同じ追跡同期は重複実行されません':'要確認：重複防止結果を確認できませんでした';
     renderTestChecklist();
+    renderAutomationDashboard();
   }catch(e){if(result)result.textContent=e.message||'二重同期確認に失敗しました'}
 }
 async function checkTestTracking(){
