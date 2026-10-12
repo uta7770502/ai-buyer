@@ -55,3 +55,19 @@ The metafield definitions must be exposed to the Shopify Storefront API before t
 
 Production rule: only factual, current Shopify product data may be treated as authoritative. Demo values, inferred review scores and unverified shipping/return claims must not be emitted as live commerce structured data.
 
+
+## Shopify/CJ sandbox tracking verification (safe runbook)
+
+The tracking write endpoint is **disabled by default**. Do not enable it for real orders.
+It requires a CJ sandbox order previously linked to a Shopify test order in Upstash Redis.
+
+1. Confirm the GitHub Actions **Tracking safety tests** workflow passes on `main`.
+2. Verify Vercel has `SHOPIFY_ALLOWED_SHOP_DOMAIN`, `SHOPIFY_ADMIN_ACCESS_TOKEN`, `AI_BUYER_ADMIN_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and CJ sandbox credentials configured. Do not expose values in screenshots or logs.
+3. Use a Shopify **test** order paid with test mode, fulfilled by an existing confirmed CJ **sandbox** order. Do not create a real shipment or pay CJ.
+4. Read-only check: `GET /api/cj?action=order-tracking&shopifyOrderId=TEST_ORDER_ID` with `Authorization: Bearer <ADMIN_KEY>`. Review `syncState`, `eligibleForSync`, `trackingSource` and `shopifySyncVerified`.
+5. Only for an approved test order with verified CJ shipment and `eligibleForSync: true`, temporarily set `CJ_SANDBOX_TRACKING_SYNC_ENABLED=true` in the isolated test deployment, then call `POST /api/cj?action=tracking-sync` with JSON `{"shopifyOrderId":"TEST_ORDER_ID"}` and the same authorization header.
+6. Confirm the exact Shopify fulfillment ID and tracking number are present. Disable `CJ_SANDBOX_TRACKING_SYNC_ENABLED` after the test.
+
+**Important:** Any `needsReview` response means stop; inspect both Shopify and CJ manually. Never automatically repeat a write request after an ambiguous result. Redis stores an idempotency marker that deliberately blocks automatic reattempts. The endpoint never creates CJ orders or charges payment.
+
+These checks are not proof of a production-ready integration. GitHub Actions checks source contracts and syntax only; a real end-to-end sandbox run is required separately.
