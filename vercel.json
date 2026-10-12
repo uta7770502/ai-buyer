@@ -59,6 +59,10 @@
     {
       "source": "/api/cj-sandbox-simulate",
       "destination": "/api/cj?action=sandbox-simulate"
+    },
+    {
+      "source": "/api/cj-readiness",
+      "destination": "/api/cj?action=readiness"
     }
   ]
 }
