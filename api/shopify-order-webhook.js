@@ -98,7 +98,17 @@ export default async function handler(req,res){
       return res.status(422).json({ok:false,error:'CJ variant identifiers must be validated before ordering'});
     if(lines.length>20||lines.some(x=>!Number.isSafeInteger(Number(x.quantity))||Number(x.quantity)>50))return res.status(422).json({ok:false,error:'Unsupported order size; manual review required'});
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
-    const products=lines.map(x=>({vid:str(x.sku,100),quantity:Math.max(1,Math.min(50,Number(x.quantity)||1)),storeLineItemId:str(x.id,125)}));
+    // A Shopify SKU alone is not proof of a CJ variant mapping. Require a
+    // dedicated, validated CJ variant ID on every purchased line item.
+    const cjVariantId=line=>{
+      const properties=Array.isArray(line.properties)?line.properties:[];
+      const mapping=properties.find(p=>p&&p.name==='_adps_cj_variant_id');
+      const vid=String(mapping?.value||'').trim();
+      return /^[A-Za-z0-9_-]{6,100}$/.test(vid)&&vid===String(line.sku||'').trim()?vid:'';
+    };
+    if(lines.some(line=>!cjVariantId(line)))
+      return res.status(422).json({ok:false,needsReview:true,error:'Verified CJ variant mapping is missing; manual review required'});
+    const products=lines.map(x=>({vid:cjVariantId(x),quantity:Number(x.quantity),storeLineItemId:str(x.id,125)}));
     const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
