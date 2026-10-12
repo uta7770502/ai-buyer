@@ -1097,7 +1097,26 @@ async function runAdAutomation(silent=false){
   renderAdAutomation();renderAutomationDashboard();buildMetaDrafts();
   renderDailyActions();
 }
-function buildDailyActions(){const actions=[];for(const x of active){const d=decisionMetrics(x),sd=scaleDecision(x),lm=learnedMetrics(x),score=x.learnedScore||x.aiScore||metrics(x).score;if(d.state==='stop'||x.stopCandidate)actions.push({p:100,type:'stop',tag:'停止',text:`${x.name}：停止候補。ROAS ${lm.roas===99?'∞':lm.roas.toFixed(1)} / 実利益 ${yen(lm.net)}。広告投入を止めて入れ替え候補を確認。`});else if(sd.state==='up')actions.push({p:90,type:'up',tag:'拡大',text:`${x.name}：勝ち商品。AI ${score} / 実利益 ${yen(lm.net)}。広告予算と販売件数を段階的に拡大。`});else if(x.status==='test'&&lm.views>=40&&lm.orders===0)actions.push({p:70,type:'test',tag:'確認',text:`${x.name}：テスト中。閲覧 ${lm.views} で注文0。クリエイティブ・価格を見直し、停止判定まで継続。`});else if(x.status==='candidate')actions.push({p:55,type:'test',tag:'テスト',text:`${x.name}：候補商品。少額テストへ移行して実績データを集める。`})}const pool=(today?.products||[]).filter(p=>!findActive(p.id)).sort((a,b)=>metrics(b).score-metrics(a).score);if(pool[0])actions.push({p:45,type:'test',tag:'新規',text:`${pool[0].name}：今日の未採用トップ候補 AI ${metrics(pool[0]).score}。停止商品の代替テスト候補。`});if(!actions.length)actions.push({p:1,type:'wait',tag:'待機',text:'緊急アクションはありません。スキャンと実績収集を継続します。'});return actions.sort((a,b)=>b.p-a.p).slice(0,6)}
+function buildDailyActions(){
+  const actions=[],goal=growthGoalStatus(),pace=salesGoalPacing();
+  if(goal.phase==='chase')actions.push({p:115,type:'test',tag:'今日',text:'日目標まで残り '+yen(goal.gap)+'。商品テスト・商品ページ改善・広告クリエイティブ改善を優先。'});
+  else actions.push({p:115,type:'up',tag:'今日',text:'日目標が見えています。新規テストを抑え、CPA・ROAS・最終利益を優先。'});
+  if(pace.monthBehind)actions.push({p:108,type:'test',tag:'今月',text:'月目標ペースが遅れています。翌日のテスト候補を厚めに準備し、勝ち商品を切らさない運用を優先。'});
+  else if(pace.monthAhead)actions.push({p:84,type:'wait',tag:'今月',text:'月目標ペースは順調。無理な広告増額より利益率と供給安定性を優先。'});
+  if(pace.yearBehind)actions.push({p:104,type:'test',tag:'年間',text:'年目標ペースが遅れています。商品ポートフォリオを増やし、複数の勝ち商品を育てる方針を優先。'});
+  else if(pace.yearAhead)actions.push({p:82,type:'wait',tag:'年間',text:'年目標ペースは順調。返品率・粗利・供給リスクを守りながら拡大。'});
+  for(const x of active){
+    const d=decisionMetrics(x),sd=scaleDecision(x),lm=learnedMetrics(x),score=x.learnedScore||x.aiScore||metrics(x).score;
+    if(d.state==='stop'||x.stopCandidate)actions.push({p:100,type:'stop',tag:'停止',text:x.name+'：停止候補。ROAS '+(lm.roas===99?'∞':lm.roas.toFixed(1))+' / 実利益 '+yen(lm.net)+'。広告投入を止めて入れ替え候補を確認。'});
+    else if(sd.state==='up')actions.push({p:90,type:'up',tag:'拡大',text:x.name+'：勝ち商品。AI '+score+' / 実利益 '+yen(lm.net)+'。広告予算と販売件数を段階的に拡大。'});
+    else if(x.status==='test'&&lm.views>=40&&lm.orders===0)actions.push({p:70,type:'test',tag:'確認',text:x.name+'：テスト中。閲覧 '+lm.views+' で注文0。クリエイティブ・価格を見直し、停止判定まで継続。'});
+    else if(x.status==='candidate')actions.push({p:55,type:'test',tag:'テスト',text:x.name+'：候補商品。少額テストへ移行して実績データを集める。'});
+  }
+  const pool=(today?.products||[]).filter(p=>!findActive(p.id)).sort((a,b)=>metrics(b).score-metrics(a).score);
+  if(pool[0]&&goal.phase==='chase')actions.push({p:45,type:'test',tag:'新規',text:pool[0].name+'：今日の未採用トップ候補 AI '+metrics(pool[0]).score+'。停止商品の代替テスト候補。'});
+  if(!actions.length)actions.push({p:1,type:'wait',tag:'待機',text:'緊急アクションはありません。スキャンと実績収集を継続します。'});
+  return actions.sort((a,b)=>b.p-a.p).slice(0,8)
+}
 function renderDailyActions(){const box=document.getElementById('dailyActions');if(!box)return;const a=buildDailyActions();box.innerHTML='<h3>AI運用アクション</h3>'+a.map(x=>`<div class="actionItem ${x.type}"><span class="tag">${x.tag}</span>${esc(x.text)}</div>`).join('')}
 async function createStorefrontToken(){
   const box=document.getElementById('storefrontTokenBox'),input=document.getElementById('storefrontTokenValue'),status=document.getElementById('storefrontTokenStatus');
