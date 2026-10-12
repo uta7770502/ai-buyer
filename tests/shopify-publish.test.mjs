@@ -236,3 +236,16 @@ test('incomplete Shopify duplicate-search pagination fails closed before creatin
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
 });
+
+test('ad guard rejects invalid yen amounts before approval',async()=>{
+ const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ for(const field of ['dailyBudgetJpy','currentSpendJpy','requestedBudgetJpy']){
+  for(const value of [-1,0.5,'Infinity','NaN']){
+   const body={adGuard:true,provider:'meta',action:'create',dailyBudgetJpy:1000,currentSpendJpy:0,requestedBudgetJpy:100};
+   body[field]=value;
+   const r=await invoke({cookie,body});
+   assert.equal(r.code,400,field+' '+String(value));
+   assert.equal(r.body.ok,false);
+  }
+ }
+});
