@@ -67,6 +67,10 @@
     {
       "source": "/api/cj-readiness",
       "destination": "/api/cj?action=readiness"
+    },
+    {
+      "source": "/api/shopify-env-check",
+      "destination": "/api/diagnostics?action=shopify-env-check"
     }
   ]
 }
