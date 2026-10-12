@@ -70,6 +70,10 @@ export default async function handler(req,res){
       return res.status(503).json({ok:false,error:'CJ authentication is not configured'});
     const lines=(Array.isArray(order.line_items)?order.line_items:[]).filter(x=>x&&x.sku&&Number.isSafeInteger(Number(x.quantity))&&Number(x.quantity)>0);
     if(!lines.length||lines.length!==(Array.isArray(order.line_items)?order.line_items.length:0))return res.status(422).json({ok:false,error:'CJ variant mapping is incomplete; order requires review'});
+    // Quantity must still be fully fulfillable. Partial fulfillment or inventory
+    // adjustments after payment require manual review, never a full CJ purchase.
+    if(lines.some(line=>!Number.isSafeInteger(Number(line.fulfillable_quantity))||Number(line.fulfillable_quantity)!==Number(line.quantity)))
+      return res.status(200).json({ok:true,skipped:true,needsReview:true,reason:'Order line quantities are not fully fulfillable'});
     // Spending limits are mandatory even in sandbox mode. No live CJ payments here.
     const maxItems=Number(process.env.CJ_MAX_ITEMS_PER_ORDER);
     const maxOrderValue=Number(process.env.CJ_MAX_ORDER_VALUE);
