@@ -85,7 +85,7 @@ export default async function handler(req,res){
       return res.status(422).json({ok:false,error:'Order currency does not match configured spending-limit currency'});
     if(order.test!==true)
       return res.status(422).json({ok:false,error:'Only Shopify test orders are accepted by default'});
-    if(!Number.isFinite(orderValue)||orderValue<0||!Number.isSafeInteger(totalItems)||totalItems>maxItems||orderValue>maxOrderValue)
+    if(!Number.isFinite(orderValue)||orderValue<=0||!Number.isSafeInteger(totalItems)||totalItems<=0||totalItems>maxItems||orderValue>maxOrderValue)
       return res.status(422).json({ok:false,error:'Order exceeds safety limits or has invalid totals'});
     // Restrict unattended fulfillment to the configured destination country.
     const allowedDestination=String(process.env.CJ_ALLOWED_DESTINATION_COUNTRY||'JP').trim().toUpperCase();
