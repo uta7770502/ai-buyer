@@ -277,3 +277,17 @@ test('ad guard respects both user daily budget and server cap',async()=>{
   }
  }finally{if(previous===undefined)delete process.env.ADS_MAX_DAILY_JPY;else process.env.ADS_MAX_DAILY_JPY=previous}
 });
+
+test('ad guard rejects zero requested budget for activating actions',async()=>{
+ const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ const previous=process.env.ADS_MAX_DAILY_JPY;
+ try{
+  process.env.ADS_MAX_DAILY_JPY='2000';
+  for(const action of ['create','increase','resume']){
+   const r=await invoke({cookie,body:{adGuard:true,provider:'meta',action,dailyBudgetJpy:1000,currentSpendJpy:0,requestedBudgetJpy:0}});
+   assert.equal(r.code,200);
+   assert.equal(r.body.testApproved,false,action);
+   assert.equal(r.body.liveApproved,false,action);
+  }
+ }finally{if(previous===undefined)delete process.env.ADS_MAX_DAILY_JPY;else process.env.ADS_MAX_DAILY_JPY=previous}
+});
