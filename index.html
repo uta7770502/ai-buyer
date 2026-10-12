@@ -1878,7 +1878,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(findActive(x.id)!==x)return;
     if(x.shopifyPublishState==='error')throw new Error(x.shopifyPublishError||'Shopify下書きの更新に失敗しました');
     if(x.shopifyPublishState==='publishing')throw new Error('Shopify処理が完了していません。接続と下書き状態を確認してください');
-    if(x.shopifyPublishState!=='created'&&!x.shopifyPublished)throw new Error('Shopify下書き作成の完了を確認できませんでした');
+    if(x.shopifyPublishState!=='created')throw new Error('Shopify下書き作成の完了を確認できませんでした');
     if(x.shopifyPublishState==='published'||x.shopifyPublished)throw new Error('公開済み商品を自動準備の下書きとして扱えません。公開状態を確認してください');
     if(x.shopifyProductId&&x.shopifyPublishState==='created'){
       const page=await optimizeGrowthPage(x);
