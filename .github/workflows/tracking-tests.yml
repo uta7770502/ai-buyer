@@ -1,0 +1,33 @@
+name: Tracking safety tests
+on:
+  push:
+    paths:
+      - 'lib/routes/cj-order-tracking.js'
+      - 'lib/routes/cj-tracking-sync.js'
+      - 'lib/sandbox-order.js'
+      - 'tests/tracking-contract.test.mjs'
+      - '.github/workflows/tracking-tests.yml'
+  pull_request:
+    paths:
+      - 'lib/routes/cj-order-tracking.js'
+      - 'lib/routes/cj-tracking-sync.js'
+      - 'lib/sandbox-order.js'
+      - 'tests/tracking-contract.test.mjs'
+      - '.github/workflows/tracking-tests.yml'
+permissions:
+  contents: read
+jobs:
+  tracking-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check lib/routes/cj-order-tracking.js
+          node --check lib/routes/cj-tracking-sync.js
+          node --check lib/sandbox-order.js
+      - name: Run tracking safety contract tests
+        run: node --test tests/tracking-contract.test.mjs
