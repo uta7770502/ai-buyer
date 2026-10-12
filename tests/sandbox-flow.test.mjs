@@ -6,7 +6,7 @@ import simulate from '../lib/routes/cj-sandbox-simulate.js';
 import tracking from '../lib/routes/cj-order-tracking.js';
 import sync from '../lib/routes/shopify-fulfillment-sync.js';
 import status from '../lib/routes/automation-order-status.js';
-const env={AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-token',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-store',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
+const env={AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-token',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify-token',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-store',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
 const headers={authorization:'Bearer test-admin',cookie:'shopify_access_token=test-shop; shopify_connected_shop=test.myshopify.com'};
 const response=data=>({ok:true,json:async()=>data});
 const res=()=>({code:200,setHeader(){},status(c){this.code=c;return this},json(d){this.data=d;return this},end(){return this}});
@@ -44,6 +44,7 @@ function fixture(t,{sandbox=1,simulationTimeout=false,cjTimeout=false}={}){
    cjOrder.trackNumber=body.trackNumber;return response({result:true,data:true});
   }
   if(String(url).endsWith('/graphql.json')){
+   if(body.query.includes('ProductVariant'))return response({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJ-VID123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
    if(body.query.startsWith('query'))return response({data:{order:{test:true,cancelledAt:null,displayFinancialStatus:'PAID',fulfillmentOrders:{pageInfo:{hasNextPage:false},nodes:fulfillments?[]:[{id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]}]}}}});
    assert.equal(body.variables.fulfillment.notifyCustomer,false);fulfillments++;
    return response({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS'},userErrors:[]}}});
@@ -51,7 +52,7 @@ function fixture(t,{sandbox=1,simulationTimeout=false,cjTimeout=false}={}){
   throw Error('Unexpected external API; real payment endpoints are forbidden');
  });
  async function paidWebhook({validSignature=true,testOrder=true}={}){
-  const raw=Buffer.from(JSON.stringify({id:123,test:testOrder,financial_status:'paid',currency:'USD',total_price:'20',line_items:[{id:456,sku:'CJ-VID123',quantity:1}],shipping_address:{country_code:'JP',country:'Japan',city:'Test City',address1:'Test address',name:'Sandbox Tester'}}));
+  const raw=Buffer.from(JSON.stringify({id:123,test:testOrder,financial_status:'paid',currency:'USD',total_price:'20',line_items:[{id:456,sku:'CJ-VID123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}],shipping_address:{country_code:'JP',country:'Japan',city:'Test City',address1:'Test address',name:'Sandbox Tester'}}));
   const req={method:'POST',headers:{'x-shopify-topic':'orders/paid','x-shopify-shop-domain':'test.myshopify.com','x-shopify-webhook-id':'test-event','x-shopify-hmac-sha256':validSignature?crypto.createHmac('sha256','test-secret').update(raw).digest('base64'):'invalid'},async *[Symbol.asyncIterator](){yield raw}};
   const r=res();await webhook(req,r);return r;
  }
