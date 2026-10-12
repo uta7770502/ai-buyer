@@ -129,6 +129,7 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 @media(max-width:900px){.shoppingGuide{padding:20px}.guideGrid{grid-template-columns:1fr;gap:18px}.shopFooter{padding-bottom:110px}.story{margin-bottom:30px}.hero h1{font-size:clamp(40px,12vw,54px)}.sectionTitle h2{font-size:clamp(23px,7vw,28px)}.panel{width:min(440px,100vw)}.searchBox{padding:16px!important}}
 
 /* Storefront polish: mobile readability, responsive product cards, accessible touch targets */
+.productPageLink{display:inline-block;margin-top:9px;font-size:13px;font-weight:800;color:inherit;text-underline-offset:3px;min-height:32px}
 @media(max-width:900px){
   .header{gap:12px}.brand{min-width:0;letter-spacing:-1px}.icons{gap:2px}.iconbtn{width:44px;height:44px;flex-shrink:0}
   .heroCopy{padding-bottom:30px}.hero h1{font-size:clamp(46px,13vw,62px);overflow-wrap:anywhere}
@@ -321,12 +322,14 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function safeImage(v){try{const u=new URL(v);return u.protocol==='https:'?u.href:''}catch{return ''}}
 function persist(){try{localStorage.setItem(storageKey,JSON.stringify({cart,favorites:[...favorites]}))}catch{announce('保存できませんでした。この画面内では引き続き利用できます。')}}
 function announce(message){document.getElementById('announcer').textContent=message}
-function card(p){return `<article class="product"><div class="thumb"><button class="productOpen" data-action="product" data-id="${esc(p.id)}" aria-label="${esc(p.name)}の詳細"><img loading="lazy" src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></button><button class="heart" data-action="favorite" data-id="${esc(p.id)}" aria-label="${esc(p.name)}をお気に入り${favorites.has(p.id)?'から削除':'に追加'}" aria-pressed="${favorites.has(p.id)}">${favorites.has(p.id)?'♥':'♡'}</button><span class="tag">${previewMode?'SAMPLE':p.available?'ODDLY PICK':'SOLD OUT'}</span></div><h3><button class="productTitle" data-action="product" data-id="${esc(p.id)}">${esc(p.name)}</button></h3><div class="price">${yen(p.price)}</div><p class="productCategory">${esc(p.category||'ライフスタイル')}</p></article>`}
+function productPageUrl(p){return '/shop/products/'+encodeURIComponent(String(p.id||''))}
+function card(p){return `<article class="product"><div class="thumb"><button class="productOpen" data-action="product" data-id="${esc(p.id)}" aria-label="${esc(p.name)}の詳細"><img loading="lazy" src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></button><button class="heart" data-action="favorite" data-id="${esc(p.id)}" aria-label="${esc(p.name)}をお気に入り${favorites.has(p.id)?'から削除':'に追加'}" aria-pressed="${favorites.has(p.id)}">${favorites.has(p.id)?'♥':'♡'}</button><span class="tag">${previewMode?'SAMPLE':p.available?'ODDLY PICK':'SOLD OUT'}</span></div><h3><button class="productTitle" data-action="product" data-id="${esc(p.id)}">${esc(p.name)}</button></h3><div class="price">${yen(p.price)}</div><p class="productCategory">${esc(p.category||'ライフスタイル')}</p>${!previewMode&&p.authoritative?`<a class="productPageLink" href="${esc(productPageUrl(p))}" aria-label="${esc(p.name)}の商品ページを開く">商品ページを見る ↗</a>`:''}</article>`}
 function render(){
   document.getElementById('pickGrid').innerHTML=products.slice(0,5).map(p=>card(p)).join('');
   document.getElementById('trendGrid').innerHTML=products.slice(5).map(p=>card(p)).join('');
   document.getElementById('trending').hidden=products.length<=5;
 }
+// Crawlable product links coexist with the in-page preview dialog.
 function productFaqItems(p){
   const availability=p.authoritative?(p.available?'在庫があります。購入機能は準備中です。':'現在は在庫切れです。'):'このプレビューでは在庫状況は未確定です。';
   const shipping=p.shipping
@@ -395,7 +398,7 @@ function productAnswerBlocks(p){
   <div class="why"><h4>WHO IS IT FOR?</h4><p>${esc(p.audience||'対象者については商品説明をご確認ください')}</p></div>
   <div class="why"><h4>ODDLYのおすすめポイント</h4><ul>${(p.why||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
   <div class="why"><h4>BEFORE YOU BUY</h4><p>${esc(caution)}</p></div>
-  <div class="why"><h4>PRODUCT FAQ</h4>${faq.map(x=>`<details style="padding:8px 0;border-top:1px solid #ddd"><summary style="font-weight:800;cursor:pointer">${esc(x.q)}</summary><p>${esc(x.a)}</p></details>`).join('')}</div>`;
+  ${!previewMode&&p.authoritative?`<p><a href="${esc(productPageUrl(p))}">この商品の専用ページを見る ↗</a></p>`:'' }<div class="why"><h4>PRODUCT FAQ</h4>${faq.map(x=>`<details style="padding:8px 0;border-top:1px solid #ddd"><summary style="font-weight:800;cursor:pointer">${esc(x.q)}</summary><p>${esc(x.a)}</p></details>`).join('')}</div>`;
 }
 function openProduct(id,options={}){
   const p=products.find(x=>x.id===id);if(!p)return;
@@ -599,7 +602,7 @@ function renderStructuredData(){
       {
         "@type":"ItemList",
         "name":"ODDLY 商品セレクション",
-        "itemListElement":products.map((p,i)=>({
+        "itemListElement":products.filter(p=>p.authoritative).map((p,i)=>({
           "@type":"ListItem","position":i+1,
           "item":productStructuredData(p)
         }))
