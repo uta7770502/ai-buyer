@@ -274,9 +274,7 @@ export default async function handler(req,res){
               const keys=[cjo.orderNum,cjo.orderNumber,cjo.storeOrderNumber,cjo.platformOrderId,cjo.orderId].filter(Boolean).map(String);
               for(const k of keys)cjByStoreOrder[k]=cjo;
             }
-          }
-        }
-          else cjLookupError='CJ order lookup failed';
+          }else cjLookupError='CJ order lookup failed';
         }else cjLookupVerified=true;
       }catch(e){cjLookupError=String(e?.message||'CJ order lookup unavailable').slice(0,160)}
 
