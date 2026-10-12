@@ -254,6 +254,8 @@ export default async function handler(req,res){
       const data=await gql(shop,token,'query RecentOrders { orders(first:20, reverse:true) { nodes { id name createdAt cancelledAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } lineItems(first:20) { nodes { name quantity sku } } } } }');
       const shopOrders=data.orders?.nodes||[];
       let cjByStoreOrder={};
+      let cjLookupVerified=false;
+      let cjLookupError='';
       try{
         const ids=shopOrders.map(o=>'SHOP-'+String(o.id||'').split('/').pop()).filter(Boolean);
         if(ids.length){
@@ -266,6 +268,7 @@ export default async function handler(req,res){
           });
           const jj=await rr.json();
           if(rr.ok&&jj?.result===true){
+            cjLookupVerified=true;
             const arr=Array.isArray(jj.data)?jj.data:(Array.isArray(jj.data?.list)?jj.data.list:[]);
             for(const cjo of arr){
               const keys=[cjo.orderNum,cjo.orderNumber,cjo.storeOrderNumber,cjo.platformOrderId,cjo.orderId].filter(Boolean).map(String);
@@ -273,7 +276,9 @@ export default async function handler(req,res){
             }
           }
         }
-      }catch(_e){}
+          else cjLookupError='CJ order lookup failed';
+        }else cjLookupVerified=true;
+      }catch(e){cjLookupError=String(e?.message||'CJ order lookup unavailable').slice(0,160)}
 
       const orders=shopOrders.map(o=>{
         const fin=String(o.displayFinancialStatus||''),ful=String(o.displayFulfillmentStatus||''),cancelled=Boolean(o.cancelledAt);
@@ -304,7 +309,7 @@ export default async function handler(req,res){
         };
       });
       const counts=orders.reduce((a,o)=>(a[o.state]=(a[o.state]||0)+1,a),{});
-      return res.status(200).json({ok:true,audit:true,mode:'safe',orders,counts});
+      return res.status(200).json({ok:true,audit:true,mode:'safe',orders,counts,cjLookupVerified,cjLookupError:(!cjLookupVerified?cjLookupError:'')});
     }
     if(p.createStorefrontToken===true){
       const title=clean(p.title||'ADPS Storefront',120);
