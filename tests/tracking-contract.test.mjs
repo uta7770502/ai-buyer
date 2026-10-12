@@ -26,7 +26,7 @@ const sync=readFileSync(new URL('../lib/routes/cj-tracking-sync.js',import.meta.
 
 test('tracking writes are opt-in, admin-only, and sandbox-only',()=>{
   assert.match(sync,/req\.method!=='POST'/);
-  assert.match(sync,/CJ_SANDBOX_TRACKING_SYNC_ENABLED'!=='true'/);
+  assert.match(sync,/CJ_SANDBOX_TRACKING_SYNC_ENABLED!=='true'/);
   assert.match(sync,/AI_BUYER_ADMIN_KEY/);
   assert.match(sync,/linkedSandboxOrder\(shop,id\)/);
   assert.match(sync,/order\.test!==true/);
