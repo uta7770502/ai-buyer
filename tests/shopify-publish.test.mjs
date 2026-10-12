@@ -249,3 +249,17 @@ test('ad guard rejects invalid yen amounts before approval',async()=>{
   }
  }
 });
+
+test('ad guard never approves without a valid server-side daily cap',async()=>{
+ const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ const previous=process.env.ADS_MAX_DAILY_JPY;
+ try{
+  for(const invalid of [undefined,'','0','-10','Infinity','1.5']){
+   if(invalid===undefined)delete process.env.ADS_MAX_DAILY_JPY;else process.env.ADS_MAX_DAILY_JPY=invalid;
+   const r=await invoke({cookie,body:{adGuard:true,provider:'meta',action:'create',dailyBudgetJpy:1000,currentSpendJpy:0,requestedBudgetJpy:100}});
+   assert.equal(r.code,200);
+   assert.equal(r.body.testApproved,false,String(invalid));
+   assert.equal(r.body.liveApproved,false,String(invalid));
+  }
+ }finally{if(previous===undefined)delete process.env.ADS_MAX_DAILY_JPY;else process.env.ADS_MAX_DAILY_JPY=previous}
+});
