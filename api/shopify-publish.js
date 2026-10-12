@@ -199,7 +199,7 @@ export default async function handler(req,res){
       const queryStart=yearStart.toISOString();
       let after=null,nodes=[],pages=0;
       do{
-        const data=await gql(shop,token,'query SalesSummary($first:Int!,$after:String,$q:String!){orders(first:$first,after:$after,query:$q,sortKey:CREATED_AT){nodes{id createdAt cancelledAt displayFinancialStatus totalPriceSet{shopMoney{amount currencyCode}} totalRefundedSet{shopMoney{amount currencyCode}} currentTotalPriceSet{shopMoney{amount currencyCode}}} pageInfo{hasNextPage endCursor}}}',{first:100,after,q:'created_at:>='+queryStart});
+        const data=await gql(shop,token,'query SalesSummary($first:Int!,$after:String,$q:String!){orders(first:$first,after:$after,query:$q,sortKey:CREATED_AT){nodes{id createdAt cancelledAt displayFinancialStatus totalPriceSet{shopMoney{amount currencyCode}} totalRefundedSet{shopMoney{amount currencyCode}} currentTotalPriceSet{shopMoney{amount currencyCode}} lineItems(first:100){nodes{sku quantity}}} pageInfo{hasNextPage endCursor}}}',{first:100,after,q:'created_at:>='+queryStart});
         nodes.push(...(data.orders?.nodes||[]));
         after=data.orders?.pageInfo?.endCursor||null;
         pages++;
@@ -221,11 +221,24 @@ export default async function handler(req,res){
       const dailyGross=sumFrom(dayStart,gross),monthlyGross=sumFrom(monthStart,gross),yearlyGross=sumFrom(yearStart,gross);
       const dailyRefunded=sumFrom(dayStart,refunded),monthlyRefunded=sumFrom(monthStart,refunded),yearlyRefunded=sumFrom(yearStart,refunded);
       const daily=sumFrom(dayStart,net),monthly=sumFrom(monthStart,net),yearly=sumFrom(yearStart,net);
+      const unitsFrom=start=>{
+        const map={};
+        for(const o of nodes){
+          if(!eligible(o)||new Date(o.createdAt)<start)continue;
+          for(const li of (o.lineItems?.nodes||[])){
+            const sku=String(li.sku||'').trim();const qty=Math.max(0,Number(li.quantity||0));
+            if(!sku||!Number.isFinite(qty))continue;
+            map[sku]=(map[sku]||0)+qty;
+          }
+        }
+        return Object.entries(map).map(([sku,quantity])=>({sku,quantity}));
+      };
       return res.status(200).json({
         ok:true,salesSummary:true,timeZone:'Asia/Tokyo',
         daily,monthly,yearly,
         gross:{daily:dailyGross,monthly:monthlyGross,yearly:yearlyGross},
         refunded:{daily:dailyRefunded,monthly:monthlyRefunded,yearly:yearlyRefunded},
+        units:{daily:unitsFrom(dayStart),monthly:unitsFrom(monthStart),yearly:unitsFrom(yearStart)},
         currency,checkedAt:new Date().toISOString(),ordersScanned:nodes.length,truncated:Boolean(after&&pages>=10)
       });
     }
