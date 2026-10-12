@@ -216,6 +216,11 @@ async function prepareSandboxTracking(){
   const context=testContextVersion,button=document.getElementById('testSimulationBtn');
   if(button)button.disabled=true;
   try{
+    if(result)result.textContent='前回のサンドボックス状態を安全確認中…';
+    const recRes=await fetch('/api/cj?action=sandbox-reconcile',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({orderId:id})});
+    const rec=await recRes.json();
+    if(context!==testContextVersion)return;
+    if(!recRes.ok||!rec.ok)throw new Error(rec.error||'サンドボックス状態を照合できませんでした');
     for(const phase of ['payment','tracking']){
       if(context!==testContextVersion)return;
       if(result)result.textContent=phase==='payment'?'模擬支払いを確認中（実課金なし）…':'テスト用追跡番号を設定中（実配送なし）…';
