@@ -74,7 +74,7 @@ test('sandbox order automation is disabled by default',async()=>{
   assert.equal(x.statusCode,503);assert.equal(x.calls,0);
 });
 
-test('missing Shopify variant blocks CJ requests before authentication',async()=>{
+test('catalog verification happens before any CJ request',async()=>{
   const x=await invoke({enabled:'true',validLine:true,order:{...validOrder}});
   assert.equal(x.statusCode,500);
   assert.equal(x.calls,1);
