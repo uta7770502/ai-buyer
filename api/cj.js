@@ -6,9 +6,11 @@ import cjSearch from '../lib/routes/cj-search.js';
 import cjOrderTracking from '../lib/routes/cj-order-tracking.js';
 
 import cjSandboxSimulate from '../lib/routes/cj-sandbox-simulate.js';
+import cjSandboxReconcile from '../lib/routes/cj-sandbox-reconcile.js';
 
 const handlers={
   'sandbox-simulate':cjSandboxSimulate,
+  'sandbox-reconcile':cjSandboxReconcile,
   'detail':cjDetail,
   'freight':cjFreight,
   'monitor':cjMonitor,
