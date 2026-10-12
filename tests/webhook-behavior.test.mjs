@@ -106,3 +106,14 @@ test('invalid Shopify catalog SKU stops before any CJ endpoint',async()=>{
   assert.equal(x.calls,1);
   assert.equal(urls.some(u=>u.includes('cjdropshipping.com')),false);
 });
+
+test('untrusted shop is rejected even when order is unpaid',async()=>{
+  const x=await invoke({shop:'other.myshopify.com',order:{...validOrder,financial_status:'pending'}});
+  assert.equal(x.statusCode,403);
+  assert.equal(x.calls,0);
+});
+test('untrusted shop is rejected even for unrelated webhook topic',async()=>{
+  const x=await invoke({shop:'other.myshopify.com',topic:'orders/create'});
+  assert.equal(x.statusCode,403);
+  assert.equal(x.calls,0);
+});
