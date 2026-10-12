@@ -41,6 +41,10 @@ export default async function handler(req,res){
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
     if(order.cancelled_at||order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
     if(!order.id||!req.headers['x-shopify-webhook-id'])return res.status(400).json({ok:false,error:'Missing order or event identifier'});
+    // Require explicit positive payment evidence: never fulfill test orders with a zero-value total.
+    const paidTotal=Number(order.current_total_price??order.total_price);
+    if(!Number.isFinite(paidTotal)||paidTotal<=0)
+      return res.status(200).json({ok:true,skipped:true,needsReview:true,reason:'Zero-value or invalid order total requires review'});
     // Never forward orders containing refunds or partial fulfillment to CJ automatically.
     // These require human reconciliation of the remaining quantities and payment.
     if((Array.isArray(order.refunds)&&order.refunds.length>0)||order.fulfillment_status==='partial'||order.financial_status==='partially_refunded'||order.financial_status==='refunded')
