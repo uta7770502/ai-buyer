@@ -101,9 +101,9 @@ export default async function handler(req,res){
     if(p.adGuard===true){
       const provider=String(p.provider||'').toLowerCase();
       const action=String(p.action||'').toLowerCase();
-      const dailyBudgetJpy=Math.max(0,Math.round(Number(p.dailyBudgetJpy)||0));
-      const currentSpendJpy=Math.max(0,Math.round(Number(p.currentSpendJpy)||0));
-      const requestedBudgetJpy=Math.max(0,Math.round(Number(p.requestedBudgetJpy)||0));
+      const amounts=[p.dailyBudgetJpy,p.currentSpendJpy,p.requestedBudgetJpy].map(v=>Number(v));
+      if(amounts.some(v=>!Number.isFinite(v)||v<0||!Number.isSafeInteger(v)))return res.status(400).json({ok:false,error:'広告予算・使用額は0以上の整数（円）で指定してください'});
+      const [dailyBudgetJpy,currentSpendJpy,requestedBudgetJpy]=amounts;
       const allowedProviders=['meta','google'];
       const allowedActions=['create','increase','decrease','pause','resume','hold'];
       if(!allowedProviders.includes(provider))return res.status(400).json({ok:false,error:'広告プロバイダーが不正です'});
