@@ -9,15 +9,24 @@ const validOrder={
   id:123,test:true,financial_status:'paid',current_total_price:'100.00',
   currency:'JPY',line_items:[],shipping_address:{country_code:'JP'}
 };
-const keys=['SHOPIFY_CLIENT_SECRET','SHOPIFY_ALLOWED_SHOP_DOMAIN','CJ_SANDBOX_ORDER_ENABLED'];
-async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify.com',hmacValid=true,enabled='false'}={}){
+const keys=['SHOPIFY_CLIENT_SECRET','SHOPIFY_ALLOWED_SHOP_DOMAIN','CJ_SANDBOX_ORDER_ENABLED','SHOPIFY_ADMIN_ACCESS_TOKEN','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','CJ_ACCESS_TOKEN','CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_ORDER_LIMIT_CURRENCY','CJ_ALLOWED_DESTINATION_COUNTRY'];
+async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify.com',hmacValid=true,enabled='false',validLine=false}={}){
   const prior=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
   const before=globalThis.fetch;
   process.env.SHOPIFY_CLIENT_SECRET=secret;
   process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
   process.env.CJ_SANDBOX_ORDER_ENABLED=enabled;
+  process.env.SHOPIFY_ADMIN_ACCESS_TOKEN='test-shopify-token';
+  process.env.UPSTASH_REDIS_REST_URL='https://redis.test';
+  process.env.UPSTASH_REDIS_REST_TOKEN='test-redis';
+  process.env.CJ_ACCESS_TOKEN='test-cj';
+  process.env.CJ_MAX_ITEMS_PER_ORDER='10';
+  process.env.CJ_MAX_ORDER_VALUE='10000';
+  process.env.CJ_ORDER_LIMIT_CURRENCY='JPY';
+  process.env.CJ_ALLOWED_DESTINATION_COUNTRY='JP';
   let calls=0;
   globalThis.fetch=async()=>{calls++;throw Error('External API must not be called in rejected webhook tests');};
+  if(validLine){order={...order,shipping_address:{country_code:'JP',city:'Tokyo',address1:'1-2-3',name:'Test Customer'},line_items:[{id:9,sku:'CJVARIANT123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}]};}
   const raw=Buffer.from(JSON.stringify(order));
   const signature=crypto.createHmac('sha256',secret).update(raw).digest('base64');
   const req=Readable.from([raw]);
@@ -63,4 +72,10 @@ test('shop mismatch is blocked before CJ requests',async()=>{
 test('sandbox order automation is disabled by default',async()=>{
   const x=await invoke();
   assert.equal(x.statusCode,503);assert.equal(x.calls,0);
+});
+
+test('missing Shopify variant blocks CJ requests before authentication',async()=>{
+  const x=await invoke({enabled:'true',validLine:true,order:{...validOrder}});
+  assert.equal(x.statusCode,500);
+  assert.equal(x.calls,1);
 });
