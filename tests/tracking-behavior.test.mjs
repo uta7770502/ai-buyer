@@ -162,7 +162,7 @@ test('Shopify order fulfillment status must be UNFULFILLED',async()=>{
 });
 
 test('unsafe CJ tracking characters prevent Shopify writes',async()=>{
-  const x=await invoke({trackingNumber:'TRACK\\n123'});
+  const x=await invoke({trackingNumber:'TRACK\n123'});
   assert.equal(x.statusCode,409);
   assert.equal(x.writes,0);
   assert.equal(x.locks,0);
