@@ -55,3 +55,8 @@ test('tracking write performs a post-write Shopify read and persists confirmatio
   const confirmation=sync.indexOf("await redis(['SET',lock,'confirmed:'");
   assert.ok(verification>0&&confirmation>verification);
 });
+
+test('post-write verification matches the exact created fulfillment ID',()=>{
+  assert.match(sync,/fulfillments\{id trackingInfo\{number\}\}/);
+  assert.match(sync,/f\.id===payload\.fulfillment\.id/);
+});
