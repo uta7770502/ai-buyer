@@ -199,9 +199,13 @@ function renderSalesGoals(){
   if(stamp)stamp.textContent=salesSummary.loading?'Shopify実売上を更新中...':salesSummary.error?('取得エラー: '+salesSummary.error):(salesSummary.checkedAt?'更新 '+new Date(salesSummary.checkedAt).toLocaleString('ja-JP'):'未取得');
   if(note){
     const g=growthGoalStatus();
-    note.textContent=g.phase==='chase'
+    const pace=salesGoalPacing();
+    let tail='';
+    if(pace.monthBehind||pace.yearBehind)tail=' 月・年の進捗はやや遅れているため、翌日の新規テスト候補と勝ち商品の維持を優先します。';
+    else if(pace.monthAhead&&pace.yearAhead)tail=' 月・年とも目標ペースを上回っています。無理な売上追跡より利益率を優先します。';
+    note.textContent=(g.phase==='chase'
       ?'AI：日目標まで残り '+yen(g.gap)+'。目標追跡モードで商品テスト・広告改善を優先します。'
-      :(g.achieved?'AI：日目標達成。利益最大化モードでCPA・ROAS・最終利益を優先します。':'AI：日目標の到達が見えています。新規テストを抑え、利益最大化へ切り替えます。');
+      :(g.achieved?'AI：日目標達成。利益最大化モードでCPA・ROAS・最終利益を優先します。':'AI：日目標の到達が見えています。新規テストを抑え、利益最大化へ切り替えます。'))+tail;
   }
 }
 async function refreshSalesSummary(){
@@ -228,6 +232,24 @@ function growthDailyRevenue(){
     const amt=Number(o.total?.amount||0);
     return sum+(Number.isFinite(amt)?amt:0);
   },0));
+}
+function salesGoalPacing(){
+  const now=new Date();
+  const dayFrac=Math.max(.05,(now.getHours()+now.getMinutes()/60)/24);
+  const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  const monthFrac=Math.max(.05,(now.getDate()-1+dayFrac)/daysInMonth);
+  const yearStart=new Date(now.getFullYear(),0,1),yearEnd=new Date(now.getFullYear()+1,0,1);
+  const yearFrac=Math.max(.01,(now-yearStart)/(yearEnd-yearStart));
+  const monthTarget=Math.max(1,Number(salesGoalSettings.monthly||300000));
+  const yearTarget=Math.max(1,Number(salesGoalSettings.yearly||3650000));
+  const monthNow=Math.max(0,Number(salesSummary.monthly||0));
+  const yearNow=Math.max(0,Number(salesSummary.yearly||0));
+  const monthExpected=monthTarget*monthFrac,yearExpected=yearTarget*yearFrac;
+  const monthRatio=monthExpected>0?monthNow/monthExpected:1;
+  const yearRatio=yearExpected>0?yearNow/yearExpected:1;
+  const monthBehind=monthRatio<.9,yearBehind=yearRatio<.9;
+  const monthAhead=monthRatio>=1.05,yearAhead=yearRatio>=1.05;
+  return {monthRatio,yearRatio,monthBehind,yearBehind,monthAhead,yearAhead,monthExpected,yearExpected,monthNow,yearNow};
 }
 function growthGoalStatus(){
   const revenue=growthDailyRevenue();
@@ -331,10 +353,12 @@ function renderGrowthMode(){
   const stops=rows.filter(r=>r.e.maxCpa>0&&((r.e.lm.orders===0&&r.e.lm.ad>=r.e.maxCpa)||(r.e.lm.orders>0&&r.e.cpa>r.e.maxCpa)));
   const profile=growthTargetProfile(floor);
   const phaseText=goal.phase==='chase'?'日商目標追跡モード':'利益最大化モード';
+  const pace=salesGoalPacing();
   const phaseNote=goal.phase==='chase'
     ?'目標到達まで商品テスト・ページ改善・広告案・勝ち商品の増額を優先'
     :(goal.achieved?'最低日商を達成。利益・ROASを守りながら拡大':'着地予測で最低日商が見えています。新規テストを抑え、勝ち商品の利益維持を優先');
-  summary.innerHTML='<b>'+phaseText+'</b><br><b>本日売上 '+yen(revenue)+'</b> / 最低目標 '+yen(floor)+(goal.projected>revenue?'<br>本日の着地予測 '+yen(goal.projected):'')+(gap?'<br>あと '+yen(gap):'<br><span class="green">最低ライン達成</span>')+'<br>'+esc(phaseNote)+'<br>勝ち商品 '+winners.length+' / CPA停止候補 '+stops.length+' / テスト枠 '+growthSettings.testProducts+(goal.phase==='chase'?'<br>AI成長強度: '+esc(profile.label)+' / 推奨月間広告予算 '+yen(profile.monthlyBudget)+' / 勝ち商品の増額率 '+profile.stepPct+'%':'<br>現在は新規テスト拡大より、利益率・CPA・ROASを優先');
+  const longTermNote=pace.monthBehind||pace.yearBehind?'月・年ペース: 遅れ → 翌日のテスト準備を強化':pace.monthAhead&&pace.yearAhead?'月・年ペース: 順調 → 利益率優先':'月・年ペース: ほぼ計画通り';
+  summary.innerHTML='<b>'+phaseText+'</b><br><b>本日売上 '+yen(revenue)+'</b> / 最低目標 '+yen(floor)+(goal.projected>revenue?'<br>本日の着地予測 '+yen(goal.projected):'')+(gap?'<br>あと '+yen(gap):'<br><span class="green">最低ライン達成</span>')+'<br>'+esc(phaseNote)+'<br>'+esc(longTermNote)+'<br>勝ち商品 '+winners.length+' / CPA停止候補 '+stops.length+' / テスト枠 '+growthSettings.testProducts+(goal.phase==='chase'?'<br>AI成長強度: '+esc(profile.label)+' / 推奨月間広告予算 '+yen(profile.monthlyBudget)+' / 勝ち商品の増額率 '+profile.stepPct+'%':'<br>現在は新規テスト拡大より、利益率・CPA・ROASを優先');
   const testBoard=rows.sort((a,b)=>{
     const rank=v=>v.e.maxCpa>0&&((v.e.lm.orders===0&&v.e.lm.ad>=v.e.maxCpa)||(v.e.lm.orders>0&&v.e.cpa>v.e.maxCpa))?3:(v.e.lm.orders>=2&&v.e.lm.net>0&&(v.e.lm.roas===99||v.e.lm.roas>=Number(adAutomationSettings.scaleRoas||2.5)))?2:1;
     return rank(b)-rank(a)||(b.x.aiScore||0)-(a.x.aiScore||0);
@@ -352,12 +376,15 @@ async function runGrowthEngine(silent=false){
   if(growthSettings.mode==='off'){if(!silent)alert('AI売上成長モードはOFFです。');return}
   const now=new Date().toISOString(),actions=[];
   const goal=growthGoalStatus();
+  const pace=salesGoalPacing();
   let targetProfile=growthTargetProfile(growthSettings.dailySalesFloor);
   if(goal.phase==='chase'){
     targetProfile=applyGrowthTargetProfile(growthSettings.dailySalesFloor,true);
     actions.push({type:'up',tag:'目標追跡',text:'最低日商 '+yen(goal.target)+' を目標に '+targetProfile.label+'。テスト '+targetProfile.testProducts+'商品 / 推奨月間広告予算 '+yen(targetProfile.monthlyBudget)+' / 増額率 '+targetProfile.stepPct+'%。'});
   }else{
     actions.push({type:'up',tag:'利益優先',text:(goal.achieved?'最低日商を達成。':'着地予測 '+yen(goal.projected)+' で最低日商が見えています。')+'目標追跡モードを解除し、CPA・ROAS・最終利益を優先します。'});
+    if(pace.monthBehind||pace.yearBehind)actions.push({type:'test',tag:'翌日準備',text:'月・年の目標ペースが遅れています。当日の無理な追い込みはせず、次回テスト候補・商品ページ・広告案を準備します。'});
+    else if(pace.monthAhead&&pace.yearAhead)actions.push({type:'wait',tag:'順調',text:'月・年とも目標ペースを上回っています。売上追跡より利益率・返品率・供給安定性を優先します。'});
   }
   const pool=active.filter(x=>!x.archived);
   for(const x of pool){
