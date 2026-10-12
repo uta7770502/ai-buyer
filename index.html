@@ -470,7 +470,7 @@ async function checkTestOrder(){
     if(!r.ok||!j.ok)throw new Error(j.error||'注文照合に失敗しました');
     if(j.status==='not_found'){
       if(result)result.textContent='Shopify注文を直接確認してCJサンドボックスへ登録中…';
-      const importRes=await fetch('/api/shopify-sandbox-order',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({orderId})});
+      const importRes=await fetch('/api/diagnostics?action=shopify-sandbox-order',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({orderId})});
       const imported=await importRes.json();
       if(context!==testContextVersion)return;
       if(!importRes.ok||!imported.ok)throw new Error(imported.error||'Shopify注文のサンドボックス登録に失敗しました');
