@@ -114,7 +114,7 @@ export default async function handler(req,res){
       const serverCapRaw=Number(capValue);
       const serverCap=/^[1-9][0-9]*$/.test(capValue)&&Number.isSafeInteger(serverCapRaw)?serverCapRaw:0;
       const liveEnabled=String(process.env.ADS_LIVE_ENABLED||'').toLowerCase()==='true';
-      const effectiveCap=serverCap>0?serverCap:dailyBudgetJpy;
+      const effectiveCap=serverCap>0&&dailyBudgetJpy>0?Math.min(serverCap,dailyBudgetJpy):0;
       const reasons=[];
       if(serverCap<=0)reasons.push('サーバー側の日次上限が未設定または不正');
       if(effectiveCap<=0)reasons.push('日次上限が未設定');
