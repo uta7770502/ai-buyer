@@ -1926,7 +1926,7 @@ function resumeAutoPreparation(){
     if(x.autoSetupState==='queued'||x.autoSetupState==='shipping'||x.autoSetupState==='draft'){
       x.autoSetupLastAttemptAt=new Date().toISOString();
       save();
-      setTimeout(()=>autoPrepareSelectedProduct(x,attempts),250);
+      setTimeout(()=>{if(findActive(x.id)===x)autoPrepareSelectedProduct(x,attempts)},250);
       break;
     }
     if(x.autoSetupState==='needs_review'&&autoPrepareRetryable(x.autoSetupLastError||x.autoSetupMessage)){
@@ -1934,7 +1934,7 @@ function resumeAutoPreparation(){
       x.autoSetupState='queued';
       x.autoSetupMessage='AIが自動復旧を再開します';
       save();renderAll();
-      setTimeout(()=>autoPrepareSelectedProduct(x,attempts),250);
+      setTimeout(()=>{if(findActive(x.id)===x)autoPrepareSelectedProduct(x,attempts)},250);
       break;
     }
   }
