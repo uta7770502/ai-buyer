@@ -90,6 +90,16 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
 .srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.skipLink{position:fixed;top:-100px;left:20px;background:white;padding:12px;z-index:100}.skipLink:focus{top:10px}
 .panel{padding-bottom:calc(24px + env(safe-area-inset-bottom))}.banner button{color:inherit;text-align:left;padding:0}
 @media(max-width:900px){.heroVisual{height:310px}.grid5 .product{min-width:0;flex:0 0 44vw}.heart{width:44px;height:44px}.qty button{width:44px;height:44px}.modalCard{max-height:85dvh}.searchLayer .searchBox{top:4%;max-height:85dvh}.sectionTitle{flex-wrap:wrap;gap:6px}.trustItem{line-height:1.6}.story{margin-bottom:100px}}
+/* Mobile shopping polish: keep product names and action targets usable on narrow screens. */
+@media(max-width:600px){
+  .header{gap:8px}.brand{font-size:clamp(17px,5.2vw,23px);letter-spacing:-1px;min-width:0}
+  .icons{gap:0;flex-shrink:0}.iconbtn{width:44px;height:44px}
+  .grid5 .product{flex:0 0 min(64vw,230px)}
+  .productTitle{min-height:44px;display:block;width:100%;overflow-wrap:anywhere}
+  .mobileNav button{min-height:44px;touch-action:manipulation}
+  .modalCard{max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 /* Storefront polish: compact mobile first view and accessible shopping surfaces. */
 @media(max-width:900px){
   .topbar{padding-top:env(safe-area-inset-top)}
