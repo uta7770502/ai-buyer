@@ -63,8 +63,9 @@ let monitorSettings=JSON.parse(localStorage.getItem('aiBuyerMonitorSettings')||'
 let adAutomationSettings=JSON.parse(localStorage.getItem('aiBuyerAdAutomationSettings')||'null')||{mode:'test',stopRoas:1.2,scaleRoas:2.5,stepPct:20};
 let growthSettings=JSON.parse(localStorage.getItem('aiBuyerGrowthSettings')||'null')||{mode:'test',dailySalesFloor:10000,testProducts:5,creativeVariants:3,cpaSafetyPct:70,daily:'on'};
 let growthState=JSON.parse(localStorage.getItem('aiBuyerGrowthState')||'null')||{lastRunAt:'',summary:'',actions:[]};
+let growthPhaseState=JSON.parse(localStorage.getItem('aiBuyerGrowthPhaseState')||'null')||{phase:'chase',changedAt:'',reason:''};
 let salesGoalSettings=JSON.parse(localStorage.getItem('aiBuyerSalesGoalSettings')||'null')||{daily:10000,monthly:300000,yearly:3650000};
-let salesSummary=JSON.parse(sessionStorage.getItem('aiBuyerSalesSummary')||'null')||{daily:0,monthly:0,yearly:0,gross:{},refunded:{},units:{daily:[],monthly:[],yearly:[]},checkedAt:'',loading:false,error:''};
+let salesSummary=JSON.parse(sessionStorage.getItem('aiBuyerSalesSummary')||'null')||{daily:0,monthly:0,yearly:0,gross:{},refunded:{},units:{daily:[],monthly:[],yearly:[]},rolling:{d7:{average:0},d30:{average:0}},checkedAt:'',loading:false,error:''};
 let adAutomationLog=JSON.parse(localStorage.getItem('aiBuyerAdAutomationLog')||'[]');
 let returnAudit=JSON.parse(localStorage.getItem('aiBuyerReturnAudit')||'null');
 let monitorSnapshots=JSON.parse(localStorage.getItem('aiBuyerMonitorSnapshots')||'{}');
@@ -283,7 +284,7 @@ async function refreshSalesSummary(){
     const j=await r.json();
     if(j.authRequired){location.href='/api/shopify-auth';return}
     if(!r.ok||!j.ok)throw new Error(j.error||'売上集計に失敗しました');
-    salesSummary={daily:Number(j.daily||0),monthly:Number(j.monthly||0),yearly:Number(j.yearly||0),gross:j.gross||{},refunded:j.refunded||{},units:j.units||{daily:[],monthly:[],yearly:[]},checkedAt:j.checkedAt||new Date().toISOString(),loading:false,error:'',truncated:Boolean(j.truncated)};
+    salesSummary={daily:Number(j.daily||0),monthly:Number(j.monthly||0),yearly:Number(j.yearly||0),gross:j.gross||{},refunded:j.refunded||{},units:j.units||{daily:[],monthly:[],yearly:[]},rolling:j.rolling||{d7:{average:0},d30:{average:0}},checkedAt:j.checkedAt||new Date().toISOString(),loading:false,error:'',truncated:Boolean(j.truncated)};
     sessionStorage.setItem('aiBuyerSalesSummary',JSON.stringify(salesSummary));
     renderSalesGoals();renderGrowthMode();renderAll();
   }catch(e){salesSummary={...salesSummary,loading:false,error:e.message||'取得失敗'};renderSalesGoals();renderAll()}
@@ -324,10 +325,20 @@ function growthGoalStatus(){
   const target=Math.max(1000,Number(growthSettings.dailySalesFloor||10000));
   const now=new Date(),hours=Math.max(8,now.getHours()+now.getMinutes()/60);
   const projected=hours>=12?Math.round(revenue/hours*24):revenue;
-  const near=revenue>=target*.8||(hours>=12&&projected>=target);
+  const avg7=Math.max(0,Number(salesSummary?.rolling?.d7?.average||0));
+  const avg30=Math.max(0,Number(salesSummary?.rolling?.d30?.average||0));
   const achieved=revenue>=target;
-  const phase=achieved||near?'profit':'chase';
-  return {revenue,target,projected,near,achieved,phase,gap:Math.max(0,target-revenue)};
+  const near=revenue>=target*.8||(hours>=12&&projected>=target);
+  const sustained=avg7>=target*.9||avg30>=target*.95;
+  const weak=avg7>0&&avg7<target*.72&&avg30>0&&avg30<target*.8;
+  let phase=growthPhaseState?.phase==='profit'?'profit':'chase',reason='';
+  if(phase==='chase'&&(achieved||near||sustained)){phase='profit';reason=sustained?'7日/30日平均が目標圏内':'本日の実績・着地予測が目標圏内'}
+  else if(phase==='profit'&&weak&&!near&&!achieved){phase='chase';reason='7日・30日平均が再び目標を下回った'}
+  if(phase!==growthPhaseState.phase){
+    growthPhaseState={phase,changedAt:new Date().toISOString(),reason};
+    localStorage.setItem('aiBuyerGrowthPhaseState',JSON.stringify(growthPhaseState));
+  }
+  return {revenue,target,projected,near,achieved,phase,gap:Math.max(0,target-revenue),avg7,avg30,sustained,weak,phaseReason:reason||growthPhaseState.reason||''};
 }
 function growthUnitEconomics(x){
   const lm=learnedMetrics(x),price=Number(x.actualUnitPrice??x.price??suggestedPrice(x.costUsd||parsePrice(x.sellPrice)));
@@ -426,7 +437,7 @@ function renderGrowthMode(){
     ?'目標到達まで商品テスト・ページ改善・広告案・勝ち商品の増額を優先'
     :(goal.achieved?'最低日商を達成。利益・ROASを守りながら拡大':'着地予測で最低日商が見えています。新規テストを抑え、勝ち商品の利益維持を優先');
   const longTermNote=pace.monthBehind||pace.yearBehind?'月・年ペース: 遅れ → 翌日のテスト準備を強化':pace.monthAhead&&pace.yearAhead?'月・年ペース: 順調 → 利益率優先':'月・年ペース: ほぼ計画通り';
-  summary.innerHTML='<b>'+phaseText+'</b><br><b>本日売上 '+yen(revenue)+'</b> / 最低目標 '+yen(floor)+(goal.projected>revenue?'<br>本日の着地予測 '+yen(goal.projected):'')+(gap?'<br>あと '+yen(gap):'<br><span class="green">最低ライン達成</span>')+'<br>'+esc(phaseNote)+'<br>'+esc(longTermNote)+'<br>勝ち商品 '+winners.length+' / CPA停止候補 '+stops.length+' / テスト枠 '+growthSettings.testProducts+(goal.phase==='chase'?'<br>AI成長強度: '+esc(profile.label)+' / 推奨月間広告予算 '+yen(profile.monthlyBudget)+' / 勝ち商品の増額率 '+profile.stepPct+'%':'<br>現在は新規テスト拡大より、利益率・CPA・ROASを優先');
+  summary.innerHTML='<b>'+phaseText+'</b><br><b>本日売上 '+yen(revenue)+'</b> / 最低目標 '+yen(floor)+(goal.projected>revenue?'<br>本日の着地予測 '+yen(goal.projected):'')+'<br>7日平均 '+yen(goal.avg7)+' / 30日平均 '+yen(goal.avg30)+(gap?'<br>あと '+yen(gap):'<br><span class="green">最低ライン達成</span>')+'<br>'+esc(phaseNote)+'<br>'+esc(longTermNote)+'<br>勝ち商品 '+winners.length+' / CPA停止候補 '+stops.length+' / テスト枠 '+growthSettings.testProducts+(goal.phase==='chase'?'<br>AI成長強度: '+esc(profile.label)+' / 推奨月間広告予算 '+yen(profile.monthlyBudget)+' / 勝ち商品の増額率 '+profile.stepPct+'%':'<br>現在は新規テスト拡大より、利益率・CPA・ROASを優先');
   const testBoard=rows.sort((a,b)=>{
     const rank=v=>v.e.maxCpa>0&&((v.e.lm.orders===0&&v.e.lm.ad>=v.e.maxCpa)||(v.e.lm.orders>0&&v.e.cpa>v.e.maxCpa))?3:(v.e.lm.orders>=2&&v.e.lm.net>0&&(v.e.lm.roas===99||v.e.lm.roas>=Number(adAutomationSettings.scaleRoas||2.5)))?2:1;
     return rank(b)-rank(a)||(b.x.aiScore||0)-(a.x.aiScore||0);
