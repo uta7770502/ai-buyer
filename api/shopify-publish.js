@@ -390,6 +390,9 @@ export default async function handler(req,res){
       const description=cleanHtml(p.descriptionHtml||'',5000);
       if(!/^gid:\/\/shopify\/Product\/\d+$/.test(productId))return res.status(400).json({ok:false,error:'Shopify商品IDが不正です'});
       if(!description)return res.status(400).json({ok:false,error:'日本向け商品説明が空です'});
+      const existing=await gql(shop,token,'query GrowthPageDraftCheck($id:ID!){product(id:$id){id status}}',{id:productId});
+      if(!existing.product)return res.status(404).json({ok:false,error:'Shopify商品が見つかりません'});
+      if(existing.product.status!=='DRAFT')return res.status(409).json({ok:false,error:'公開中の商品は自動下書き最適化できません'});
       const d=await gql(shop,token,'mutation GrowthPageOptimize($product:ProductUpdateInput!){productUpdate(product:$product){product{id title handle status} userErrors{field message}}}',{product:{id:productId,descriptionHtml:description}});
       const errs=d.productUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
       return res.status(200).json({ok:true,growthPageOptimized:true,product:d.productUpdate?.product||null});
