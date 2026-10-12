@@ -1869,6 +1869,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(findActive(x.id)!==x)return;
     if(x.shopifyProductId){
       const page=await optimizeGrowthPage(x);
+      if(findActive(x.id)!==x)return;
       if(!page.ok)throw new Error(page.reason||'商品ページ最適化に失敗');
       x.status='test';
       x.autoSetupState='ready';
@@ -1885,6 +1886,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       throw new Error(x.shopifyPublishError||'Shopify下書きを作成できませんでした');
     }
   }catch(e){
+    if(findActive(x.id)!==x)return;
     const message=String(e.message||'確認が必要です');
     x.autoSetupLastError=message;
     x.autoSetupAttempts=attempt+1;
