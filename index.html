@@ -1551,6 +1551,21 @@ const filterEl=document.getElementById('profitFilter');if(filterEl)filterEl.valu
 function autoPrepareRetryable(message){
   return /timeout|timed out|network|fetch|temporar|rate|429|5\d\d|接続|通信|取得できません|確認できません/i.test(String(message||''));
 }
+let autoCycleTimer=null,autoCycleRunning=false;
+function queueAutomationCycle(delay=800){
+  clearTimeout(autoCycleTimer);
+  autoCycleTimer=setTimeout(async()=>{
+    if(autoCycleRunning)return;
+    autoCycleRunning=true;
+    try{
+      await runGrowthEngine(true);
+      if(typeof runMarketMonitor==='function')await runMarketMonitor(true);
+      renderAutoOverview();
+    }catch(e){
+      addOps('自動運用サイクル 保留',String(e?.message||e||'一時エラー'));
+    }finally{autoCycleRunning=false}
+  },delay);
+}
 async function autoPrepareSelectedProduct(x,attempt=0){
   if(!x||!findActive(x.id))return;
   x.autoSetupAttempts=Math.max(Number(x.autoSetupAttempts||0),attempt);
@@ -1593,7 +1608,8 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       x.growthCreatives=growthCreativeDrafts(x);
       save();renderAll();renderGrowthMode();renderDailyActions();
       addOps('商品自動準備',x.name+'：送料・売価・Shopify下書き・日本向けページ・テスト設定を完了');
-      showCandidateToast('AI自動準備が完了しました');
+      queueAutomationCycle(500);
+      showCandidateToast('AI自動準備が完了しました。自動運用を開始します');
     }else{
       throw new Error(x.shopifyPublishError||'Shopify下書きを作成できませんでした');
     }
@@ -1774,5 +1790,5 @@ document.addEventListener('click',e=>{
     showCandidateToast('出品エラー: '+reason);
   }
 })();
-q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderAutoOverview();renderMonitor();applyUiMode();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();hydrateTestContextUI();hydrateGrowthSettings();hydrateSalesGoals();const __admin=document.getElementById('adminKeyInput');if(__admin){const __k=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();if(__k)__admin.value=__k;}renderTestChecklist();renderAutomationDashboard();renderReturnAudit();refreshSalesSummary();maybeDailyGrowth();setTimeout(checkConnection,700);setTimeout(async()=>{await checkShopify(false);const params=new URLSearchParams(location.search);const pending=sessionStorage.getItem('aiBuyerPendingPublishId');if(params.get('shopify')==='connected'&&pending&&shopifyConnected){sessionStorage.removeItem('aiBuyerPendingPublishId');history.replaceState({},'',location.pathname);const x=findActive(pending);if(x){showCandidateToast('Shopify認証完了。出品を再開します…');setTimeout(()=>autoPublishCandidate(x),300)}}},900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setTimeout(resumeAutoPreparation,1800);setInterval(maybeDailyMonitor,30*60*1000);setInterval(resumeAutoPreparation,30*60*1000);setInterval(()=>{hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard()},5*60*1000);
+q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderAutoOverview();renderMonitor();applyUiMode();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();hydrateTestContextUI();hydrateGrowthSettings();hydrateSalesGoals();const __admin=document.getElementById('adminKeyInput');if(__admin){const __k=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();if(__k)__admin.value=__k;}renderTestChecklist();renderAutomationDashboard();renderReturnAudit();refreshSalesSummary();maybeDailyGrowth();setTimeout(checkConnection,700);setTimeout(async()=>{await checkShopify(false);const params=new URLSearchParams(location.search);const pending=sessionStorage.getItem('aiBuyerPendingPublishId');if(params.get('shopify')==='connected'&&pending&&shopifyConnected){sessionStorage.removeItem('aiBuyerPendingPublishId');history.replaceState({},'',location.pathname);const x=findActive(pending);if(x){showCandidateToast('Shopify認証完了。出品を再開します…');setTimeout(()=>autoPublishCandidate(x),300)}}},900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setTimeout(resumeAutoPreparation,1800);setTimeout(()=>{if(active.some(x=>!x.archived&&(x.status==='test'||x.autoSetupState==='ready')))queueAutomationCycle(1200)},2200);setInterval(maybeDailyMonitor,30*60*1000);setInterval(resumeAutoPreparation,30*60*1000);setInterval(()=>{hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard()},5*60*1000);
 </script></body></html>
