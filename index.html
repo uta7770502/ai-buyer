@@ -604,7 +604,7 @@ async function runReturnAudit(){
     const j=await r.json();
     if(j.authRequired){location.href='/api/shopify-auth';return}
     if(!r.ok||!j.ok)throw new Error(j.error||'注文監査に失敗しました');
-    returnAudit={at:new Date().toISOString(),orders:j.orders||[],counts:j.counts||{}};
+    returnAudit={at:new Date().toISOString(),orders:j.orders||[],counts:j.counts||{},cjLookupVerified:j.cjLookupVerified===true,cjLookupError:String(j.cjLookupError||'')};
     localStorage.setItem('aiBuyerReturnAudit',JSON.stringify(returnAudit));
     addOps('返品・キャンセル監査','直近'+returnAudit.orders.length+'注文を安全監査');
     renderReturnAudit();
@@ -629,8 +629,9 @@ function renderReturnAudit(){
   if(!sum||!box)return;
   if(!returnAudit){sum.textContent='まだ監査していません。';box.innerHTML='';return}
   const c=returnAudit.counts||{},orders=returnAudit.orders||[];
-  sum.textContent='直近 '+orders.length+'注文 / 要確認 '+(c['要確認']||0)+' / キャンセル候補 '+(c['キャンセル候補']||0)+' / 保留 '+(c['保留']||0)+' / 返金済 '+(c['返金済']||0)+'。実返金・実キャンセルはまだ実行しません。';
-  box.innerHTML=orders.slice(0,10).map(o=>{const canRun=o.safeAction==='cancel_candidate'&&['VOIDED','EXPIRED'].includes(String(o.financialStatus||''));return '<div class="budgetRank"><div style="flex:1"><b>'+esc(o.name||'注文')+'</b><div class="allocMeta">'+esc(o.reason||'')+'<br>Shopify: '+esc(o.financialStatus||'')+' / '+esc(o.fulfillmentStatus||'')+'<br>CJ: '+esc(o.cjFound?(o.cjStatus||'状態不明'):'未検出')+(o.cjOrderId?' / '+esc(o.cjOrderId):'')+'</div></div><div style="text-align:right"><b>'+esc(o.state||'確認')+'</b><div class="tiny">'+esc(canRun?'安全キャンセル可':o.safeAction==='cancel_candidate'?'候補・手動確認':o.safeAction==='hold'?'保留':'手動確認')+'</div>'+(canRun?'<button class="secondary" style="margin-top:6px;padding:7px 9px" onclick="runSafeCancel(\''+js(o.id)+'\',\''+js(o.name||'注文')+'\')">安全キャンセル</button>':'')+'</div></div>'}).join('');
+  const cjUnverified=returnAudit.cjLookupVerified!==true;
+  sum.textContent=(cjUnverified?'⚠ CJ照合未確認：'+(returnAudit.cjLookupError||'CJ照合を再実行してください')+' / ':'CJ照合済 / ')+'直近 '+orders.length+'注文 / 要確認 '+(c['要確認']||0)+' / キャンセル候補 '+(c['キャンセル候補']||0)+' / 保留 '+(c['保留']||0)+' / 返金済 '+(c['返金済']||0)+'。実返金・実キャンセルはまだ実行しません。';
+  box.innerHTML=orders.slice(0,10).map(o=>{const canRun=!cjUnverified&&o.safeAction==='cancel_candidate'&&['VOIDED','EXPIRED'].includes(String(o.financialStatus||''));return '<div class="budgetRank"><div style="flex:1"><b>'+esc(o.name||'注文')+'</b><div class="allocMeta">'+esc(o.reason||'')+'<br>Shopify: '+esc(o.financialStatus||'')+' / '+esc(o.fulfillmentStatus||'')+'<br>CJ: '+esc(o.cjFound?(o.cjStatus||'状態不明'):'未検出')+(o.cjOrderId?' / '+esc(o.cjOrderId):'')+'</div></div><div style="text-align:right"><b>'+esc(o.state||'確認')+'</b><div class="tiny">'+esc(canRun?'安全キャンセル可':o.safeAction==='cancel_candidate'?'候補・手動確認':o.safeAction==='hold'?'保留':'手動確認')+'</div>'+(canRun?'<button class="secondary" style="margin-top:6px;padding:7px 9px" onclick="runSafeCancel(\''+js(o.id)+'\',\''+js(o.name||'注文')+'\')">安全キャンセル</button>':'')+'</div></div>'}).join('');
 }
 function getTestAdminKey(){
   const input=document.getElementById('adminKeyInput');
