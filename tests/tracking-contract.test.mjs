@@ -21,3 +21,26 @@ test('Shopify sync is never treated as verified on API failure',()=>{
   assert.match(source,/let shopifySyncVerified=false/);
   assert.match(source,/shopifyLookupError='Shopify tracking lookup unavailable'/);
 });
+
+const sync=readFileSync(new URL('../lib/routes/cj-tracking-sync.js',import.meta.url),'utf8');
+
+test('tracking writes are opt-in, admin-only, and sandbox-only',()=>{
+  assert.match(sync,/req\.method!=='POST'/);
+  assert.match(sync,/CJ_SANDBOX_TRACKING_SYNC_ENABLED'!=='true'/);
+  assert.match(sync,/AI_BUYER_ADMIN_KEY/);
+  assert.match(sync,/linkedSandboxOrder\(shop,id\)/);
+  assert.match(sync,/order\.test!==true/);
+});
+test('tracking write verifies order eligibility and blocks existing fulfillment',()=>{
+  assert.match(sync,/order\.cancelledAt/);
+  assert.match(sync,/displayFinancialStatus!=='PAID'/);
+  assert.match(sync,/displayFulfillmentStatus!=='UNFULFILLED'/);
+  assert.match(sync,/\(order\.fulfillments\|\|\[\]\)\.length/);
+});
+test('tracking write is idempotent and fail closed on ambiguous outcomes',()=>{
+  assert.match(sync,/\['SET',lock,'needs_review:'\+tracking,'NX'\]/);
+  assert.match(sync,/automaticRetry:false/);
+  assert.match(sync,/fulfillmentCreate/);
+  assert.match(sync,/const verified=await shopify\(shop,token,QUERY/);
+  assert.match(sync,/if\(!fulfillmentVerified\)/);
+});
