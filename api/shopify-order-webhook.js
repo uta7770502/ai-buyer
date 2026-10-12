@@ -101,10 +101,7 @@ export default async function handler(req,res){
     if(lines.some(x=>!/^[A-Za-z0-9_-]{6,100}$/.test(String(x.sku||''))))
       return res.status(422).json({ok:false,error:'CJ variant identifiers must be validated before ordering'});
     if(lines.length>20||lines.some(x=>!Number.isSafeInteger(Number(x.quantity))||Number(x.quantity)>50))return res.status(422).json({ok:false,error:'Unsupported order size; manual review required'});
-    const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
-    // Shopify line-item properties are buyer-editable and cannot prove CJ mapping.
-    // Confirm each SKU against the actual Shopify product variant before ordering.
-    // Require an independently provisioned server token; browser cookies are never trusted here.
+    // Verify catalog mapping before requesting CJ credentials or contacting CJ.
     const shopifyToken=String(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||'');
     if(!shopifyToken)return res.status(503).json({ok:false,needsReview:true,error:'Server-side Shopify verification token is not configured'});
     const verifiedProducts=[];
@@ -124,6 +121,7 @@ export default async function handler(req,res){
       verifiedProducts.push({vid:variant.sku,quantity:Number(line.quantity),storeLineItemId:str(line.id,125)});
     }
     const products=verifiedProducts;
+    const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
     const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
