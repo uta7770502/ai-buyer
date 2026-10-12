@@ -4,6 +4,7 @@ import automationReconciliation from '../lib/routes/automation-reconciliation.js
 import cjHealth from '../lib/routes/cj-health.js';
 import shopifyFulfillmentSync from '../lib/routes/shopify-fulfillment-sync.js';
 import releaseReadiness from '../lib/routes/release-readiness.js';
+import shopifySandboxOrder from '../lib/routes/shopify-sandbox-order.js';
 
 const handlers={
   'automation-health':automationHealth,
@@ -11,7 +12,8 @@ const handlers={
   'automation-reconciliation':automationReconciliation,
   'cj-health':cjHealth,
   'shopify-fulfillment-sync':shopifyFulfillmentSync,
-  'release-readiness':releaseReadiness
+  'release-readiness':releaseReadiness,
+  'shopify-sandbox-order':shopifySandboxOrder
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');
