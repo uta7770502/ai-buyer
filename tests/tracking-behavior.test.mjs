@@ -232,3 +232,16 @@ test('control characters in CJ tracking number are rejected before Shopify calls
   assert.equal(x.locks,0);
   assert.equal(x.reads,0);
 });
+
+test('refunded Shopify orders cannot create tracking fulfillments',async()=>{
+  const x=await invoke({shopifyOrder:{...order(),displayFinancialStatus:'REFUNDED'}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+});
+test('partially refunded Shopify orders cannot create tracking fulfillments',async()=>{
+  const x=await invoke({shopifyOrder:{...order(),displayFinancialStatus:'PARTIALLY_REFUNDED'}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+});
