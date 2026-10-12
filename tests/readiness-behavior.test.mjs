@@ -17,8 +17,9 @@ async function invoke({method='GET',auth='Bearer test-admin',configured=false,ov
   Object.assign(process.env,overrides);
   globalThis.fetch=async()=>{throw Error('Readiness must not access external APIs');};
   let statusCode,body;
-  const res={setHeader(){},status(n){statusCode=n;return this;},json(v){body=v;return v;}};
-  try{await handler({method,headers:{authorization:auth}},res);return {statusCode,body};}
+  const headers={};
+  const res={setHeader(k,v){headers[k]=v;},status(n){statusCode=n;return this;},json(v){body=v;return v;}};
+  try{await handler({method,headers:{authorization:auth}},res);return {statusCode,body,headers};}
   finally{globalThis.fetch=fetchBefore;for(const [k,v] of Object.entries(before)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
 }
 test('readiness requires admin authorization',async()=>{
@@ -64,4 +65,11 @@ test('readiness rejects non-GET methods without disclosing configuration',async(
   const x=await invoke({method:'POST',configured:true});
   assert.equal(x.statusCode,405);
   assert.equal(x.body.ok,false);
+});
+
+test('readiness responses disable caching and content sniffing',async()=>{
+  const x=await invoke({configured:true});
+  assert.equal(x.headers['Cache-Control'],'no-store');
+  assert.equal(x.headers.Pragma,'no-cache');
+  assert.equal(x.headers['X-Content-Type-Options'],'nosniff');
 });
