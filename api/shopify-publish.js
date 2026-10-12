@@ -221,6 +221,12 @@ export default async function handler(req,res){
       const dailyGross=sumFrom(dayStart,gross),monthlyGross=sumFrom(monthStart,gross),yearlyGross=sumFrom(yearStart,gross);
       const dailyRefunded=sumFrom(dayStart,refunded),monthlyRefunded=sumFrom(monthStart,refunded),yearlyRefunded=sumFrom(yearStart,refunded);
       const daily=sumFrom(dayStart,net),monthly=sumFrom(monthStart,net),yearly=sumFrom(yearStart,net);
+      const rollingNet=days=>{
+        const start=new Date(dayStart.getTime()-(Math.max(1,days)-1)*24*60*60*1000);
+        const total=sumFrom(start,net);
+        return {days,total,average:Math.round(total/Math.max(1,days))};
+      };
+      const rolling7=rollingNet(7),rolling30=rollingNet(30);
       const unitsFrom=start=>{
         const map={};
         for(const o of nodes){
@@ -239,6 +245,7 @@ export default async function handler(req,res){
         gross:{daily:dailyGross,monthly:monthlyGross,yearly:yearlyGross},
         refunded:{daily:dailyRefunded,monthly:monthlyRefunded,yearly:yearlyRefunded},
         units:{daily:unitsFrom(dayStart),monthly:unitsFrom(monthStart),yearly:unitsFrom(yearStart)},
+        rolling:{d7:rolling7,d30:rolling30},
         currency,checkedAt:new Date().toISOString(),ordersScanned:nodes.length,truncated:Boolean(after&&pages>=10)
       });
     }
