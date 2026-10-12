@@ -1929,7 +1929,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
 function resumeAutoPreparation(){
   const now=Date.now();
   for(const x of active){
-    if(!x||x.archived||x.shopifyPublishState==='published'||x.shopifyPublished||x.autoSetupState==='ready'||autoPreparationInFlight.has(x)||autoPreparationRetryTimers.has(String(x.id)))continue;
+    if(!x||x.archived||x.shopifyPublishState==='published'||x.shopifyPublishState==='publishing'||x.shopifyPublished||x.autoSetupState==='ready'||autoPreparationInFlight.has(x)||autoPreparationRetryTimers.has(String(x.id)))continue;
     const attempts=Math.max(0,Number(x.autoSetupAttempts||0));
     const last=Date.parse(x.autoSetupLastAttemptAt||'');
     if(attempts>=3)continue;
