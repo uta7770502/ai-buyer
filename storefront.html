@@ -127,6 +127,18 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
 
 section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid var(--line);border-radius:20px;padding:28px;margin:32px 0;background:white}.shoppingGuide>p{max-width:760px;line-height:1.9;color:var(--muted)}.guideGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:28px}.guideGrid article{border-top:2px solid var(--ink);padding-top:18px}.guideGrid span{font-size:11px;font-weight:800;letter-spacing:.08em}.guideGrid h3{font-size:19px}.guideGrid p{font-size:14px;line-height:1.9;color:var(--muted)}.shopFooter{padding-top:32px;padding-bottom:42px;border-top:1px solid var(--line)}.shopFooter b{font-size:28px;letter-spacing:-1px}.shopFooter nav{display:flex;flex-wrap:wrap;gap:20px;margin:24px 0}.shopFooter a{color:inherit;font-size:14px}.searchTools{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:20px;font-size:13px}.searchTools select{font:inherit;background:white;border:1px solid var(--line);border-radius:8px;min-height:44px;padding:8px}.checkout .continueShopping{height:44px;background:transparent;text-align:left;font-size:13px}.detailImg img{object-fit:contain}.panelHead .close{flex-shrink:0;width:44px;height:44px}.panelHead{gap:12px}.detailInfo{min-width:0;overflow-wrap:anywhere}.buyBtn{height:auto;min-height:56px;padding:12px}.tag{pointer-events:none}
 @media(max-width:900px){.shoppingGuide{padding:20px}.guideGrid{grid-template-columns:1fr;gap:18px}.shopFooter{padding-bottom:110px}.story{margin-bottom:30px}.hero h1{font-size:clamp(40px,12vw,54px)}.sectionTitle h2{font-size:clamp(23px,7vw,28px)}.panel{width:min(440px,100vw)}.searchBox{padding:16px!important}}
+
+/* Storefront polish: mobile readability, responsive product cards, accessible touch targets */
+@media(max-width:900px){
+  .header{gap:12px}.brand{min-width:0;letter-spacing:-1px}.icons{gap:2px}.iconbtn{width:44px;height:44px;flex-shrink:0}
+  .heroCopy{padding-bottom:30px}.hero h1{font-size:clamp(46px,13vw,62px);overflow-wrap:anywhere}
+  .sectionHead{align-items:flex-start}.sectionTitle{min-width:0}.sectionTitle h2{line-height:1.12}
+  .grid5{gap:12px;scroll-padding-inline:16px}.grid5 .product{flex:0 0 min(44vw,210px)}
+  .product h3{overflow-wrap:anywhere}.price{font-variant-numeric:tabular-nums}
+  .mobileNav button{min-height:48px}.checkout{padding-bottom:env(safe-area-inset-bottom)}
+}
+@media(max-width:380px){.brand{font-size:20px}.hero p{font-size:16px}.grid5 .product{flex-basis:46vw}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.thumb img,.cta,.scrim,.panel,.modalCard,.searchLayer .searchBox{transition:none!important}}
 </style>
 <!-- deployment-refresh: storefront reconnect check -->
 </head>
