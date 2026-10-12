@@ -280,6 +280,8 @@ export default async function handler(req,res){
         }else cjLookupVerified=true;
       }catch(e){cjLookupError=String(e?.message||'CJ order lookup unavailable').slice(0,160)}
 
+      // Never infer absence of CJ orders when the remote lookup failed.
+      // Order audit remains readable but all destructive actions must be blocked.
       const orders=shopOrders.map(o=>{
         const fin=String(o.displayFinancialStatus||''),ful=String(o.displayFulfillmentStatus||''),cancelled=Boolean(o.cancelledAt);
         const numericId=String(o.id||'').split('/').pop(),storeOrder='SHOP-'+numericId;
@@ -300,6 +302,9 @@ export default async function handler(req,res){
         else if(fin==='PENDING'){state='保留';reason='決済確認待ちのため発注・返金を保留';safeAction='hold'}
         else if(['PAID','AUTHORIZED','PARTIALLY_PAID'].includes(fin)&&['UNFULFILLED','OPEN','PENDING_FULFILLMENT','ON_HOLD'].includes(ful)){state='要確認';reason=cjo?'CJ状態 '+(cjStatus||'不明')+' を確認してから判断':'CJ注文がまだ見つからないため自動キャンセル禁止';safeAction='review'}
 
+        if(!cjLookupVerified&&safeAction==='cancel_candidate'){
+          state='要確認';reason='CJ注文照合が未完了のためキャンセル判定を保留';safeAction='review';
+        }
         return {
           id:o.id,name:o.name,createdAt:o.createdAt,cancelledAt:o.cancelledAt,
           financialStatus:fin,fulfillmentStatus:ful,state,reason,safeAction,
