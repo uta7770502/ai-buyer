@@ -91,3 +91,11 @@ test('readiness gives actionable setup guidance only for missing checks',async()
   const configured=await invoke({configured:true});
   assert.deepEqual(configured.body.remediation,[]);
 });
+
+test('readiness status distinguishes missing setup from pending external verification',async()=>{
+  const missing=await invoke();
+  assert.equal(missing.body.readinessStatus,'configuration_incomplete');
+  const configured=await invoke({configured:true});
+  assert.equal(configured.body.readinessStatus,'awaiting_live_verification');
+  assert.equal(configured.body.liveIntegrationVerified,false);
+});
