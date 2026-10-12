@@ -6,6 +6,7 @@ on:
       - 'lib/routes/cj-tracking-sync.js'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
+      - 'tests/tracking-behavior.test.mjs'
       - '.github/workflows/tracking-tests.yml'
   pull_request:
     paths:
@@ -13,6 +14,7 @@ on:
       - 'lib/routes/cj-tracking-sync.js'
       - 'lib/sandbox-order.js'
       - 'tests/tracking-contract.test.mjs'
+      - 'tests/tracking-behavior.test.mjs'
       - '.github/workflows/tracking-tests.yml'
 permissions:
   contents: read
@@ -30,4 +32,4 @@ jobs:
           node --check lib/routes/cj-tracking-sync.js
           node --check lib/sandbox-order.js
       - name: Run tracking safety contract tests
-        run: node --test tests/tracking-contract.test.mjs
+        run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs
