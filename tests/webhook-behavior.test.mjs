@@ -9,7 +9,7 @@ const validOrder={
   id:123,test:true,financial_status:'paid',current_total_price:'100.00',
   currency:'JPY',line_items:[],shipping_address:{country_code:'JP'}
 };
-const keys=['SHOPIFY_CLIENT_SECRET','SHOPIFY_ALLOWED_SHOP_DOMAIN','CJ_SANDBOX_ORDER_ENABLED','SHOPIFY_ADMIN_ACCESS_TOKEN','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','CJ_ACCESS_TOKEN','CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_ORDER_LIMIT_CURRENCY','CJ_ALLOWED_DESTINATION_COUNTRY'];
+const keys=['SHOPIFY_CLIENT_SECRET','SHOPIFY_ALLOWED_SHOP_DOMAIN','CJ_SANDBOX_ORDER_ENABLED','SHOPIFY_ADMIN_ACCESS_TOKEN','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','CJ_ACCESS_TOKEN','CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_ORDER_LIMIT_CURRENCY','CJ_ALLOWED_DESTINATION_COUNTRY','CJ_MAX_FREIGHT_USD'];
 async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify.com',hmacValid=true,enabled='false',validLine=false,fetchMock=null}={}){
   const prior=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
   const before=globalThis.fetch;
@@ -24,6 +24,7 @@ async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify
   process.env.CJ_MAX_ORDER_VALUE='10000';
   process.env.CJ_ORDER_LIMIT_CURRENCY='JPY';
   process.env.CJ_ALLOWED_DESTINATION_COUNTRY='JP';
+  process.env.CJ_MAX_FREIGHT_USD='50';
   let calls=0;
   globalThis.fetch=async(...args)=>{calls++;if(fetchMock)return fetchMock(...args);throw Error('External API must not be called in rejected webhook tests');};
   if(validLine){order={...order,shipping_address:{country_code:'JP',city:'Tokyo',address1:'1-2-3',name:'Test Customer'},line_items:[{id:9,sku:'CJVARIANT123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}]};}
@@ -116,4 +117,32 @@ test('untrusted shop is rejected even for unrelated webhook topic',async()=>{
   const x=await invoke({shop:'other.myshopify.com',topic:'orders/create'});
   assert.equal(x.statusCode,403);
   assert.equal(x.calls,0);
+});
+
+test('sandbox order is created once and duplicate delivery is skipped',async()=>{
+  const reserved=new Set();
+  const seen=[];
+  const fetchMock=async(url,options={})=>{
+    const target=String(url);
+    seen.push(target);
+    const json=data=>({ok:true,json:async()=>data});
+    if(target.includes('myshopify.com'))return json({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJVARIANT123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
+    if(target.includes('freightCalculate'))return json({result:true,data:[{logisticName:'Test Shipping',totalPostageFee:5}]});
+    if(target==='https://redis.test/'){
+      const [cmd,key,value,flag]=JSON.parse(options.body);
+      if(cmd!=='SET')throw Error('Unexpected Redis command');
+      if(flag==='NX'&&reserved.has(key))return json({result:null});
+      reserved.add(key);
+      return json({result:'OK'});
+    }
+    if(target.includes('createOrderV2'))return json({result:true,data:{orderId:'CJ-SANDBOX-123',orderNumber:'TEST-123'}});
+    throw Error('Unexpected external request: '+target);
+  };
+  const first=await invoke({enabled:'true',validLine:true,fetchMock});
+  const second=await invoke({enabled:'true',validLine:true,fetchMock});
+  assert.equal(first.statusCode,200);
+  assert.equal(first.body.sandbox,true);
+  assert.equal(second.statusCode,200);
+  assert.equal(second.body.skipped,true);
+  assert.equal(seen.filter(u=>u.includes('createOrderV2')).length,1);
 });
