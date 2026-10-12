@@ -432,8 +432,8 @@ export default async function handler(req,res){
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
     const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft vendor:"AI BUYER" sku:'+cj.vid});
+    if(!skuMatches.products||!Array.isArray(skuMatches.products.nodes)||typeof skuMatches.products.pageInfo?.hasNextPage!=='boolean')return res.status(502).json({ok:false,error:'Shopifyの商品検索結果を検証できません。出品を停止します。'});
     if(skuMatches.products?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'既存商品の検索結果が多すぎます。重複確認が完了するまで出品を停止します。'});
-    if(!Array.isArray(skuMatches.products?.nodes)||typeof skuMatches.products?.pageInfo?.hasNextPage!=='boolean')return res.status(502).json({ok:false,error:'Shopifyの商品検索結果を検証できません。出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>!Array.isArray(v.variants?.nodes)||typeof v.variants?.pageInfo?.hasNextPage!=='boolean'))return res.status(502).json({ok:false,error:'Shopifyの商品バリエーション情報が不完全です。出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>v.variants?.pageInfo?.hasNextPage))return res.status(409).json({ok:false,error:'商品バリエーションの照合が完了していません。出品を停止します。'});
     const matchingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&v.vendor==='AI BUYER'&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
