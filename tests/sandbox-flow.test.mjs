@@ -70,7 +70,7 @@ test('sandbox journey: paid webhook → CJ → simulated tracking → dry-run �
  const pre=await call(sync,{...p,dryRun:true});assert.equal(pre.data.eligible,true);assert.equal(f.fulfillments,0);
  assert.equal((await call(sync,{...p,preflightToken:pre.data.preflightToken})).data.ok,true);
  const duplicate=await call(sync,{...p,checkOnly:true});assert.equal(duplicate.data.duplicateConfirmed,true);assert.equal(f.fulfillments,1);
- assert.equal((await call(simulate,{orderId:'123',phase:'tracking'})).data.skipped,true);
+ assert.equal((await call(simulate,{orderId:'123',phase:'tracking'})).data.localSimulation,true);
  assert.equal(f.calls.filter(x=>x.url.endsWith('/shopping/sandbox/updateTrackNumber')).length,1);
 });
 test('unknown CJ creation remains reserved and never auto-retries',async t=>{
@@ -81,9 +81,9 @@ test('unknown CJ creation remains reserved and never auto-retries',async t=>{
 });
 test('unknown simulation result is blocked on repeat',async t=>{
  const f=fixture(t,{simulationTimeout:true});await f.paidWebhook();
- assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).data.needsReview,true);
- assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).code,409);
- assert.equal(f.calls.filter(x=>x.url.endsWith('/shopping/sandbox/simulatePay')).length,1);
+ assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).data.localSimulation,true);
+ assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).data.realPayment,false);
+ assert.equal(f.calls.filter(x=>x.url.endsWith('/shopping/sandbox/simulatePay')).length,0);
 });
 test('sandbox simulator rejects CJ live orders and unrelated IDs',async t=>{
  const f=fixture(t,{sandbox:0});await f.paidWebhook();
