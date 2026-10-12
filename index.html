@@ -1843,6 +1843,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
   if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x))return;
   autoPreparationInFlight.add(x);
   cancelAutoPreparationRetry(x.id);
+  x.autoSetupLastAttemptAt=new Date().toISOString();
   x.autoSetupAttempts=Math.max(Number(x.autoSetupAttempts||0),attempt);
   x.autoSetupState='shipping';
   x.autoSetupMessage=attempt>0?'AIが自動再試行中（'+attempt+'/2）':'CJ送料を自動確認中';
