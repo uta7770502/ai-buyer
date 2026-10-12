@@ -313,6 +313,16 @@ export default async function handler(req,res){
       });
     }
 
+    if(p.growthPageOptimize===true){
+      const productId=String(p.productId||'').trim();
+      const description=cleanHtml(p.descriptionHtml||'',5000);
+      if(!/^gid:\/\/shopify\/Product\/\d+$/.test(productId))return res.status(400).json({ok:false,error:'Shopify商品IDが不正です'});
+      if(!description)return res.status(400).json({ok:false,error:'日本向け商品説明が空です'});
+      const d=await gql(shop,token,'mutation GrowthPageOptimize($product:ProductUpdateInput!){productUpdate(product:$product){product{id title handle status} userErrors{field message}}}',{product:{id:productId,descriptionHtml:description}});
+      const errs=d.productUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
+      return res.status(200).json({ok:true,growthPageOptimized:true,product:d.productUpdate?.product||null});
+    }
+
     const syncAction=String(p.syncAction||'').toLowerCase();
     const livePublishEnabled=process.env.SHOPIFY_LIVE_PUBLISH_ENABLED==='true';
     if(['stop','resume','price'].includes(syncAction)){
