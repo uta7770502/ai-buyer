@@ -44,3 +44,14 @@ test('tracking write is idempotent and fail closed on ambiguous outcomes',()=>{
   assert.match(sync,/const verified=await shopify\(shop,token,QUERY/);
   assert.match(sync,/if\(!fulfillmentVerified\)/);
 });
+
+test('tracking sync route is wired to the API router',()=>{
+  const router=readFileSync(new URL('../api/cj.js',import.meta.url),'utf8');
+  assert.match(router,/import cjTrackingSync from '\.\.\/lib\/routes\/cj-tracking-sync\.js'/);
+  assert.match(router,/'tracking-sync':cjTrackingSync/);
+});
+test('tracking write performs a post-write Shopify read and persists confirmation only afterwards',()=>{
+  const verification=sync.indexOf('const verified=await shopify(shop,token,QUERY');
+  const confirmation=sync.indexOf("await redis(['SET',lock,'confirmed:'");
+  assert.ok(verification>0&&confirmation>verification);
+});
