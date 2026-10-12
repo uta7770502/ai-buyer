@@ -22,7 +22,7 @@ const order=(fulfillments=[])=>({
   }]}
 });
 const json=(data)=>({ok:true,json:async()=>data});
-async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=1,shipped=true,shopifyOrder=order(),afterWrite=order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}]),mutationId=fulfillmentId,lockClaim='OK',shopifyApiError=false}={}){
+async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=1,shipped=true,shopifyOrder=order(),afterWrite=order([{id:fulfillmentId,trackingInfo:[{number:'TRACK123'}]}]),mutationId=fulfillmentId,lockClaim='OK',shopifyApiError=false,trackingNumber='TRACK123'}={}){
   const previous={};
   for(const [k,v] of Object.entries({...env,CJ_SANDBOX_TRACKING_SYNC_ENABLED:enabled})){previous[k]=process.env[k];process.env[k]=v;}
   const fetchBefore=globalThis.fetch;
@@ -34,7 +34,7 @@ async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=
       if(cmd[0]==='SET'){locks++;return json({result:locks===1?lockClaim:'OK'});}
       throw Error('unexpected redis operation');
     }
-    if(url.includes('getOrderDetail'))return json({result:true,data:{isSandbox:sandbox,orderStatus:shipped?'SHIPPED':'CREATED',trackNumber:'TRACK123'}});
+    if(url.includes('getOrderDetail'))return json({result:true,data:{isSandbox:sandbox,orderStatus:shipped?'SHIPPED':'CREATED',trackNumber:trackingNumber}});
     if(url.includes('graphql.json')){
       if(shopifyApiError)return json({errors:[{message:'API unavailable'}]});
       const body=JSON.parse(opts.body);
@@ -159,4 +159,17 @@ test('Shopify order fulfillment status must be UNFULFILLED',async()=>{
   const x=await invoke({shopifyOrder:{...order(),displayFulfillmentStatus:'PARTIALLY_FULFILLED'}});
   assert.equal(x.statusCode,409);
   assert.equal(x.writes,0);
+});
+
+test('unsafe CJ tracking characters prevent Shopify writes',async()=>{
+  const x=await invoke({trackingNumber:'TRACK\\n123'});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
+});
+test('overlong CJ tracking number prevents Shopify writes',async()=>{
+  const x=await invoke({trackingNumber:'T'.repeat(101)});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+  assert.equal(x.locks,0);
 });
