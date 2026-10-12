@@ -35,3 +35,5 @@
 - Update this document whenever a new decision supersedes these requirements.
 
 <!-- Deployment trigger after Git reconnect: 2026-10-12 -->
+
+<!-- Production retrigger after reconnect: 2026-10-12T20:45+09:00 -->
