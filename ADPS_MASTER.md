@@ -33,3 +33,5 @@
 - Read this document before modifying storefront copy, branding or customer-facing behavior.
 - Verify actual deployment separately from GitHub commits.
 - Update this document whenever a new decision supersedes these requirements.
+
+<!-- Deployment trigger after Git reconnect: 2026-10-12 -->
