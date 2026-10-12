@@ -1876,7 +1876,8 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     save();renderAll();
     await autoPublishCandidate(x);
     if(findActive(x.id)!==x)return;
-    if(x.shopifyProductId){
+    if(x.shopifyPublishState==='error')throw new Error(x.shopifyPublishError||'Shopify下書きの更新に失敗しました');
+    if(x.shopifyProductId&&['created','published'].includes(x.shopifyPublishState)){
       const page=await optimizeGrowthPage(x);
       if(findActive(x.id)!==x)return;
       if(!page.ok)throw new Error(page.reason||'商品ページ最適化に失敗');
