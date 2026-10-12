@@ -146,7 +146,7 @@ async function searchProducts(p=1){const qv=document.getElementById('q').value.t
 function applyFilters(){const min=Number(minScore.value||0),sort=sortBy.value;filtered=results.filter(p=>metrics(p).score>=min&&!catalogRisk(p).exclude);filtered.sort((a,b)=>{const A=metrics(a),B=metrics(b);if(sort==='listed')return Number(b.listedNum||0)-Number(a.listedNum||0);if(sort==='priceLow')return A.cost-B.cost;if(sort==='margin')return B.margin-A.margin;return B.score-A.score});products.innerHTML=filtered.length?filtered.map((p,i)=>productCard(p,i+1)).join(''):'<div class="empty">条件に合う商品がありません。</div>'}
 function quick(qv){q.value=qv;searchProducts(1)}
 function renderPager(){pager.innerHTML=`<button ${page<=1?'disabled':''} onclick="searchProducts(${page-1})">← 前</button><span class="muted" style="padding:10px">${page} / ${totalPages}</span><button ${page>=totalPages?'disabled':''} onclick="searchProducts(${page+1})">次 →</button>`}
-function toggleCandidate(id){const p=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id))||active.find(x=>String(x.id)===String(id));if(!p){showCandidateToast('商品情報を取得できませんでした');return;}const i=active.findIndex(x=>String(x.id)===String(id));if(i>=0){active.splice(i,1)}else{const m=metrics(p);active.push({...p,costUsd:m.cost,price:m.sell,qty:12,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'queued'})}save();applyFilters();renderAll();showCandidateToast(i>=0?'販売候補から外しました':'商品を選択しました。AIが自動準備します');if(i<0){const x=findActive(id);setTimeout(()=>autoPrepareSelectedProduct(x),120)}}
+function toggleCandidate(id){const p=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id))||active.find(x=>String(x.id)===String(id));if(!p){showCandidateToast('商品情報を取得できませんでした');return;}const i=active.findIndex(x=>String(x.id)===String(id));if(i>=0){cancelAutoPreparationRetry(id);active.splice(i,1)}else{cancelAutoPreparationRetry(id);const m=metrics(p);active.push({...p,costUsd:m.cost,price:m.sell,qty:12,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'queued'})}save();applyFilters();renderAll();showCandidateToast(i>=0?'販売候補から外しました':'商品を選択しました。AIが自動準備します');if(i<0){const x=findActive(id);setTimeout(()=>autoPrepareSelectedProduct(x),120)}}
 function showCandidateToast(message){let el=document.getElementById('candidateToast');if(!el){el=document.createElement('div');el.id='candidateToast';el.style.cssText='position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:white;padding:12px 20px;border-radius:14px;z-index:60;font-size:13px;font-weight:800;white-space:nowrap;box-shadow:0 4px 20px #0003';document.body.appendChild(el)}el.textContent=message;el.hidden=false;clearTimeout(window.candidateToastTimer);window.candidateToastTimer=setTimeout(()=>el.hidden=true,2600)}
 function save(){localStorage.setItem('aiBuyerCandidates',JSON.stringify(active))}
 function saveWatch(){localStorage.setItem('aiBuyerWatch',JSON.stringify(watch));renderWatch()}
@@ -1834,6 +1834,8 @@ function queueAutomationCycle(delay=800){
   },delay);
 }
 async const autoPreparationInFlight=new Set();
+const autoPreparationRetryTimers=new Map();
+function cancelAutoPreparationRetry(id){const key=String(id);const timer=autoPreparationRetryTimers.get(key);if(timer!==undefined){clearTimeout(timer);autoPreparationRetryTimers.delete(key)}}
 async function autoPrepareSelectedProduct(x,attempt=0){
   if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(String(x.id)))return;
   autoPreparationInFlight.add(String(x.id));
@@ -1895,7 +1897,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       x.autoSetupMessage='一時エラー。AIが自動再試行します';
       save();renderAll();
       addOps('商品自動準備 再試行',x.name+'：'+message);
-      setTimeout(()=>{const current=findActive(x.id);if(current)autoPrepareSelectedProduct(current,attempt+1)},1500*(attempt+1));
+      cancelAutoPreparationRetry(x.id);const timer=setTimeout(()=>{autoPreparationRetryTimers.delete(String(x.id));const current=findActive(x.id);if(current===x)autoPrepareSelectedProduct(current,attempt+1)},1500*(attempt+1));autoPreparationRetryTimers.set(String(x.id),timer);
       return;
     }
     x.autoSetupState='needs_review';
