@@ -234,7 +234,8 @@ function hydrateSalesGoals(){
   renderSalesGoals();
 }
 function saveSalesGoals(kind){
-  const daily=Math.max(1000,Number(document.getElementById('salesGoalDaily')?.value)||10000);
+  const rawDaily=Number(document.getElementById('salesGoalDaily')?.value);
+  const daily=Number.isFinite(rawDaily)&&rawDaily>=1000?Math.round(Math.min(rawDaily,1000000000)):10000;
   salesGoalSettings.daily=daily;
   salesGoalSettings.monthly=Math.round(daily*30);
   salesGoalSettings.yearly=Math.round(daily*365);
