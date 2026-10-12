@@ -182,3 +182,13 @@ test('Shopify fulfillment user errors never report successful tracking sync',asy
   assert.equal(x.reads,1);
   assert.equal(x.locks,1);
 });
+
+test('Shopify read-after-write mismatch never confirms fulfillment',async()=>{
+  const x=await invoke({afterWrite:order()});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.body.needsReview,true);
+  assert.equal(x.body.automaticRetry,false);
+  assert.equal(x.writes,1);
+  assert.equal(x.reads,2);
+  assert.equal(x.locks,1);
+});
