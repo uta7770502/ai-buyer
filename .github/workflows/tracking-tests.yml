@@ -1,5 +1,6 @@
 name: Tracking safety tests
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'lib/routes/cj-order-tracking.js'
