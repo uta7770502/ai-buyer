@@ -53,3 +53,15 @@ test('readiness rejects fractional item limits and invalid freight caps',async()
   const freight=await invoke({configured:true,overrides:{CJ_MAX_FREIGHT_USD:'Infinity'}});
   assert.equal(freight.body.configured.freightLimit,false);
 });
+
+test('readiness rejects missing and malformed bearer tokens',async()=>{
+  for(const auth of ['', 'test-admin', 'Bearer test-admin-extra','bearer test-admin']){
+    const x=await invoke({auth,configured:true});
+    assert.equal(x.statusCode,401);
+  }
+});
+test('readiness rejects non-GET methods without disclosing configuration',async()=>{
+  const x=await invoke({method:'POST',configured:true});
+  assert.equal(x.statusCode,405);
+  assert.equal(x.body.ok,false);
+});
