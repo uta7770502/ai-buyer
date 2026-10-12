@@ -593,12 +593,18 @@ function hydrateReleaseReadinessUI(){
         :'設定確認が必要です';
   meta.textContent=base+(releaseReadinessCheckedAt?' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP'):'')+(fresh?'':' / 24時間以上経過');
 }
+function returnAuditIsFresh(){
+  const t=Date.parse(returnAudit?.at||'');
+  return Boolean(returnAudit&&Number.isFinite(t)&&Date.now()-t<24*60*60*1000);
+}
 function finalTestGateState(){
   const keys=['shopify','webhook','order','tracking','sync','duplicate'];
   const testsComplete=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
   const testsFresh=keys.every(k=>testTimestampIsFresh(testProgress.timestamps?.[k]));
   const releaseOk=Boolean(releaseReadiness&&releaseReadiness.safetyContract==='sandbox-v1'&&releaseReadiness.mode==='sandbox'&&releaseReadiness.liveCjOrdersEnabled===false&&releaseReadiness.readyForLive===false&&releaseReadiness.verification==='configuration-only'&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length);
   const reconciliationOk=Boolean(reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0);
+  const returnAuditOk=returnAuditIsFresh();
+  const aioAuditOk=Boolean(aioAuditIsFresh()&&Number(aioAudit?.missing||0)===0);
   const cjCheckedTime=new Date(cjCheckedAt||0).getTime();
   const runtimeCjOk=Boolean(cjConnected&&Number.isFinite(cjCheckedTime)&&(Date.now()-cjCheckedTime)<=24*60*60*1000);
   const shopifyCheckedTime=new Date(shopifyCheckedAt||0).getTime();
@@ -606,7 +612,7 @@ function finalTestGateState(){
   const runtimeShopOk=Boolean(shopifyConnected&&Number.isFinite(shopifyCheckedTime)&&(Date.now()-shopifyCheckedTime)<=24*60*60*1000);
   const runtimeOrderOk=Boolean(/テスト稼働/.test(String(document.getElementById('orderAutoState')?.textContent||''))&&Number.isFinite(webhookCheckedTime)&&(Date.now()-webhookCheckedTime)<=24*60*60*1000);
   const runtimeOk=runtimeCjOk&&runtimeShopOk&&runtimeOrderOk;
-  return {releaseOk,testsComplete,testsFresh,reconciliationOk,runtimeCjOk,runtimeShopOk,runtimeOrderOk,runtimeOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk&&runtimeOk};
+  return {releaseOk,testsComplete,testsFresh,reconciliationOk,returnAuditOk,aioAuditOk,runtimeCjOk,runtimeShopOk,runtimeOrderOk,runtimeOk,allOk:releaseOk&&testsComplete&&testsFresh&&reconciliationOk&&returnAuditOk&&aioAuditOk&&runtimeOk};
 }
 let highlightedTestStep='';
 function currentNextTestKey(){
@@ -646,6 +652,8 @@ function nextReadinessLabel(){
   if(!g.releaseOk)return '次: 公開準備を確認';
   if(!g.testsComplete||!g.testsFresh)return '次: '+nextTestStepLabel();
   if(!g.reconciliationOk)return document.getElementById('adminKeyInput')?.value?.trim()?'次: 要照合キューを確認':'次: テスト管理者キーを入力して要照合を確認';
+  if(!g.returnAuditOk)return '次: 返品・キャンセル監査';
+  if(!g.aioAuditOk)return '次: AIO/GEO商品監査';
   return 'すべて確認済み';
 }
 async function runSafeReadinessSweep(){
@@ -655,6 +663,7 @@ async function runSafeReadinessSweep(){
     await checkShopify(false);
     await checkReleaseReadiness();
     await checkAioGeoAudit();
+    await runReturnAudit();
     if(String(document.getElementById('adminKeyInput')?.value||'').trim())await loadReconciliationSummary();
     renderAutomationDashboard();
   }finally{
@@ -669,6 +678,8 @@ function runNextReadinessCheck(){
   if(!g.releaseOk){checkReleaseReadiness();return}
   if(!g.testsComplete||!g.testsFresh){highlightedTestStep=currentNextTestKey();renderTestChecklist();document.getElementById('testChecklist')?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>{document.querySelector('[data-test-step="'+highlightedTestStep+'"]')?.scrollIntoView({behavior:'smooth',block:'center'})},250);return}
   if(!g.reconciliationOk){loadReconciliationSummary();return}
+  if(!g.returnAuditOk){runReturnAudit();return}
+  if(!g.aioAuditOk){checkAioGeoAudit();return}
   renderTestChecklist();
 }
 function aioAuditIsFresh(){
@@ -716,6 +727,8 @@ function renderAutomationDashboard(){
           '公開準備 '+(g.releaseOk?'OK':'要確認'),
           '主要テスト '+(g.testsComplete&&g.testsFresh?'OK':g.testsComplete?'再確認':'未完了'),
           '要照合 '+(g.reconciliationOk?'0件':'要確認'),
+          '返品監査 '+(g.returnAuditOk?'OK':'要確認'),
+          'AIO/GEO '+(g.aioAuditOk?'OK':'要確認'),
           'CJ '+(g.runtimeCjOk?'OK':'要確認'),
           'Shopify '+(g.runtimeShopOk?'OK':'要確認'),
           'Webhook '+(g.runtimeOrderOk?'OK':'要確認')
