@@ -431,7 +431,7 @@ export default async function handler(req,res){
     const cj=await cjVariant(p.cjProductId||p.id);
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
-    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:5){nodes{id sku}}}} }',{q:'status:draft vendor:"AI BUYER" sku:'+cj.vid});
+    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}}}} }',{q:'status:draft vendor:"AI BUYER" sku:'+cj.vid});
     const existing=(skuMatches.products?.nodes||[]).find(v=>v.status==='DRAFT'&&v.vendor==='AI BUYER'&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
     const petType=/\b(cat|dog|pet|puppy|kitten|carrier)\b/i.test(title)?'Pet Supplies':'';
     let ce;
