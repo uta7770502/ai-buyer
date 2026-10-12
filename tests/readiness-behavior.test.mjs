@@ -102,7 +102,7 @@ test('readiness status distinguishes missing setup from pending external verific
 
 test('readiness summary counts configuration and unverified integration checks',async()=>{
   const missing=await invoke();
-  assert.equal(missing.body.summary.configuredChecks,0);
+  assert.equal(missing.body.summary.configuredChecks,1); // JP destination default is valid
   assert.equal(missing.body.summary.totalConfigurationChecks,8);
   assert.equal(missing.body.summary.remainingExternalChecks,5);
   const configured=await invoke({configured:true});
