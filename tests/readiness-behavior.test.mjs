@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-readiness.js';
 const keys=['AI_BUYER_ADMIN_KEY','SHOPIFY_ALLOWED_SHOP_DOMAIN','SHOPIFY_CLIENT_SECRET','SHOPIFY_ADMIN_ACCESS_TOKEN','CJ_ACCESS_TOKEN','CJ_API_KEY','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_ORDER_LIMIT_CURRENCY','CJ_MAX_FREIGHT_USD','CJ_ALLOWED_DESTINATION_COUNTRY','CJ_SANDBOX_ORDER_ENABLED','CJ_SANDBOX_TRACKING_SYNC_ENABLED'];
-async function invoke({method='GET',auth='Bearer test-admin',configured=false}={}){
+async function invoke({method='GET',auth='Bearer test-admin',configured=false,overrides={}}={}){
   const before=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
   const fetchBefore=globalThis.fetch;
   for(const k of keys)delete process.env[k];
@@ -14,6 +14,7 @@ async function invoke({method='GET',auth='Bearer test-admin',configured=false}={
     CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'10000',CJ_ORDER_LIMIT_CURRENCY:'JPY',
     CJ_MAX_FREIGHT_USD:'50',CJ_ALLOWED_DESTINATION_COUNTRY:'JP'
   });
+  Object.assign(process.env,overrides);
   globalThis.fetch=async()=>{throw Error('Readiness must not access external APIs');};
   let statusCode,body;
   const res={setHeader(){},status(n){statusCode=n;return this;},json(v){body=v;return v;}};
@@ -43,4 +44,12 @@ test('readiness does not leak configured credentials',async()=>{
   const x=await invoke({configured:true});
   const output=JSON.stringify(x.body);
   for(const secret of ['SECRET_VALUE','SHOPIFY_SECRET_VALUE','CJ_SECRET_VALUE','REDIS_SECRET_VALUE'])assert.ok(!output.includes(secret));
+});
+
+test('readiness rejects fractional item limits and invalid freight caps',async()=>{
+  const fractional=await invoke({configured:true,overrides:{CJ_MAX_ITEMS_PER_ORDER:'1.5'}});
+  assert.equal(fractional.body.configured.orderLimits,false);
+  assert.equal(fractional.body.readyForSandboxConfiguration,false);
+  const freight=await invoke({configured:true,overrides:{CJ_MAX_FREIGHT_USD:'Infinity'}});
+  assert.equal(freight.body.configured.freightLimit,false);
 });
