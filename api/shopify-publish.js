@@ -94,7 +94,9 @@ export default async function handler(req,res){
       }
       const google={connected:Boolean(process.env.GOOGLE_ADS_CUSTOMER_ID&&process.env.GOOGLE_ADS_DEVELOPER_TOKEN&&process.env.GOOGLE_ADS_ACCESS_TOKEN),customerConfigured:Boolean(process.env.GOOGLE_ADS_CUSTOMER_ID),developerTokenConfigured:Boolean(process.env.GOOGLE_ADS_DEVELOPER_TOKEN),accessTokenConfigured:Boolean(process.env.GOOGLE_ADS_ACCESS_TOKEN)};
       const liveEnabled=String(process.env.ADS_LIVE_ENABLED||'').toLowerCase()==='true';
-      const maxDailyJpy=Math.max(0,Math.round(Number(process.env.ADS_MAX_DAILY_JPY)||0));
+      const capValue=String(process.env.ADS_MAX_DAILY_JPY??'').trim();
+      const capNumber=Number(capValue);
+      const maxDailyJpy=/^[1-9][0-9]*$/.test(capValue)&&Number.isSafeInteger(capNumber)?capNumber:0;
       return res.status(200).json({ok:true,adHealth:true,meta,google,liveEnabled,maxDailyJpy});
     }
 
@@ -108,8 +110,9 @@ export default async function handler(req,res){
       const allowedActions=['create','increase','decrease','pause','resume','hold'];
       if(!allowedProviders.includes(provider))return res.status(400).json({ok:false,error:'広告プロバイダーが不正です'});
       if(!allowedActions.includes(action))return res.status(400).json({ok:false,error:'広告アクションが不正です'});
-      const serverCapRaw=Number(process.env.ADS_MAX_DAILY_JPY);
-      const serverCap=String(process.env.ADS_MAX_DAILY_JPY||'').trim()!==''&&Number.isSafeInteger(serverCapRaw)&&serverCapRaw>0?serverCapRaw:0;
+      const capValue=String(process.env.ADS_MAX_DAILY_JPY??'').trim();
+      const serverCapRaw=Number(capValue);
+      const serverCap=/^[1-9][0-9]*$/.test(capValue)&&Number.isSafeInteger(serverCapRaw)?serverCapRaw:0;
       const liveEnabled=String(process.env.ADS_LIVE_ENABLED||'').toLowerCase()==='true';
       const effectiveCap=serverCap>0?serverCap:dailyBudgetJpy;
       const reasons=[];
