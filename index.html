@@ -1394,12 +1394,43 @@ async function cleanupShopifyDuplicates(){
     if(btn){btn.disabled=false;btn.textContent='重複下書きを整理'}
   }
 }
+function syncProductPublicationFromShopify(j){
+  if(!j||!Array.isArray(active))return {changed:0};
+  const published=Array.isArray(j.published)?j.published:[];
+  const drafts=Array.isArray(j.drafts)?j.drafts:[];
+  const byId=new Map(),bySku=new Map(),byTitle=new Map();
+  const add=(row,state)=>{
+    if(row?.id)byId.set(String(row.id),{row,state});
+    for(const sku of (row?.skus||[])){const k=String(sku||'').trim();if(k)bySku.set(k,{row,state})}
+    const t=String(row?.title||'').trim().toLowerCase();if(t)byTitle.set(t,{row,state});
+  };
+  published.forEach(r=>add(r,'published'));drafts.forEach(r=>add(r,'draft'));
+  let changed=0;
+  for(const x of active){
+    if(!x||x.archived)continue;
+    const keys=[x.shopifyProductId,x.cjVariantId,x.cjVariantSku,x.sku].map(v=>String(v||'').trim()).filter(Boolean);
+    let hit=keys.map(k=>byId.get(k)||bySku.get(k)).find(Boolean);
+    if(!hit){const t=String(x.name||'').trim().toLowerCase();if(t)hit=byTitle.get(t)}
+    if(!hit)continue;
+    const before=x.shopifyPublishState;
+    if(hit.state==='published'){
+      x.shopifyPublishState='published';x.shopifyPublished=true;x.status='live';x.shopifyProductId=hit.row.id||x.shopifyProductId;x.shopifySyncState='active';x.publishQueueState='';
+    }else{
+      x.shopifyPublishState='created';x.shopifyPublished=false;if(x.status==='live')x.status='test';x.shopifyProductId=hit.row.id||x.shopifyProductId;
+      if(x.shopifySyncState!=='stopped'&&x.shopifySyncState!=='resume_review')x.shopifySyncState='draft';
+      const gate=launchEligibility(x);x.publishQueueState=gate.ready?'waiting':'hold';x.publishQueueMessage=gate.ready?'公開条件クリア。公開待ち':'公開条件再確認：'+gate.reasons.join(' / ');
+    }
+    if(before!==x.shopifyPublishState)changed++;
+  }
+  if(changed){save();renderAll();renderAutoOverview();renderGoLiveReadiness();addOps('Shopify状態監査','公開状態を '+changed+'件自動同期')}
+  return {changed};
+}
 async function checkShopifyDuplicates(){
   const meta=document.getElementById('shopifyDuplicateMeta'),state=document.getElementById('shopifyDuplicateState');
   if(meta)meta.textContent='確認中…'; if(state){state.textContent='確認中';state.className='connectionState'}
   try{
     const r=await fetch('/api/shopify-duplicates',{cache:'no-store'});const j=await r.json();
-    if(!r.ok||!j.ok)throw new Error(j.error||'重複チェックに失敗しました');
+    if(!r.ok||!j.ok)throw new Error(j.error||'重複チェックに失敗しました');syncProductPublicationFromShopify(j);
     if(state){state.textContent=j.duplicateGroups?('重複 '+j.duplicateGroups+'組'):'重複なし';state.className='connectionState '+(j.duplicateGroups?'warn':'ok')}
     if(meta){const unique=Math.max(0,(j.totalDrafts||0)-((j.groups||[]).reduce((n,g)=>n+Math.max(0,(g.count||0)-1),0)));meta.textContent='下書き '+j.totalDrafts+'件 / 公開済み '+(j.totalActive||0)+'件 / 重複 '+j.duplicateGroups+'組 / 整理後 '+unique+'件';}
     const old=document.getElementById('shopifyDuplicateDetail');if(old)old.remove();
@@ -2004,5 +2035,5 @@ document.addEventListener('click',e=>{
     showCandidateToast('出品エラー: '+reason);
   }
 })();
-q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderAutoOverview();renderMonitor();applyUiMode();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();hydrateTestContextUI();hydrateGrowthSettings();hydrateSalesGoals();const __admin=document.getElementById('adminKeyInput');if(__admin){const __k=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();if(__k)__admin.value=__k;}renderTestChecklist();renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();renderReturnAudit();refreshSalesSummary();maybeDailyGrowth();setTimeout(checkConnection,700);setTimeout(async()=>{await checkShopify(false);if(shopifyConnected)await ensureOrderAutomationSilently();const params=new URLSearchParams(location.search);const pending=sessionStorage.getItem('aiBuyerPendingPublishId');if(params.get('shopify')==='connected'&&pending&&shopifyConnected){sessionStorage.removeItem('aiBuyerPendingPublishId');history.replaceState({},'',location.pathname);const x=findActive(pending);if(x){showCandidateToast('Shopify認証完了。出品を再開します…');setTimeout(()=>autoPublishCandidate(x),300)}}},900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setTimeout(resumeAutoPreparation,1800);setTimeout(()=>{if(active.some(x=>!x.archived&&(x.status==='test'||x.autoSetupState==='ready')))queueAutomationCycle(1200)},2200);setInterval(maybeDailyMonitor,30*60*1000);setInterval(()=>{if(cjConnected)maybeDailyScan()},30*60*1000);setInterval(resumeAutoPreparation,30*60*1000);setInterval(()=>{if(shopifyConnected)ensureOrderAutomationSilently()},60*60*1000);setInterval(()=>{hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard()},5*60*1000);
+q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderAutoOverview();renderMonitor();applyUiMode();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();hydrateTestContextUI();hydrateGrowthSettings();hydrateSalesGoals();const __admin=document.getElementById('adminKeyInput');if(__admin){const __k=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();if(__k)__admin.value=__k;}renderTestChecklist();renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();renderReturnAudit();refreshSalesSummary();maybeDailyGrowth();setTimeout(checkConnection,700);setTimeout(async()=>{await checkShopify(false);if(shopifyConnected)await ensureOrderAutomationSilently();if(shopifyConnected)await checkShopifyDuplicates();const params=new URLSearchParams(location.search);const pending=sessionStorage.getItem('aiBuyerPendingPublishId');if(params.get('shopify')==='connected'&&pending&&shopifyConnected){sessionStorage.removeItem('aiBuyerPendingPublishId');history.replaceState({},'',location.pathname);const x=findActive(pending);if(x){showCandidateToast('Shopify認証完了。出品を再開します…');setTimeout(()=>autoPublishCandidate(x),300)}}},900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setTimeout(resumeAutoPreparation,1800);setTimeout(()=>{if(active.some(x=>!x.archived&&(x.status==='test'||x.autoSetupState==='ready')))queueAutomationCycle(1200)},2200);setInterval(maybeDailyMonitor,30*60*1000);setInterval(()=>{if(cjConnected)maybeDailyScan()},30*60*1000);setInterval(resumeAutoPreparation,30*60*1000);setInterval(()=>{if(shopifyConnected)ensureOrderAutomationSilently()},60*60*1000);setInterval(()=>{if(shopifyConnected)checkShopifyDuplicates()},60*60*1000);setInterval(()=>{hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard()},5*60*1000);
 </script></body></html>
