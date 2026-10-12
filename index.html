@@ -1884,6 +1884,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       const page=await optimizeGrowthPage(x);
       if(findActive(x.id)!==x)return;
       if(!page.ok)throw new Error(page.reason||'商品ページ最適化に失敗');
+      if(findActive(x.id)!==x)return;
       x.status='test';
       x.autoSetupState='ready';
       x.autoSetupMessage='AI自動準備完了。Shopify下書きで公開待ち';
