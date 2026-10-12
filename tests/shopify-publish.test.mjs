@@ -27,3 +27,14 @@ test('Shopify publish rejects missing allowlist',async()=>{
  const r=await invoke({allowed:'',cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'});
  assert.equal(r.code,403);
 });
+
+test('Shopify publish rejects missing product title without calling external APIs',async()=>{
+ const r=await invoke({cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com',body:{price:1200,cjProductId:'cj-test'}});
+ assert.equal(r.code,400);assert.match(r.body.error,/商品名/);
+});
+test('Shopify publish rejects zero, negative and nonfinite prices before CJ lookup',async()=>{
+ for(const price of [0,-1,'NaN','Infinity']){
+  const r=await invoke({cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com',body:{title:'Safe product',price,cjProductId:'cj-test'}});
+  assert.equal(r.code,400);
+ }
+});
