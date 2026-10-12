@@ -41,6 +41,10 @@ export default async function handler(req,res){
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
     if(order.cancelled_at||order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
     if(!order.id||!req.headers['x-shopify-webhook-id'])return res.status(400).json({ok:false,error:'Missing order or event identifier'});
+    // Shopify may send an orders/paid event while fulfillment is already complete.
+    // Do not create a new CJ order for fulfilled or closed Shopify orders.
+    if(order.closed_at||order.fulfillment_status==='fulfilled'||order.fulfillment_status==='restocked')
+      return res.status(200).json({ok:true,skipped:true,reason:'Order already closed or fulfilled'});
     // Without durable event deduplication, retrying this handler may duplicate CJ sandbox orders.
     // Keep this endpoint disabled for live fulfillment.
     // A valid HMAC proves app origin, not that the order belongs to the configured merchant.
