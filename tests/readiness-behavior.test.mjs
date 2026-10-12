@@ -73,3 +73,13 @@ test('readiness responses disable caching and content sniffing',async()=>{
   assert.equal(x.headers.Pragma,'no-cache');
   assert.equal(x.headers['X-Content-Type-Options'],'nosniff');
 });
+
+test('readiness distinguishes configured credentials from verified live integrations',async()=>{
+  const x=await invoke({configured:true});
+  assert.equal(x.body.readyForSandboxConfiguration,true);
+  assert.equal(x.body.liveIntegrationVerified,false);
+  assert.deepEqual(x.body.nextChecks.map(v=>v.id),[
+    'shopify-webhook','shopify-catalog','cj-sandbox-order','redis-deduplication','shopify-fulfillment'
+  ]);
+  assert.ok(x.body.nextChecks.every(v=>v.verified===false));
+});
