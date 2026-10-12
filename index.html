@@ -1836,12 +1836,12 @@ function queueAutomationCycle(delay=800){
     }finally{autoCycleRunning=false}
   },delay);
 }
-const autoPreparationInFlight=new Set();
+const autoPreparationInFlight=new WeakSet();
 const autoPreparationRetryTimers=new Map();
 function cancelAutoPreparationRetry(id){const key=String(id);const timer=autoPreparationRetryTimers.get(key);if(timer!==undefined){clearTimeout(timer);autoPreparationRetryTimers.delete(key)}}
 async function autoPrepareSelectedProduct(x,attempt=0){
-  if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(String(x.id)))return;
-  autoPreparationInFlight.add(String(x.id));
+  if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x))return;
+  autoPreparationInFlight.add(x);
   x.autoSetupAttempts=Math.max(Number(x.autoSetupAttempts||0),attempt);
   x.autoSetupState='shipping';
   x.autoSetupMessage=attempt>0?'AIが自動再試行中（'+attempt+'/2）':'CJ送料を自動確認中';
@@ -1909,13 +1909,13 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     addOps('商品自動準備 保留',x.name+'：'+message);
     showCandidateToast('AIが確認必要と判断しました');
   }finally{
-    autoPreparationInFlight.delete(String(x.id));
+    autoPreparationInFlight.delete(x);
   }
 }
 function resumeAutoPreparation(){
   const now=Date.now();
   for(const x of active){
-    if(!x||x.archived||x.shopifyPublishState==='published'||x.autoSetupState==='ready'||autoPreparationInFlight.has(String(x.id))||autoPreparationRetryTimers.has(String(x.id)))continue;
+    if(!x||x.archived||x.shopifyPublishState==='published'||x.autoSetupState==='ready'||autoPreparationInFlight.has(x)||autoPreparationRetryTimers.has(String(x.id)))continue;
     const attempts=Math.max(0,Number(x.autoSetupAttempts||0));
     const last=Date.parse(x.autoSetupLastAttemptAt||'');
     if(attempts>=3)continue;
