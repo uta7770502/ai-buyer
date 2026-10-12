@@ -106,3 +106,28 @@ test('Shopify payment must be paid',async()=>{
   assert.equal(x.statusCode,409);
   assert.equal(x.writes,0);
 });
+
+test('cancelled Shopify order cannot be fulfilled',async()=>{
+  const x=await invoke({shopifyOrder:{...order(),cancelledAt:'2026-10-12T00:00:00Z'}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
+test('multiple fulfillment orders require manual review',async()=>{
+  const original=order();
+  const x=await invoke({shopifyOrder:{...original,fulfillmentOrders:{...original.fulfillmentOrders,nodes:[...original.fulfillmentOrders.nodes,...original.fulfillmentOrders.nodes]}}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
+test('fulfillment order pagination requires manual review',async()=>{
+  const original=order();
+  const x=await invoke({shopifyOrder:{...original,fulfillmentOrders:{...original.fulfillmentOrders,pageInfo:{hasNextPage:true}}}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
+test('zero remaining quantity prevents fulfillment',async()=>{
+  const original=order();
+  const fo=original.fulfillmentOrders.nodes[0];
+  const x=await invoke({shopifyOrder:{...original,fulfillmentOrders:{...original.fulfillmentOrders,nodes:[{...fo,lineItems:{...fo.lineItems,nodes:[{id:'line1',remainingQuantity:0}]}}]}}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
