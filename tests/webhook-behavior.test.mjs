@@ -174,3 +174,33 @@ test('ambiguous CJ timeout is held for review and never retried',async()=>{
   assert.equal(attempts,1);
   assert.ok([...redis.values()].some(v=>v==='needs_review:unknown_cj_result'));
 });
+
+test('CJ success with failed final persistence requires review without reordering',async()=>{
+  const redis=new Set();
+  let orders=0;
+  const fetchMock=async(url,options={})=>{
+    const target=String(url);
+    const json=data=>({ok:true,json:async()=>data});
+    if(target.includes('myshopify.com'))return json({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJVARIANT123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
+    if(target.includes('freightCalculate'))return json({result:true,data:[{logisticName:'Test Shipping',totalPostageFee:5}]});
+    if(target==='https://redis.test/'){
+      const [cmd,key,value,flag]=JSON.parse(options.body);
+      if(cmd!=='SET')throw Error('Unexpected Redis command');
+      if(flag==='NX'){
+        if(redis.has(key))return json({result:null});
+        redis.add(key);
+        return json({result:'OK'});
+      }
+      throw Error('Simulated final state persistence outage');
+    }
+    if(target.includes('createOrderV2')){orders++;return json({result:true,data:{orderId:'CJ-OK-1'}});}
+    throw Error('Unexpected request: '+target);
+  };
+  const first=await invoke({enabled:'true',validLine:true,fetchMock});
+  const second=await invoke({enabled:'true',validLine:true,fetchMock});
+  assert.equal(first.statusCode,202);
+  assert.equal(first.body.needsReview,true);
+  assert.equal(second.statusCode,200);
+  assert.equal(second.body.skipped,true);
+  assert.equal(orders,1);
+});
