@@ -144,3 +144,19 @@ test('unavailable CJ shipment status does not write',async()=>{
   assert.equal(x.writes,0);
   assert.equal(x.locks,0);
 });
+
+test('fulfilled order with different tracking never overwrites existing tracking',async()=>{
+  const x=await invoke({shopifyOrder:order([{id:fulfillmentId,trackingInfo:[{number:'OTHER123'}]}])});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
+test('Shopify order lookup returning no order blocks fulfillment',async()=>{
+  const x=await invoke({shopifyOrder:null});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
+test('Shopify order fulfillment status must be UNFULFILLED',async()=>{
+  const x=await invoke({shopifyOrder:{...order(),displayFulfillmentStatus:'PARTIALLY_FULFILLED'}});
+  assert.equal(x.statusCode,409);
+  assert.equal(x.writes,0);
+});
