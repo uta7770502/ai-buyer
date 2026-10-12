@@ -40,7 +40,7 @@ export default async function handler(req,res){
     // Verify the originating shop before any order processing, including disabled-mode responses.
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
     if(order.cancelled_at||order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
-    if(!/^\\d{1,30}$/.test(String(order.id??''))||typeof req.headers['x-shopify-webhook-id']!=='string'||!req.headers['x-shopify-webhook-id'].trim())return res.status(400).json({ok:false,error:'Missing or invalid order or event identifier'});
+    if(!/^\d{1,30}$/.test(String(order.id??''))||typeof req.headers['x-shopify-webhook-id']!=='string'||!req.headers['x-shopify-webhook-id'].trim())return res.status(400).json({ok:false,error:'Missing or invalid order or event identifier'});
     // Require explicit positive payment evidence: never fulfill test orders with a zero-value total.
     const paidTotal=Number(order.current_total_price??order.total_price);
     if(!Number.isFinite(paidTotal)||paidTotal<=0)
