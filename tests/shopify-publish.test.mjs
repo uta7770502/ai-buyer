@@ -240,7 +240,7 @@ test('incomplete Shopify duplicate-search pagination fails closed before creatin
 test('ad guard rejects invalid yen amounts before approval',async()=>{
  const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
  for(const field of ['dailyBudgetJpy','currentSpendJpy','requestedBudgetJpy']){
-  for(const value of [-1,0.5,'Infinity','NaN']){
+  for(const value of [-1,0.5,'Infinity','NaN',null,undefined,'',' ',true,false]){
    const body={adGuard:true,provider:'meta',action:'create',dailyBudgetJpy:1000,currentSpendJpy:0,requestedBudgetJpy:100};
    body[field]=value;
    const r=await invoke({cookie,body});
