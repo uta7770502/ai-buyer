@@ -36,6 +36,11 @@ export default async function handler(req,res){
     const raw=await readRaw(req);
     const secret=String(process.env.SHOPIFY_CLIENT_SECRET||'');
     if(!validHmac(raw,req.headers['x-shopify-hmac-sha256'],secret))return res.status(401).json({ok:false,error:'Invalid Shopify webhook signature'});
+    const allowedShop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+    const webhookShop=String(req.headers['x-shopify-shop-domain']||'').trim().toLowerCase();
+    if(!allowedShop||!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowedShop))
+      return res.status(503).json({ok:false,error:'Allowed Shopify shop is not configured'});
+    if(webhookShop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     const order=JSON.parse(raw.toString('utf8')||'{}'),addr=order.shipping_address||{};
     // Verify the originating shop before any order processing, including disabled-mode responses.
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
@@ -56,11 +61,6 @@ export default async function handler(req,res){
     // Without durable event deduplication, retrying this handler may duplicate CJ sandbox orders.
     // Keep this endpoint disabled for live fulfillment.
     // A valid HMAC proves app origin, not that the order belongs to the configured merchant.
-    const allowedShop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
-    const webhookShop=String(req.headers['x-shopify-shop-domain']||'').trim().toLowerCase();
-    if(!allowedShop||!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowedShop))
-      return res.status(503).json({ok:false,error:'Allowed Shopify shop is not configured'});
-    if(webhookShop!==allowedShop)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
     // Fail closed: sandbox CJ order creation is opt-in until durable idempotency is configured.
     if(process.env.CJ_SANDBOX_ORDER_ENABLED!=='true')return res.status(503).json({ok:false,error:'CJ sandbox order automation is disabled'});
     // Refuse processing before any CJ API call if durable deduplication is unavailable.
