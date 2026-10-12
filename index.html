@@ -1844,6 +1844,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     const response=await fetch(url);
     const data=await response.json();
     if(!response.ok||!data.ok)throw new Error(data.error||'CJ送料を取得できません');
+    if(findActive(x.id)!==x)return; // Product was deselected while freight was loading.
     const options=(Array.isArray(data.options)?data.options:[])
       .filter(o=>o&&Number.isFinite(Number(o.usd))&&Number(o.usd)>=0&&Number(o.usd)*fx<=10000000)
       .map(o=>({...o,usd:Number(o.usd)}))
@@ -1863,6 +1864,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
     save();renderAll();
     await autoPublishCandidate(x);
+    if(findActive(x.id)!==x)return;
     if(x.shopifyProductId){
       const page=await optimizeGrowthPage(x);
       if(!page.ok)throw new Error(page.reason||'商品ページ最適化に失敗');
