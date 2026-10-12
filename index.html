@@ -1841,7 +1841,7 @@ const autoPreparationInFlight=new WeakSet();
 const autoPreparationRetryTimers=new Map();
 function cancelAutoPreparationRetry(id){const key=String(id);const timer=autoPreparationRetryTimers.get(key);if(timer!==undefined){clearTimeout(timer);autoPreparationRetryTimers.delete(key)}}
 async function autoPrepareSelectedProduct(x,attempt=0){
-  if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x))return;
+  if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x)||x.shopifyPublishState==='publishing'||x.shopifyPublishState==='published'||x.shopifyPublished||x.autoSetupState==='ready')return;
   if(Number(x.autoSetupAttempts||0)>=3&&attempt>0)return;
   autoPreparationInFlight.add(x);
   cancelAutoPreparationRetry(x.id);
