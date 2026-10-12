@@ -1920,6 +1920,7 @@ function resumeAutoPreparation(){
     const last=Date.parse(x.autoSetupLastAttemptAt||'');
     if(attempts>=3)continue;
     if(Number.isFinite(last)&&now-last<10*60*1000)continue;
+    if(x.autoSetupState==='needs_review'&&!autoPrepareRetryable(x.autoSetupLastError||x.autoSetupMessage))continue;
     if(x.autoSetupState==='queued'||x.autoSetupState==='shipping'||x.autoSetupState==='draft'){
       x.autoSetupLastAttemptAt=new Date().toISOString();
       save();
