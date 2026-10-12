@@ -1536,24 +1536,33 @@ function renderMonitor(){const stamp=document.getElementById('monitorStamp'),box
 async function runMarketMonitor(silent=false){if(!active.length){if(!silent)alert('監視する販売管理商品がありません。');return}const ids=[...new Set(active.map(x=>String(x.id||'').trim()).filter(Boolean))];let all=[],failures=[];try{for(let i=0;i<ids.length;i+=10){const chunk=ids.slice(i,i+10);const r=await fetch(`/api/cj-monitor?ids=${encodeURIComponent(chunk.join(','))}`);const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'CJ監視に失敗しました');all=all.concat(j.products||[]);failures=failures.concat(j.errors||[])}const returned=new Set(all.map(p=>String(p.id)));const failed=new Map(failures.map(e=>[String(e.id),String(e.error||'取得失敗')]));for(const id of ids){if(!returned.has(id)&&!failed.has(id))failed.set(id,'CJから商品情報が返されませんでした')}let newAlerts=[];for(const current of all){const x=findActive(current.id);if(!x)continue;const prev=monitorSnapshots[current.id];const ev=evaluateMonitor(x,current,prev);x.lastCostUsd=x.costUsd||ev.price;x.costUsd=ev.price||x.costUsd;x.lastStock=ev.stock;x.lastMarginPct=ev.margin;x.lastMonitorAt=new Date().toISOString();const priorMonitorRisk=x.monitorRisk;x.monitorRisk=ev.alerts.some(a=>a.level==='critical')?'stop':ev.alerts.length?'warn':'ok';const monitorStop=ev.alerts.some(a=>a.kind==='在庫切れ'||a.kind==='粗利悪化');if(monitorStop){x.stopCandidate=true;x.monitorStopCandidate=true;x.status='candidate'}else if(x.monitorStopCandidate||(priorMonitorRisk==='stop'&&x.testDecision!=='stop')){x.monitorStopCandidate=false;if(x.testDecision!=='stop')x.stopCandidate=false};syncShopifyFromMonitor(x,ev,monitorStop);for(const a of ev.alerts)newAlerts.push({...a,productId:x.id,time:new Date().toISOString()});monitorSnapshots[current.id]={...current,checkedAt:new Date().toISOString()};monitorHistory[current.id]=[...(monitorHistory[current.id]||[]),{time:new Date().toISOString(),price:ev.price,stock:ev.stock,margin:ev.margin}].slice(-30)}for(const [id,error] of failed){const x=findActive(id);if(x)x.monitorRisk='unknown';newAlerts.push({level:'warning',kind:'取得失敗',text:`${x?.name||id}：${error}。最新の価格・在庫は未確認です。`,productId:id,time:new Date().toISOString()})}currentMonitorAlerts=newAlerts.slice(0,50);monitorAlerts=[...newAlerts,...monitorAlerts].slice(0,100);localStorage.setItem('aiBuyerCurrentMonitorAlerts',JSON.stringify(currentMonitorAlerts));localStorage.setItem('aiBuyerMonitorSnapshots',JSON.stringify(monitorSnapshots));localStorage.setItem('aiBuyerMonitorHistory',JSON.stringify(monitorHistory));localStorage.setItem('aiBuyerMonitorAlerts',JSON.stringify(monitorAlerts));localStorage.setItem('aiBuyerLastMonitorAt',new Date().toISOString());save();addOps('CJ監視',`対象 ${ids.length}件 / 成功 ${returned.size}件 / 失敗 ${failed.size}件 / 新規警告 ${newAlerts.length}件`);renderAll();renderMonitor()}catch(e){addOps('監視エラー',e.message||'CJ監視に失敗');if(!silent)alert(e.message||'CJ監視に失敗しました')}}
 async function syncShopifyFromMonitor(x,ev,monitorStop){
   if(!x||!x.shopifyProductId)return;
+  const actuallyPublished=x.shopifyPublishState==='published';
   try{
-    if(monitorStop&&x.shopifySyncState!=='stopped'){
+    if(monitorStop&&actuallyPublished&&x.shopifySyncState!=='stopped'){
       const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'stop',productId:x.shopifyProductId})});
       const j=await r.json();
       if(!r.ok||!j.ok)throw new Error(j.error||'Shopify販売停止に失敗しました');
       x.shopifySyncState='stopped';
+      x.shopifyPublishState='created';
+      x.shopifyPublished=false;
+      x.status='candidate';
+      x.publishQueueState='hold';
+      x.publishQueueMessage='販売リスク検知により自動停止。再開条件の再確認待ち';
       x.shopifySyncAt=new Date().toISOString();
-      addOps('Shopify同期',x.name+' を自動停止');
+      addOps('Shopify同期',x.name+' を安全のため自動停止');
     }else if(!monitorStop&&x.shopifySyncState==='stopped'&&x.testDecision!=='stop'){
-      x.shopifySyncState='resume_review';
+      const gate=launchEligibility(x);
+      x.shopifySyncState=gate.ready?'resume_review':'stopped';
+      x.publishQueueState=gate.ready?'waiting':'hold';
+      x.publishQueueMessage=gate.ready?'再開条件クリア。本番再公開待ち':'再開条件未達：'+gate.reasons.join(' / ');
       x.shopifySyncAt=new Date().toISOString();
-      addOps('Shopify同期',x.name+' は再開条件を満たしましたが、本番再公開は要承認のため保留');
+      addOps('Shopify同期',gate.ready?x.name+' は再開条件を満たしました。再公開待ちへ移動':x.name+' は再開条件を再確認中');
     }
     const currentPrice=Number(x.price||0);
     const cost=Math.round(Number(ev.price||x.costUsd||0)*fx);
     const shipping=Math.max(0,Number(x.shippingJpy)||0);
     const minPrice=Math.ceil((cost+shipping)/.595/100)*100;
-    if(!monitorStop&&x.shopifyVariantId&&currentPrice>0&&minPrice>currentPrice){
+    if(!monitorStop&&actuallyPublished&&x.shopifyVariantId&&currentPrice>0&&minPrice>currentPrice){
       const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'price',productId:x.shopifyProductId,variantId:x.shopifyVariantId,price:minPrice})});
       const j=await r.json();
       if(!r.ok||!j.ok)throw new Error(j.error||'Shopify価格同期に失敗しました');
@@ -1563,11 +1572,11 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
       addOps('Shopify価格同期',x.name+' を '+yen(minPrice)+' に更新');
     }
     save();
-    renderAll();
+    renderAll();renderAutoOverview();renderGoLiveReadiness();
   }catch(e){
     x.shopifySyncError=e.message||'Shopify同期エラー';
     addOps('Shopify同期エラー',x.name+'：'+x.shopifySyncError);
-    save();
+    save();renderAutoOverview();renderGoLiveReadiness();
   }
 }
 function maybeDailyMonitor(){if(monitorSettings.daily!=='on')return;const last=localStorage.getItem('aiBuyerLastMonitorAt');if(!last||Date.now()-new Date(last).getTime()>=30*60*1000)runMarketMonitor(true)}
