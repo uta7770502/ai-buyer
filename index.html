@@ -99,17 +99,31 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&l
 function js(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
 function catalogRisk(p){const inv=Number(p.verifiedInventory??p.inventory??0),delivery=String(p.deliveryCycle||''),sale=String(p.saleStatus??''),complaint=p.complaintRisk||null;let level='low',label='低リスク',reasons=[];if(sale&&sale!=='3'){level='high';label='販売停止';reasons.push('CJ販売状態が停止')}if(inv<=0){level='high';label='在庫リスク';reasons.push('検証済み在庫0')}else if(inv<=20&&level!=='high'){level='mid';label='低在庫';reasons.push('検証済み在庫'+inv)}const nums=(delivery.match(new RegExp('\\d+','g'))||[]).map(Number);if(nums.length&&Math.max(...nums)>=10&&level==='low'){level='mid';label='配送注意';reasons.push('配送目安'+delivery+'日')}if(complaint&&complaint.level==='high'){level='high';label='クレーム多め';reasons.push('低評価レビューが多い')}else if(complaint&&complaint.level==='mid'&&level==='low'){level='mid';label='クレーム注意';reasons.push('低評価レビューあり')}return {level,label,reasons,exclude:level==='high'||Boolean(complaint&&complaint.exclude)}}
 async function enrichRiskList(list,limit=6){const targets=list.filter(x=>x&&x.id&&!x.complaintRisk).slice(0,limit);await Promise.all(targets.map(async p=>{try{const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id));const j=await r.json();if(r.ok&&j.ok)p.complaintRisk=j.risk}catch(e){}}));return list}
+function publishEligibility(x){
+  if(!x)return {ready:false,reasons:['商品情報なし']};
+  const reasons=[],lm=learnedMetrics(x),risk=catalogRisk(x);
+  if(!hasValidShipping(x))reasons.push('送料未確定');
+  if(!x.shopifyProductId||x.shopifyPublishState==='error')reasons.push('Shopify下書き未完了');
+  if(risk.exclude||x.monitorRisk==='stop'||x.stopCandidate)reasons.push('販売リスクあり');
+  if(lm.net<=0)reasons.push('実利益が未確認または赤字');
+  if(lm.orders<2)reasons.push('注文実績2件未満');
+  if(lm.orders>=2&&lm.roas!==99&&lm.roas<Number(adAutomationSettings.scaleRoas||2.5))reasons.push('ROAS基準未達');
+  if(lm.rr>.15)reasons.push('返品率15%超');
+  return {ready:reasons.length===0,reasons,lm};
+}
 function simpleProductState(x){
   if(!x)return {key:'',label:''};
+  const gate=publishEligibility(x);
   if(x.autoSetupState==='needs_review'||x.shopifyPublishState==='error'||x.stopCandidate||x.monitorRisk==='stop')return {key:'review',label:'要確認'};
   if(x.status==='live'||x.shopifyPublishState==='published')return {key:'live',label:'販売中'};
+  if(gate.ready)return {key:'ready',label:'公開候補'};
   if(x.status==='test'||x.autoSetupState==='ready')return {key:'test',label:'テスト中'};
   return {key:'prepare',label:'AI準備中'};
 }
 function productCard(p,rank){
   const m=metrics(p),on=findActive(p.id),shown=(on&&on.learnedScore)||m.score,price=(on&&on.price)||m.sell,risk=catalogRisk(p),state=simpleProductState(on);
   const cls=shown>=90?'good':shown>=80?'mid':'';
-  return '<div class="card"><div class="product"><div class="pic">'+(p.image?'<img src="'+esc(p.image)+'" alt="">':'商品')+'</div><div><span class="score '+cls+'">AI SCORE '+shown+'</span>'+(rank?'<span class="rankBadge">#'+rank+'</span>':'')+(on?'<span class="statusDot status-'+(state.key==='live'?'live':state.key==='test'?'test':'candidate')+'">'+state.label+'</span>':'')+'<div class="title">'+esc(p.name)+'</div><div class="meta">CJ価格 '+usd(m.cost)+' / 参考売価 '+yen(price)+(on&&state.label?'<br>AI BUYER：'+esc(on.autoSetupMessage||state.label):'')+'</div></div></div>'+(risk.reasons.length?'<div class="riskLine">'+risk.reasons.map(x=>'⚠ '+esc(x)).join('　')+'</div>':'')+'<div class="actions"><button class="secondary" onclick="openDetail(\''+js(p.id)+'\')">詳細</button><button class="sell '+(on?'active':'')+'" '+(risk.exclude&&!on?'disabled':'')+' onclick="toggleCandidate(\''+js(p.id)+'\')">'+(on?'✓ 選択済み':risk.exclude?'高リスク・除外':'この商品を選ぶ')+'</button></div>'+(on&&state.key==='review'?'<div role="alert" style="margin-top:8px;color:#b42318;font-size:12px;font-weight:800">要確認：'+esc(on.autoSetupMessage||on.shopifyPublishError||'自動運用を確認してください')+'</div>':'')+'</div>'
+  return '<div class="card"><div class="product"><div class="pic">'+(p.image?'<img src="'+esc(p.image)+'" alt="">':'商品')+'</div><div><span class="score '+cls+'">AI SCORE '+shown+'</span>'+(rank?'<span class="rankBadge">#'+rank+'</span>':'')+(on?'<span class="statusDot status-'+(state.key==='live'?'live':state.key==='test'||state.key==='ready'?'test':'candidate')+'">'+state.label+'</span>':'')+'<div class="title">'+esc(p.name)+'</div><div class="meta">CJ価格 '+usd(m.cost)+' / 参考売価 '+yen(price)+(on&&state.label?'<br>AI BUYER：'+esc(on.autoSetupMessage||state.label):'')+(on&&state.key==='ready'?'<br><b>公開条件クリア</b>：本番公開ロック解除後に公開可能':'')+'</div></div></div>'+(risk.reasons.length?'<div class="riskLine">'+risk.reasons.map(x=>'⚠ '+esc(x)).join('　')+'</div>':'')+'<div class="actions"><button class="secondary" onclick="openDetail(\''+js(p.id)+'\')">詳細</button><button class="sell '+(on?'active':'')+'" '+(risk.exclude&&!on?'disabled':'')+' onclick="toggleCandidate(\''+js(p.id)+'\')">'+(on?'✓ 選択済み':risk.exclude?'高リスク・除外':'この商品を選ぶ')+'</button></div>'+(on&&state.key==='review'?'<div role="alert" style="margin-top:8px;color:#b42318;font-size:12px;font-weight:800">要確認：'+esc(on.autoSetupMessage||on.shopifyPublishError||'自動運用を確認してください')+'</div>':'')+'</div>'
 }
 async function searchProducts(p=1){const qv=document.getElementById('q').value.trim();currentQuery=qv;page=p;products.innerHTML='<div class="loading">CJ商品を検索中…</div>';pager.innerHTML='';try{const r=await fetch(`/api/cj-search?q=${encodeURIComponent(qv)}&page=${p}&size=20`);const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'検索に失敗しました');results=j.products||[];totalPages=Math.max(1,j.totalPages||1);countLabel.textContent=`${j.totalRecords||results.length}件`;applyFilters();renderPager();enrichRiskList(results,6).then(()=>applyFilters())}catch(e){products.innerHTML=`<div class="error">${esc(e.message)}<br><span class="tiny">VercelにCJ_API_KEYを設定すると実検索できます。</span></div>`}}
 function applyFilters(){const min=Number(minScore.value||0),sort=sortBy.value;filtered=results.filter(p=>metrics(p).score>=min&&!catalogRisk(p).exclude);filtered.sort((a,b)=>{const A=metrics(a),B=metrics(b);if(sort==='listed')return Number(b.listedNum||0)-Number(a.listedNum||0);if(sort==='priceLow')return A.cost-B.cost;if(sort==='margin')return B.margin-A.margin;return B.score-A.score});products.innerHTML=filtered.length?filtered.map((p,i)=>productCard(p,i+1)).join(''):'<div class="empty">条件に合う商品がありません。</div>'}
@@ -438,6 +452,13 @@ async function runGrowthEngine(silent=false){
     }
   }else{
     actions.push({type:'wait',tag:'新規抑制',text:'日商目標が見えているため、新規商品の自動補充は停止。勝ち商品の利益維持を優先。'});
+  }
+  for(const x of pool){
+    const gate=publishEligibility(x);
+    x.publishCandidate=gate.ready;
+    x.publishCandidateCheckedAt=now;
+    x.publishCandidateReasons=gate.reasons;
+    if(gate.ready)actions.push({type:'up',tag:'公開候補',text:(x.name||'商品')+'：送料・利益・ROAS・返品率・Shopify下書きの条件をクリア。本番公開ロック解除後に公開可能。'});
   }
   autoAllocateBudget(true);
   await runAdAutomation(true);
