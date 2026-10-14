@@ -1695,10 +1695,11 @@ function hasValidShipping(x){return x.shippingJpy!==undefined&&x.shippingJpy!==n
 function renderGoLiveReadiness(){
   const checks=[];
   const fresh=t=>{const n=Date.parse(t||'');return Number.isFinite(n)&&Date.now()-n<24*60*60*1000};
-  checks.push({label:'Shopify接続・権限',ok:Boolean(shopifyConnected&&testProgress?.shopify)});
+  const stepFresh=key=>Boolean(testProgress?.[key]&&fresh(testProgress?.timestamps?.[key]));
+  checks.push({label:'Shopify接続・権限',ok:Boolean(shopifyConnected&&stepFresh('shopify'))});
   checks.push({label:'CJ接続',ok:Boolean(cjConnected)});
-  checks.push({label:'注文Webhook',ok:Boolean(testProgress?.webhook)});
-  checks.push({label:'主要サンドボックステスト',ok:Boolean(testProgress?.order&&testProgress?.tracking&&testProgress?.sync&&testProgress?.duplicate)});
+  checks.push({label:'注文Webhook',ok:stepFresh('webhook')});
+  checks.push({label:'主要サンドボックステスト',ok:Boolean(stepFresh('order')&&stepFresh('tracking')&&stepFresh('sync')&&stepFresh('duplicate'))});
   checks.push({label:'要照合0件',ok:Boolean(reconciliationSummaryChecked&&reconciliationCriticalCount===0&&reconciliationReviewCount===0&&reconciliationSummaryIsFresh())});
   checks.push({label:'公開準備チェック',ok:Boolean(releaseReadiness?.safeToTest&&fresh(releaseReadinessCheckedAt))});
   const rows=active.filter(x=>!x.archived).map(x=>({x,gate:launchEligibility(x),state:simpleProductState(x)}));
@@ -1718,7 +1719,7 @@ function renderGoLiveReadiness(){
     }).join(''):'';
   }
   if(note){
-    if(passed===total)note.textContent='本番移行準備OK。公開待ち商品 '+waiting+'件。実公開・実広告・実CJ発注は現在もサーバー安全ロック中です。';
+    if(passed===total)note.textContent='サンドボックス検証条件OK。公開待ち商品 '+waiting+'件。実公開・実広告・実CJ発注は現在もサーバー安全ロック中です。';
     else note.textContent='残り '+(total-passed)+'条件。未完了項目と商品別の不足条件をAI BUYERが継続確認します。本番処理は開始しません。';
   }
 }
