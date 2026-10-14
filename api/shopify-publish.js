@@ -452,10 +452,11 @@ export default async function handler(req,res){
     // Existing merchant-authored copy takes precedence; CJ source text is included as supplied.
     const merchantImages=(Array.isArray(p.images)?p.images:[]).filter(x=>/^https:\/\//i.test(String(x||'')));
     p.images=[...new Set([...merchantImages,...cj.supplierImages])].slice(0,12);
-    if(cj.supplierDescription){
-      const existingCopy=String(p.descriptionHtml||p.description||'').trim();
-      p.descriptionHtml=(existingCopy?cleanHtml(existingCopy,1800)+'<hr>':'')+
-        '<h3>仕入れ元の商品情報（原文）</h3>'+cj.supplierDescription;
+    // Do not append unreviewed supplier HTML or English specifications to Japanese customer copy.
+    // Retain authored copy; if absent, provide a minimal factual draft for human review.
+    if(!String(p.descriptionHtml||p.description||'').trim()){
+      const safeTitle=clean(title,180);
+      p.descriptionHtml='<p>'+safeTitle+'の商品情報を確認中です。仕様・配送条件をご確認のうえ公開してください。</p>';
     }
 
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
@@ -472,7 +473,8 @@ export default async function handler(req,res){
     let ce;
     if(existing){
       ce={product:existing,userErrors:[]};
-      const media=(Array.isArray(p.images)?p.images:[]).filter(Boolean).slice(0,6).map((url,i)=>({originalSource:String(url),mediaContentType:'IMAGE',alt:i===0?title:(title+' '+(i+1))}));
+      // Existing draft media is preserved: re-submitting the same images creates duplicates.
+      const media=[];
       const upd=await gql(shop,token,'mutation RefreshDraft($product:ProductUpdateInput!,$media:[CreateMediaInput!]){productUpdate(product:$product,media:$media){product{id title handle status variants(first:1){nodes{id}}} userErrors{message}}}',{product:{id:existing.id,title,descriptionHtml:description,vendor,...(petType?{productType:petType}:{})},media});
       if(upd.productUpdate?.userErrors?.length)throw Error(upd.productUpdate.userErrors.map(e=>e.message).join(' / '));
       ce=upd.productUpdate;
