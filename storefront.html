@@ -104,9 +104,11 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
 @media(max-width:900px){
   .topbar{padding-top:env(safe-area-inset-top)}
   .heroVisual{height:clamp(190px,29svh,245px);min-height:190px}
-  .heroSlide.productSlide img{padding:2% 10% 7%}
+  .heroSlide.productSlide{display:grid;grid-template-rows:minmax(0,1fr) auto;background:#f2f0e9}
+  .heroSlide.productSlide img{position:static;width:100%;height:100%;min-height:0;object-fit:contain;object-position:center;background:#f2f0e9;padding:8px 14px 4px}
+  .heroSlide.productSlide .heroSlideInfo{position:static;left:auto;bottom:auto;max-width:none;width:100%;padding:10px 14px 12px;border-radius:0;background:#f7f5ef;box-shadow:none;backdrop-filter:none;z-index:3}
   .heroSlideInfo{left:12px;bottom:12px;max-width:70%;padding:9px 10px;border-radius:10px}
-  .heroSlideInfo small{font-size:8px}.heroSlideInfo b{font-size:13px}.heroSlideInfo span{font-size:12px}
+  .heroSlideInfo small{font-size:8px}.heroSlideInfo b{font-size:14px;line-height:1.35}.heroSlideInfo .heroDesc{font-size:11px;font-weight:600;color:#666;margin-top:3px;line-height:1.35}.heroSlideInfo .heroPrice{font-size:17px;font-weight:950;margin-top:5px}
   .heroBadge{width:68px;height:68px;font-size:10px;right:12px;top:12px}
   .heroDots{left:12px;top:12px}.heroControls{right:10px;bottom:10px}.heroControls button{width:34px;height:34px}
   .firstViewShelfInner{display:flex;overflow-x:auto;gap:8px;padding:9px 16px;scroll-snap-type:x proximity}
@@ -340,6 +342,58 @@ function safeImage(v){try{const u=new URL(v);return u.protocol==='https:'?u.href
 function persist(){try{localStorage.setItem(storageKey,JSON.stringify({cart,favorites:[...favorites]}))}catch{announce('保存できませんでした。この画面内では引き続き利用できます。')}}
 function announce(message){document.getElementById('announcer').textContent=message}
 function productPageUrl(p){return '/shop/products/'+encodeURIComponent(String(p.id||''))}
+function naturalJaTitle(title,category=''){
+  const t=String(title||'').trim(),l=t.toLowerCase();
+  if(!t)return '商品';
+  if(/[ぁ-んァ-ヶ一-龠]/.test(t))return t.length>28?t.slice(0,28)+'…':t;
+  const rules=[
+    [/pet.*(carrier|bag)|cat.*(carrier|bag)|dog.*(carrier|bag)|(carrier|bag).*pet/,'ペットキャリーバッグ'],
+    [/juice|juicer|blender/,'ポータブルジューサー'],
+    [/projector/,'コンパクトプロジェクター'],
+    [/ergonomic.*mouse|vertical.*mouse/,'エルゴノミクスマウス'],
+    [/planter|plant pot|flower pot/,'プランター'],
+    [/phone.*stand|mobile.*stand|magnetic.*stand/,'スマホスタンド'],
+    [/lantern/,'LEDランタン'],
+    [/vacuum.*(food|storage)|food.*vacuum/,'真空フードストッカー'],
+    [/golf.*(swing|trainer)|swing.*trainer/,'ゴルフスイングトレーナー'],
+    [/travel.*bag|foldable.*bag|duffel/,'トラベルバッグ'],
+    [/storage.*box|organizer/,'収納ボックス'],
+    [/kitchen.*rack|dish.*rack/,'キッチン収納ラック'],
+    [/water.*bottle|tumbler/,'ボトル'],
+    [/charger|charging/,'充電器'],
+    [/cable/,'ケーブル'],
+    [/lamp|light/,'ライト']
+  ];
+  let base='';
+  for(const [re,label] of rules){if(re.test(l)){base=label;break}}
+  if(!base){
+    const c=String(category||'').toLowerCase();
+    if(/pet/.test(c))base='ペット用品';
+    else if(/kitchen/.test(c))base='キッチン用品';
+    else if(/golf/.test(c))base='ゴルフ用品';
+    else if(/travel/.test(c))base='トラベル用品';
+    else if(/home/.test(c))base='ホーム用品';
+    else if(/gadget|electronics/.test(c))base='便利ガジェット';
+    else base='セレクトアイテム';
+  }
+  const prefix=/large capacity|large|big/.test(l)?'大容量':'';
+  const material=/canvas/.test(l)?'キャンバス製':'';
+  return [prefix,material,base].filter(Boolean).join(' ').replace(/s+/g,'').slice(0,26);
+}
+function naturalJaDescription(title,summary=''){
+  const raw=(String(title||'')+' '+String(summary||'')).toLowerCase();
+  if(/breathable/.test(raw)&&/shoulder|carry|carrier|bag/.test(raw))return '通気性に配慮した肩掛けタイプ';
+  if(/portable/.test(raw)&&/juice|juicer|blender/.test(raw))return '持ち運びやすいコンパクトタイプ';
+  if(/compact/.test(raw)&&/projector/.test(raw))return '省スペースで使いやすい小型タイプ';
+  if(/ergonomic|vertical/.test(raw)&&/mouse/.test(raw))return '長時間のPC作業に使いやすい形状';
+  if(/foldable/.test(raw))return '使わない時はコンパクトに収納可能';
+  if(/magnetic/.test(raw))return 'マグネットで手軽に固定できるタイプ';
+  if(/vacuum/.test(raw))return '食品保存に便利な真空タイプ';
+  if(/waterproof/.test(raw))return '日常使いしやすい防水仕様';
+  const jp=String(summary||'').trim();
+  if(/[ぁ-んァ-ヶ一-龠]/.test(jp))return jp.length>34?jp.slice(0,34)+'…':jp;
+  return '使い方が分かりやすいODDLYセレクト';
+}
 function card(p){return `<article class="product"><div class="thumb"><button class="productOpen" data-action="product" data-id="${esc(p.id)}" aria-label="${esc(p.name)}の詳細"><img loading="lazy" src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></button><button class="heart" data-action="favorite" data-id="${esc(p.id)}" aria-label="${esc(p.name)}をお気に入り${favorites.has(p.id)?'から削除':'に追加'}" aria-pressed="${favorites.has(p.id)}">${favorites.has(p.id)?'♥':'♡'}</button><span class="tag">${previewMode?'SAMPLE':p.available?'ODDLY PICK':'SOLD OUT'}</span></div><h3><button class="productTitle" data-action="product" data-id="${esc(p.id)}">${esc(p.name)}</button></h3><div class="price">${yen(p.price)}</div><p class="productCategory">${esc(p.category||'ライフスタイル')}</p>${!previewMode&&p.authoritative?`<a class="productPageLink" href="${esc(productPageUrl(p))}" aria-label="${esc(p.name)}の商品ページを開く">商品ページを見る ↗</a>`:''}</article>`}
 function heroCandidates(){
   const ranked=[...products].sort((a,b)=>{
@@ -358,11 +412,13 @@ function renderHero(){
   track.innerHTML=slides.map((p,i)=>{
     const img=safeImage(p.img);
     if(p.fallback)return '<div class="heroSlide"><img src="'+esc(img)+'" alt="犬と暮らしのイメージ"></div>';
-    return '<div class="heroSlide productSlide"><img src="'+esc(img)+'" alt="'+esc(p.name)+'"><button class="heroSlideBtn" type="button" data-action="product" data-id="'+esc(p.id)+'" aria-label="'+esc(p.name)+'の詳細を見る"></button><div class="heroSlideInfo"><small>ODDLY PICK</small><b>'+esc(p.name)+'</b><span>'+yen(p.price)+'</span></div></div>';
+    const title=p.shortTitleJa||naturalJaTitle(p.name,p.category);
+    const desc=p.shortDescriptionJa||naturalJaDescription(p.name,p.summary);
+    return '<div class="heroSlide productSlide"><img src="'+esc(img)+'" alt="'+esc(title)+'"><button class="heroSlideBtn" type="button" data-action="product" data-id="'+esc(p.id)+'" aria-label="'+esc(title)+'の詳細を見る"></button><div class="heroSlideInfo"><small>ODDLY PICK</small><b>'+esc(title)+'</b><span class="heroDesc">'+esc(desc)+'</span><span class="heroPrice">'+yen(p.price)+'</span></div></div>';
   }).join('');
   dots.innerHTML=slides.map((_,i)=>'<span class="heroDot '+(i===heroIndex?'on':'')+'"></span>').join('');
   const picks=products.slice(0,4);
-  shelf.innerHTML='<div class="firstViewShelfLabel">QUICK PICKS</div>'+picks.map(p=>'<button type="button" class="firstViewItem" data-action="product" data-id="'+esc(p.id)+'"><img src="'+esc(safeImage(p.img))+'" alt=""><span><b>'+esc(p.name)+'</b><span>'+yen(p.price)+'</span></span></button>').join('');
+  shelf.innerHTML='<div class="firstViewShelfLabel">QUICK PICKS</div>'+picks.map(p=>{const title=p.shortTitleJa||naturalJaTitle(p.name,p.category);return '<button type="button" class="firstViewItem" data-action="product" data-id="'+esc(p.id)+'"><img src="'+esc(safeImage(p.img))+'" alt=""><span><b>'+esc(title)+'</b><span>'+yen(p.price)+'</span></span></button>'}).join('');
   applyHeroPosition();
   startHeroAuto();
 }
@@ -592,6 +648,8 @@ function normalizeShopifyProduct(raw){
   return {
     id:String(raw?.handle||raw?.id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),
     name:String(raw?.title||raw?.name||'商品'),
+    shortTitleJa:String(raw?.shortTitleJa||'').trim(),
+    shortDescriptionJa:String(raw?.shortDescriptionJa||'').trim(),
     category:String(raw?.productType||raw?.category||'ライフスタイル'),
     audience:String(raw?.audience||''),
     summary:String(raw?.summary||raw?.description||'').trim(),
