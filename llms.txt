@@ -1,33 +1,34 @@
-# ADPS PICKS
+# ODDLY
 
-> AI-curated online select shop for Japan.
+> 暮らしの中の発見を届ける、日本向けオンラインセレクトショップ。
 
-ADPS PICKS is an online store that curates products across categories such as gadgets, pet supplies, kitchen tools, travel goods, golf and lifestyle products.
+ODDLYは、生活雑貨、便利グッズ、ファッション小物、ギフト、ガジェット、ペット用品、キッチン用品、トラベル用品、ゴルフ用品などから、日常で使いやすく、用途や特徴が分かりやすい商品を紹介するオンラインセレクトショップです。
 
-## Core concept
+## 店舗コンセプト
 
-- AI-curated selection rather than a single fixed product category
-- Japan-first commerce experience
-- Discovery-oriented collections such as Today's Picks, Trending Now, Under ¥3,000, Problem Solvers and Oddly Good
-- Product pages explain why an item was selected
-- Price, stock, shipping and return information should be treated as authoritative only when sourced from the live Shopify product and checkout data
+- 特定ジャンルに限定せず、暮らしの中で気になる商品を幅広く紹介
+- 日本国内向けからスタート
+- 商品の便利さ、特徴、使う場面が分かりやすい構成
+- 商品ページでは対象者、用途、特徴、選定理由、配送・返品条件を整理
+- 実際の価格、在庫、配送、返品条件は最新のShopify商品データを基準に表示
 
-## Important pages
+## 主要ページ
 
-- Storefront preview: https://ai-buyer-nine.vercel.app/shop
+- 店舗トップ: https://ai-buyer-nine.vercel.app/shop
+- 商品ページ: https://ai-buyer-nine.vercel.app/shop/products/{handle}
 
-## Product information policy
+## 商品情報ポリシー
 
-Demo product names, prices, ratings and availability on the current prototype are not authoritative production commerce data.
-The storefront remains noindex until real Shopify product data is connected.
-When production indexing is enabled, structured product data must match the visible Shopify product data exactly.
+デザイン用サンプルの商品名、価格、在庫、配送条件、レビュー、人気順位は本番の商品情報として扱いません。
+検索公開時には、画面表示・構造化データ・Shopifyの実商品情報を一致させます。
+未確認の送料無料、到着日数、レビュー、人気順位などは表示しません。
 
-## About AI selection
+## 商品選定で重視すること
 
-ADPS evaluates signals such as trend momentum, price accessibility, usability, review tendencies, shipping conditions and how clearly a product's value can be understood.
+ODDLYでは、価格帯、用途、商品の特徴、使う場面の分かりやすさ、配送条件などを確認し、購入者が商品価値を理解しやすいものを紹介します。
 
-## Language and market
+## 対象市場
 
-Primary launch market: Japan
-Primary language: Japanese
-Future markets may be added only when product-level shipping, regulations and support requirements are verified.
+初期販売対象: 日本
+主要言語: 日本語
+海外販売は、商品ごとの配送条件、法規制、サポート体制を確認したうえで将来検討します。
