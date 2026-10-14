@@ -167,6 +167,7 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 .searchLayer .searchInput{display:block!important;height:42px;min-height:42px;font-size:14px;padding:7px 13px;margin:6px 0 8px}.searchLayer .chips{display:flex!important;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 8px;padding-bottom:4px;scrollbar-width:thin}.searchLayer .chips .chip{flex:0 0 auto;font-size:12px;padding:6px 10px;min-height:30px;white-space:nowrap}.searchLayer .searchTools{display:flex!important;align-items:center;gap:8px;flex-wrap:nowrap;margin:4px 0 5px;font-size:12px}.searchLayer .searchTools select{max-width:110px;font-size:12px;padding:4px}.searchLayer .searchTools .linkBtn{font-size:12px;margin-left:auto}.searchLayer .panelHead{margin-bottom:4px}.searchLayer #searchResults{margin-top:8px!important}@media(max-width:900px){.searchLayer .searchInput{height:40px;min-height:40px}.searchLayer .chips{gap:5px}.searchLayer .chips .chip{padding:5px 9px}}
 
 .cartOriginalName{display:block;font-size:12px;line-height:1.4;color:#666;font-weight:500;overflow-wrap:anywhere;max-height:2.8em;overflow:hidden}.cartJapaneseName{display:block;font-size:15px;font-weight:850;line-height:1.4;margin:5px 0}.cartItemCopy{min-width:0}.cartRow{align-items:start}@media(max-width:900px){.cartOriginalName{font-size:11px}.cartJapaneseName{font-size:14px}}
+.supplierDetails{margin-top:15px;border-top:1px solid #e5e3dc;padding-top:12px}.supplierDetails summary{cursor:pointer;font-size:13px;font-weight:750}.supplierDetails p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.7;color:#555;margin:10px 0 0}
 </style>
 <!-- deployment-refresh: storefront reconnect check -->
 </head>
@@ -522,7 +523,9 @@ function productAnswerBlocks(p){
   const title=p.shortTitleJa||naturalJaTitle(p.name,p.category);
   const desc=p.shortDescriptionJa||naturalJaDescription(p.name,p.summary);
   const reasons=(p.why||[]).filter(x=>/[ぁ-んァ-ヶ一-龠]/.test(String(x))).filter(x=>!/(AI BUYER|仕入条件|掲載実績|継続監視|ご注文後)/.test(String(x))).slice(0,3);
-  return `<section class="simpleProductInfo" aria-label="商品説明"><h3>商品について</h3><p>${esc(desc)}</p>${reasons.length?`<ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</section>
+  const supplierText=String(p.supplierDescription||'').trim();
+  const sourceDetails=supplierText&&supplierText!==desc?`<details class="supplierDetails"><summary>仕入れ元の商品説明を確認する</summary><p>${esc(supplierText)}</p></details>`:'';
+  return `<section class="simpleProductInfo" aria-label="商品説明"><h3>商品について</h3><p>${esc(desc)}</p>${reasons.length?`<ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${sourceDetails}</section>
   `;
 }
 
@@ -693,6 +696,7 @@ function normalizeShopifyProduct(raw){
     category:String(raw?.productType||raw?.category||'ライフスタイル'),
     audience:String(raw?.audience||''),
     summary:String(raw?.summary||raw?.description||'').trim(),
+    supplierDescription:String(raw?.description||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,4500),
     price:Number.isFinite(price)?price:0,
     currency,
     img:String(raw?.featuredImage?.url||raw?.image||''),
