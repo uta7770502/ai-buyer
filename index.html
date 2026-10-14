@@ -833,6 +833,14 @@ async function syncTestTrackingToShopify(){
     testProgress.sync=Boolean(j.fulfillmentId)&&(!j.skipped||j.duplicateConfirmed===true);saveTestProgress('sync');
     const dup=document.getElementById('testDuplicateBtn');if(dup)dup.style.display='block';
     renderTestChecklist();
+    if(testProgress.sync){
+      if(result)result.textContent=(j.skipped?'重複同期をスキップしました':'Shopify追跡同期OK / Fulfillment: '+(j.fulfillmentId||'—'))+' / 二重同期防止を自動確認中…';
+      await verifyDuplicateTrackingSync();
+      if(testProgress.duplicate){
+        await loadReconciliationSummary();
+        if(result)result.textContent='Shopify追跡同期OK / 二重同期防止OK / 全体照合完了';
+      }
+    }
   }catch(e){if(result)result.textContent=e.message||'Shopify追跡同期に失敗しました'}
 }
 async function verifyDuplicateTrackingSync(){
