@@ -1596,6 +1596,57 @@ function shopifyDescription(p){
   const returnText=returnDays>0?'返品目安: '+returnDays+'日以内（商品状態・ストア条件により異なります）':'返品条件はストアポリシーをご確認ください。';
   return '<h2>'+name+'</h2><p>'+esc(lead)+'</p><h3>こんな方におすすめ</h3><p>'+audience+'</p><h3>選ばれるポイント</h3><ul><li>価格と仕入条件を確認して選定</li><li>商品画像・掲載実績を確認</li><li>在庫・価格・配送状況を継続監視</li></ul><h3>ご購入前に</h3><p>'+esc(shipText)+'</p><p>'+esc(returnText)+'</p>'+(price>0?'<p>販売価格: '+yen(price)+'</p>':'')+'<p>ご注文後、仕入先の在庫・価格・配送状況を確認して手配します。</p>';
 }
+function storefrontJaTitle(x){
+  const title=String(x?.name||x?.title||'').trim(),l=title.toLowerCase();
+  if(/[ぁ-んァ-ヶ一-龠]/.test(title))return title.length>28?title.slice(0,28)+'…':title;
+  const rules=[
+    [/pet.*(carrier|bag)|cat.*(carrier|bag)|dog.*(carrier|bag)|(carrier|bag).*pet/,'ペットキャリーバッグ'],
+    [/juice|juicer|blender/,'ポータブルジューサー'],
+    [/projector/,'コンパクトプロジェクター'],
+    [/ergonomic.*mouse|vertical.*mouse/,'エルゴノミクスマウス'],
+    [/planter|plant pot|flower pot/,'プランター'],
+    [/phone.*stand|mobile.*stand|magnetic.*stand/,'スマホスタンド'],
+    [/lantern/,'LEDランタン'],
+    [/vacuum.*(food|storage)|food.*vacuum/,'真空フードストッカー'],
+    [/golf.*(swing|trainer)|swing.*trainer/,'ゴルフスイングトレーナー'],
+    [/travel.*bag|foldable.*bag|duffel/,'トラベルバッグ'],
+    [/storage.*box|organizer/,'収納ボックス'],
+    [/kitchen.*rack|dish.*rack/,'キッチン収納ラック'],
+    [/water.*bottle|tumbler/,'ボトル'],
+    [/charger|charging/,'充電器'],
+    [/cable/,'ケーブル'],
+    [/lamp|light/,'ライト']
+  ];
+  let base='';
+  for(const [re,label] of rules){if(re.test(l)){base=label;break}}
+  const c=String(x?.category||'').toLowerCase();
+  if(!base){
+    if(/pet/.test(c))base='ペット用品';
+    else if(/kitchen/.test(c))base='キッチン用品';
+    else if(/golf/.test(c))base='ゴルフ用品';
+    else if(/travel/.test(c))base='トラベル用品';
+    else if(/home/.test(c))base='ホーム用品';
+    else if(/gadget|electronics/.test(c))base='便利ガジェット';
+    else base='セレクトアイテム';
+  }
+  const prefix=/large capacity|large|big/.test(l)?'大容量':'';
+  const material=/canvas/.test(l)?'キャンバス製':'';
+  return [prefix,material,base].filter(Boolean).join('').slice(0,26);
+}
+function storefrontJaDescription(x){
+  const raw=(String(x?.name||'')+' '+String(x?.summary||x?.description||'')).toLowerCase();
+  if(/breathable/.test(raw)&&/shoulder|carry|carrier|bag/.test(raw))return '通気性に配慮した肩掛けタイプ';
+  if(/portable/.test(raw)&&/juice|juicer|blender/.test(raw))return '持ち運びやすいコンパクトタイプ';
+  if(/compact/.test(raw)&&/projector/.test(raw))return '省スペースで使いやすい小型タイプ';
+  if(/ergonomic|vertical/.test(raw)&&/mouse/.test(raw))return '長時間のPC作業に使いやすい形状';
+  if(/foldable/.test(raw))return '使わない時はコンパクトに収納可能';
+  if(/magnetic/.test(raw))return 'マグネットで手軽に固定できるタイプ';
+  if(/vacuum/.test(raw))return '食品保存に便利な真空タイプ';
+  if(/waterproof/.test(raw))return '日常使いしやすい防水仕様';
+  const jp=String(x?.adpsSummary||x?.summary||'').trim();
+  if(/[ぁ-んァ-ヶ一-龠]/.test(jp))return jp.length>40?jp.slice(0,40)+'…':jp;
+  return '使い方が分かりやすいODDLYセレクト';
+}
 function buildAioPublishMeta(x){
   const out={};
   const audience=String(x.adpsAudience||x.audience||'').trim();
@@ -1604,6 +1655,8 @@ function buildAioPublishMeta(x){
   if(audience)out.adpsAudience=audience;
   if(summary)out.adpsSummary=summary;
   if(why.length)out.adpsWhy=why.filter(Boolean).slice(0,6);
+  out.shortTitleJa=String(x.shortTitleJa||storefrontJaTitle(x)).trim();
+  out.shortDescriptionJa=String(x.shortDescriptionJa||storefrontJaDescription(x)).trim();
   const shipping=Number(x.shippingJpy);
   if(Number.isFinite(shipping)&&shipping>=0)out.shippingPriceJpy=shipping;
   const country=String(x.shippingCountryCode||x.shippingCountry||'').trim().toUpperCase();
