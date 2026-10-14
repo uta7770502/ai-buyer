@@ -180,7 +180,7 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 <main class="wrap">
 <section class="section" id="picks">
   <div class="sectionHead"><div class="sectionTitle"><h2>TODAY'S PICKS</h2><span>今日、ODDLYが選んだ商品</span></div><button class="linkBtn" onclick="openSearch()">すべて見る →</button></div>
-  <p class="sub" style="max-width:760px">TODAY'S PICKSは、価格の買いやすさ、用途の分かりやすさ、話題性、レビュー傾向などをもとに、ODDLYがおすすめしたい商品をまとめたセレクションです。</p><div class="grid5" id="pickGrid"></div>
+  <p class="sub" style="max-width:760px">TODAY'S PICKSは、価格の買いやすさ、用途の分かりやすさ、使う場面の想像しやすさなどをもとに、ODDLYがおすすめしたい商品をまとめたセレクションです。</p><div class="grid5" id="pickGrid"></div>
 </section>
 
 <section class="section" id="trending">
@@ -223,7 +223,7 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
   <aside class="geoCard">
     <div class="kicker">HOW WE PICK</div>
     <h3>商品選びで大切にしていること</h3>
-    <p>ODDLYでは、単に「人気商品」だけを並べません。トレンドの伸び、価格帯、利用シーン、レビュー傾向、配送条件などを組み合わせ、購入者に価値が伝わりやすい商品を候補にします。</p>
+    <p>ODDLYでは、単に「人気商品」だけを並べません。価格帯、利用シーン、商品の特徴、配送条件などを確認し、購入者に価値が伝わりやすい商品を候補にします。</p>
     <p>最終的な商品情報・価格・在庫・配送条件は、販売時点の情報を基準に表示します。</p>
   </aside>
 </section>
@@ -260,7 +260,7 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 <section class="faq" aria-labelledby="faq-title">
   <div class="sectionHead"><div class="sectionTitle"><h2 id="faq-title">FAQ</h2><span>ODDLYについて</span></div></div>
   <details><summary>ODDLYはどんなネットショップですか？</summary><p>暮らしに役立つ幅広いジャンルの商品を紹介するオンラインセレクトショップです。特定カテゴリに限定せず、今注目されているもの、便利なもの、買いやすい価格の商品などを紹介します。</p></details>
-  <details><summary>商品はどのように選ばれますか？</summary><p>トレンド、価格、利用シーン、レビュー傾向、配送条件などを組み合わせて候補を選定します。購入者にとって価値が分かりやすいことを重視します。</p></details>
+  <details><summary>商品はどのように選ばれますか？</summary><p>価格、利用シーン、商品の特徴、配送条件などを確認して候補を選定します。購入者にとって価値が分かりやすいことを重視します。</p></details>
   <details><summary>日本国内向けのショップですか？</summary><p>日本国内向けの商品を取り扱っています。配送対象地域は各商品の案内をご確認ください。</p></details>
   <details><summary>商品情報はいつ更新されますか？</summary><p>価格や在庫、配送条件は変更される場合があります。購入前に商品ページの最新情報をご確認ください。</p></details>
 </section>
@@ -349,7 +349,7 @@ function productFaqItems(p){
 }
 function setProductSeo(p){
   const base='https://ai-buyer-nine.vercel.app/shop';
-  const url=base+'?product='+encodeURIComponent(p.id);
+  const url=p.authoritative?('https://ai-buyer-nine.vercel.app'+productPageUrl(p)):(base+'?product='+encodeURIComponent(p.id));
   document.title=p.name+' | ODDLY';
   const canonical=document.querySelector('link[rel="canonical"]');if(canonical)canonical.href=url;
   const ogTitle=document.querySelector('meta[property="og:title"]');if(ogTitle)ogTitle.content=p.name+' | ODDLY';
