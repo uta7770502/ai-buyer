@@ -159,6 +159,9 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 
 .productGallery{width:100%;min-width:0}.galleryMain{position:relative;background:#f2f1ed;border-radius:16px;overflow:hidden;aspect-ratio:1/1}.galleryMain>img{display:block;width:100%;height:100%;object-fit:contain}.galleryCount{position:absolute;bottom:12px;left:12px;padding:5px 9px;border-radius:99px;background:#fffdf4e8;font-size:12px;font-weight:800}.galleryNav{position:absolute;top:50%;transform:translateY(-50%);border:0;border-radius:50%;background:#fffef1e8;width:36px;height:36px;font-size:28px;cursor:pointer;line-height:1}.galleryNav.prev{left:9px}.galleryNav.next{right:9px}.galleryThumbs{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:5px}.galleryThumb{flex:0 0 65px;width:65px;height:65px;border:2px solid transparent;background:#f2f1ed;border-radius:9px;overflow:hidden;padding:2px;cursor:pointer}.galleryThumb.active{border-color:#111}.galleryThumb img{width:100%;height:100%;object-fit:contain}@media(max-width:900px){.galleryMain{aspect-ratio:1.15/1}.galleryThumb{flex-basis:58px;width:58px;height:58px}}
 .detailPriceRow{display:flex;align-items:center;justify-content:space-between;gap:12px}.detailFavorite{border:1px solid #d5d5d2;border-radius:999px;background:#fff;color:#222;padding:8px 13px;display:flex;align-items:center;gap:6px;font-size:22px;line-height:1;cursor:pointer;flex-shrink:0}.detailFavorite span{font-size:11px;font-weight:750}.detailFavorite.isFavorite{color:#df3456;border-color:#df3456;background:#fff3f6}@media(max-width:900px){.detailPriceRow{margin-bottom:5px}.detailFavorite{padding:9px 11px}}
+
+/* Favorites are a product list, not a search form */
+.searchLayer.favoritesMode .searchInput,.searchLayer.favoritesMode .chips,.searchLayer.favoritesMode .searchTools{display:none!important}.searchLayer.favoritesMode #searchResults{margin-top:6px!important}.searchLayer.favoritesMode .searchBox{padding-top:14px}.searchLayer.favoritesMode .panelHead{margin-bottom:6px}.searchResultCard{position:relative;border-bottom:1px solid #e7e6e0;padding:8px 0 12px}.searchResultCard .searchResult{width:100%;display:grid;grid-template-columns:84px minmax(0,1fr) 14px;gap:12px;align-items:center;text-align:left;min-height:100px}.searchResultCard .searchResult img{width:84px;height:84px;object-fit:contain;border-radius:10px;background:#f3f1eb}.searchResultCopy{min-width:0}.searchResultCopy b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:14px;line-height:1.4;color:#111}.searchResultCopy small{display:block;color:#777;font-size:11px;line-height:1.4;margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.searchResultCopy strong{display:block;color:#111;font-size:16px}.favoriteRemove{border:0;background:#fff1f4;color:#d52d56;border-radius:99px;padding:5px 11px;font-size:11px;font-weight:750;cursor:pointer;margin-left:96px}@media(max-width:900px){.searchLayer.favoritesMode .searchBox{padding-top:12px}.searchResultCard .searchResult{grid-template-columns:76px minmax(0,1fr) 12px;gap:10px}.searchResultCard .searchResult img{width:76px;height:76px}.favoriteRemove{margin-left:86px}}
 </style>
 <!-- deployment-refresh: storefront reconnect check -->
 </head>
@@ -589,7 +592,7 @@ function openLayer(id){
 function closeLayer(id){const el=document.getElementById(id);if(!el.classList.contains('open'))return;el.classList.remove('open');el.inert=true;el.setAttribute('aria-hidden','true');document.body.style.overflow='';unlockBackground();const previous=layerFocus.get(id);if(previous?.isConnected&&!previous.closest('[inert]'))previous.focus()}
 function openCart(){renderCart();openLayer('cartDrawer')}
 function closeCart(){closeLayer('cartDrawer')}
-function openSearch(mode='all'){searchMode=mode;document.getElementById('searchInput').value='';renderSearch('');openLayer('searchLayer');document.getElementById('searchInput').focus()}
+function openSearch(mode='all'){searchMode=mode;document.getElementById('searchLayer').classList.toggle('favoritesMode',mode==='favorites');document.getElementById('searchInput').value='';document.getElementById('searchSort').value='default';renderSearch('');openLayer('searchLayer');if(mode!=='favorites')document.getElementById('searchInput').focus()}
 function closeSearch(){closeLayer('searchLayer')}
 function toggleFavorite(id){if(favorites.has(id))favorites.delete(id);else favorites.add(id);persist();render();if(document.getElementById('searchLayer').classList.contains('open'))renderSearch(document.getElementById('searchInput').value);const b=document.querySelector('#productDetail .detailFavorite[data-id="'+CSS.escape(String(id))+'"]');if(b){const on=favorites.has(id);b.classList.toggle('isFavorite',on);b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',(products.find(x=>x.id===id)?.shortTitleJa||'商品')+'をお気に入り'+(on?'から削除':'に追加'));b.innerHTML=(on?'♥':'♡')+'<span>お気に入り</span>'}announce(favorites.has(id)?'お気に入りに追加しました':'お気に入りから削除しました')}
 function selectSearch(value){document.getElementById('searchInput').value=value;renderSearch(value)}
@@ -602,9 +605,16 @@ function searchProducts(q){
   return list;
 }
 function renderSearch(q){
-  const list=searchProducts(q);document.getElementById('searchTitle').textContent=searchMode==='favorites'?'お気に入り':'何を探していますか？';
-  document.getElementById('searchResults').innerHTML=`<p class="searchCount" role="status">${list.length}件</p>`+(list.length?list.map(p=>`<button class="searchResult" data-action="product" data-id="${esc(p.id)}"><img src="${esc(safeImage(p.img))}" alt=""><span><b>${esc(p.name)}</b><small>${esc(p.category||'ライフスタイル')}</small><strong>${yen(p.price)}</strong></span><span aria-hidden="true">↗</span></button>`).join(''):`<div class="emptyState">${searchMode==='favorites'?'ハートを押すと、ここに商品を保存できます。':'該当する商品がありません。検索をクリアするか、別の言葉で探してみてください。'}</div>`);
+  const list=searchProducts(q),isFav=searchMode==='favorites';
+  document.getElementById('searchTitle').textContent=isFav?'お気に入り':'何を探していますか？';
+  const cards=list.map(p=>{
+    const title=p.shortTitleJa||naturalJaTitle(p.name,p.category);
+    const desc=p.shortDescriptionJa||naturalJaDescription(p.name,p.summary);
+    return `<div class="searchResultCard"><button class="searchResult" data-action="product" data-id="${esc(p.id)}" aria-label="${esc(title)}の詳細を見る"><img src="${esc(safeImage(p.img))}" alt=""><span class="searchResultCopy"><b>${esc(title)}</b><small>${esc(desc)}</small><strong>${yen(p.price)}</strong></span><span aria-hidden="true">›</span></button>${isFav?`<button class="favoriteRemove" type="button" data-action="favorite" data-id="${esc(p.id)}" aria-label="${esc(title)}をお気に入りから削除">♥ 解除</button>`:''}</div>`;
+  }).join('');
+  document.getElementById('searchResults').innerHTML=`<p class="searchCount" role="status">${isFav?'保存した商品 ': '検索結果 '}${list.length}件</p>`+(list.length?cards:`<div class="emptyState">${isFav?'お気に入りはまだありません。商品詳細のハートから保存できます。':'該当する商品がありません。別の言葉で探してみてください。'}</div>`);
 }
+
 let catalogRequest=0;
 let catalogLoading=false;
 let catalogController=null;
