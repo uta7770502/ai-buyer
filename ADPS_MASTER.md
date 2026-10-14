@@ -81,3 +81,47 @@ Until that evidence exists:
 - keep real CJ ordering/payment disabled
 - do not treat `safeToTest` as production approval
 - keep search indexing gated until real product content is ready for public indexing
+
+## 2026-10-14 pre-production 99% milestone
+
+The application is now considered **99% complete before production lock release**.
+
+### Completed at the 99% milestone
+- ODDLY storefront UI and mobile layout
+- Shopify live-product storefront integration
+- Japan-first product pages
+- AIO/GEO visible copy, structured data, llms.txt and sitemap gating
+- Search indexing safety: incomplete AIO/GEO product pages remain noindex and are excluded from the sitemap
+- Product-selection-only automation through Shopify draft preparation
+- CJ freight lookup and safe price preparation
+- Shopify Admin read-only connectivity verification
+- Shopify ORDERS_PAID webhook registration verification
+- Shopify fulfillment write-scope verification
+- CJ API read-only connectivity verification
+- Redis reachability verification
+- Sandbox-only CJ order creation
+- Safe sandbox E2E preflight button
+- Sandbox payment/tracking simulation
+- Shopify test fulfillment preflight and tracking sync
+- Automatic duplicate-sync verification
+- Automatic reconciliation summary after test tracking sync
+- Fresh-evidence readiness gates
+- Local “live” status blocked unless Shopify product is actually published
+- Live Shopify publication locked behind explicit server opt-in and explicit publish approval
+- Live ad spend blocked unless ADS_LIVE_ENABLED is explicitly enabled
+- Real CJ payment/order flow remains disabled
+
+### Production locks that must remain OFF at 99%
+- `SHOPIFY_LIVE_PUBLISH_ENABLED`
+- `ADS_LIVE_ENABLED`
+- any real CJ ordering/payment path
+- search indexing until real product content is approved
+
+### Remaining 1% to reach 100%
+Do not count this as implementation work. It is the production activation phase:
+1. Run one fresh end-to-end sandbox order in the deployed environment.
+2. Confirm webhook delivery, CJ sandbox creation, tracking, Shopify test fulfillment, duplicate prevention, and zero unresolved reconciliation items.
+3. Approve real product content for indexing.
+4. Only then enable production publication / search / advertising / real-order controls one by one with explicit approval.
+
+Until those checks are complete, the product is **99% complete, production-locked, and safe to continue testing**.
