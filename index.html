@@ -166,7 +166,7 @@ function evaluateRule(p){const m=p._m||metrics(p);const checks=[['AIスコア',m
 function dedupe(arr){const seen=new Set();return arr.filter(x=>{const k=String(x.id||x.sku);if(!k||seen.has(k))return false;seen.add(k);return true})}
 async function addTestCatalogProducts(){
   const status=document.getElementById('testCatalogStatus');
-  const queries=['pet','kitchen','home','outdoor','gadget'];
+  const queries=['kitchen','home','gadget','outdoor','storage','office'];
   if(status)status.textContent='CJからテスト商品を選定中…';
   const picked=[];
   try{
@@ -176,6 +176,7 @@ async function addTestCatalogProducts(){
       if(!r.ok||!j.ok||!Array.isArray(j.products))continue;
       const ranked=j.products
         .filter(p=>!active.some(x=>String(x.id)===String(p.id)))
+        .filter(p=>!/(?:\bcat\b|\bkitten\b|\bfeline\b|猫|ネコ|ねこ)/i.test(String(p.name||p.title||'')))
         .filter(p=>!picked.some(x=>String(x.id)===String(p.id)))
         .filter(p=>!catalogRisk(p).exclude)
         .map(p=>({p,m:metrics(p)}))
