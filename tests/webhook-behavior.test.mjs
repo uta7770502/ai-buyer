@@ -27,7 +27,7 @@ async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify
   process.env.CJ_MAX_FREIGHT_USD='50';
   let calls=0;
   globalThis.fetch=async(...args)=>{calls++;if(fetchMock)return fetchMock(...args);throw Error('External API must not be called in rejected webhook tests');};
-  if(validLine){order={...order,shipping_address:{country_code:'JP',city:'Tokyo',address1:'1-2-3',name:'Test Customer'},line_items:[{id:9,sku:'CJVARIANT123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}]};}
+  if(validLine){order={...order,shipping_address:{country_code:'JP',city:'Tokyo',zip:'100-0001',address1:'1-2-3',name:'Test Customer'},line_items:[{id:9,sku:'CJVARIANT123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}]};}
   const raw=Buffer.from(JSON.stringify(order));
   const signature=crypto.createHmac('sha256',secret).update(raw).digest('base64');
   const req=Readable.from([raw]);
@@ -73,6 +73,13 @@ test('shop mismatch is blocked before CJ requests',async()=>{
 test('sandbox order automation is disabled by default',async()=>{
   const x=await invoke();
   assert.equal(x.statusCode,503);assert.equal(x.calls,0);
+});
+
+test('incomplete shipping address stops before any external request',async()=>{
+  const x=await invoke({enabled:'true',validLine:true,order:{...validOrder,shipping_address:{country_code:'JP',address1:'1-2-3'}}});
+  assert.equal(x.statusCode,422);
+  assert.equal(x.body.needsReview,true);
+  assert.equal(x.calls,0);
 });
 
 test('catalog verification happens before any CJ request',async()=>{
