@@ -131,6 +131,90 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
     transform:none!important;margin:0!important;
   }
 }
+/* Mobile product carousel: left photo / right product information. */
+@media(max-width:900px){
+  .heroSlide.productSlide{
+    display:grid!important;
+    grid-template-columns:48% 52%!important;
+    grid-template-rows:1fr!important;
+    height:100%!important;
+    background:#e8e9e2!important;
+    overflow:hidden!important;
+  }
+  .heroSlide.productSlide img{
+    grid-column:1!important;
+    grid-row:1!important;
+    width:100%!important;
+    height:100%!important;
+    max-width:none!important;
+    min-height:0!important;
+    object-fit:cover!important;
+    object-position:center!important;
+    padding:0!important;
+    margin:0!important;
+    transform:none!important;
+    background:#e8e9e2!important;
+  }
+  .heroSlide.productSlide .heroSlideInfo{
+    grid-column:2!important;
+    grid-row:1!important;
+    position:static!important;
+    width:100%!important;
+    max-width:none!important;
+    height:100%!important;
+    border-radius:0!important;
+    border-top:0!important;
+    border-left:3px solid #d7ff00!important;
+    background:#17251f!important;
+    color:#fff!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    padding:92px 14px 58px 16px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:flex-start!important;
+    z-index:3!important;
+  }
+  .heroSlide.productSlide .heroSlideInfo small{
+    color:#d7ff00!important;
+    font-size:8px!important;
+    margin:0 0 6px!important;
+  }
+  .heroSlide.productSlide .heroSlideInfo b{
+    color:#fff!important;
+    font-size:13px!important;
+    line-height:1.35!important;
+    margin:0!important;
+  }
+  .heroSlide.productSlide .heroSlideInfo .heroDesc{
+    color:#dce5de!important;
+    font-size:10px!important;
+    line-height:1.4!important;
+    margin-top:6px!important;
+  }
+  .heroSlide.productSlide .heroSlideInfo .heroPrice{
+    color:#fff!important;
+    font-size:19px!important;
+    line-height:1!important;
+    margin-top:10px!important;
+  }
+  .heroBadge{
+    right:14px!important;
+    top:14px!important;
+    width:74px!important;
+    height:74px!important;
+    font-size:10px!important;
+    z-index:6!important;
+  }
+  .heroControls{
+    right:12px!important;
+    bottom:12px!important;
+    z-index:7!important;
+  }
+  .heroControls button{width:36px!important;height:36px!important}
+  .heroDots{left:12px!important;top:12px!important;z-index:7!important}
+}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 /* Storefront polish: compact mobile first view and accessible shopping surfaces. */
 @media(max-width:900px){
