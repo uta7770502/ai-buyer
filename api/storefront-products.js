@@ -33,6 +33,8 @@ export default async function handler(req,res){
           audience:metafield(namespace:"custom",key:"adps_audience"){value}
           adpsSummary:metafield(namespace:"custom",key:"adps_summary"){value}
           adpsWhy:metafield(namespace:"custom",key:"adps_why"){value}
+          shortTitleJa:metafield(namespace:"custom",key:"adps_short_title_ja"){value}
+          shortDescriptionJa:metafield(namespace:"custom",key:"adps_short_description_ja"){value}
           shippingPrice:metafield(namespace:"custom",key:"shipping_price_jpy"){value}
           shippingCountry:metafield(namespace:"custom",key:"shipping_country"){value}
           returnDays:metafield(namespace:"custom",key:"return_days"){value}
@@ -87,6 +89,8 @@ export default async function handler(req,res){
         }:null,
         audience:String(p.audience?.value||''),
         summary:String(p.adpsSummary?.value||''),
+        shortTitleJa:String(p.shortTitleJa?.value||''),
+        shortDescriptionJa:String(p.shortDescriptionJa?.value||''),
         why:String(p.adpsWhy?.value||'').split(/\r?\n|\|/).map(x=>x.trim()).filter(Boolean).slice(0,6),
         shipping:p.shippingPrice?.value!=null&&Number.isFinite(shippingPrice)&&shippingPrice>=0?{
           price:shippingPrice,
