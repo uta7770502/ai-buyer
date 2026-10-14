@@ -97,7 +97,11 @@ test('missing client ID and noninteger quantity limit fail release gate',async t
  configure(t,async(url,opts={})=>{
  const u=String(url);
  if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
- if(u.includes('.myshopify.com/admin/api/'))return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ if(u.includes('.myshopify.com/admin/api/')){
+  const body=opts.body?JSON.parse(opts.body):{};
+  if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
+  return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ }
  if(u.includes('/product/getCategory'))return json({result:true,data:[]});
  throw Error('Unexpected readiness request');
 });assert.equal((await invoke(readiness,{},'GET')).data.safeToTest,true);
@@ -162,7 +166,11 @@ test('release readiness distinguishes Redis ping from unverified external integr
  configure(t,async(url,opts={})=>{
  const u=String(url);
  if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
- if(u.includes('.myshopify.com/admin/api/'))return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ if(u.includes('.myshopify.com/admin/api/')){
+  const body=opts.body?JSON.parse(opts.body):{};
+  if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
+  return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ }
  if(u.includes('/product/getCategory'))return json({result:true,data:[]});
  throw Error('Unexpected readiness request');
  });
@@ -181,7 +189,11 @@ test('release readiness fails closed for missing numeric safety limits',async t=
  configure(t,async(url,opts={})=>{
  const u=String(url);
  if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
- if(u.includes('.myshopify.com/admin/api/'))return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ if(u.includes('.myshopify.com/admin/api/')){
+  const body=opts.body?JSON.parse(opts.body):{};
+  if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
+  return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ }
  if(u.includes('/product/getCategory'))return json({result:true,data:[]});
  throw Error('Unexpected readiness request');
  });
