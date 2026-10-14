@@ -15,6 +15,10 @@ function aioMetafields(p,ownerId,title,description){
   if(audience)rows.push({ownerId,namespace:'custom',key:'adps_audience',type:'single_line_text_field',value:audience});
   if(summary)rows.push({ownerId,namespace:'custom',key:'adps_summary',type:'multi_line_text_field',value:summary});
   if(why)rows.push({ownerId,namespace:'custom',key:'adps_why',type:'multi_line_text_field',value:why});
+  const shortTitleJa=clean(p.shortTitleJa||p.adpsShortTitleJa,120);
+  const shortDescriptionJa=clean(p.shortDescriptionJa||p.adpsShortDescriptionJa,240);
+  if(shortTitleJa)rows.push({ownerId,namespace:'custom',key:'adps_short_title_ja',type:'single_line_text_field',value:shortTitleJa});
+  if(shortDescriptionJa)rows.push({ownerId,namespace:'custom',key:'adps_short_description_ja',type:'single_line_text_field',value:shortDescriptionJa});
   const shippingPrice=Number(p.shippingPriceJpy);
   if(Number.isFinite(shippingPrice)&&shippingPrice>=0)rows.push({ownerId,namespace:'custom',key:'shipping_price_jpy',type:'number_decimal',value:String(shippingPrice)});
   const shippingCountry=clean(p.shippingCountry,2).toUpperCase();
