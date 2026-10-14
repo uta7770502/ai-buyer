@@ -39,3 +39,5 @@
 <!-- Production retrigger after reconnect: 2026-10-12T20:45+09:00 -->
 
 <!-- Hobby-limit retrigger: 2026-10-12T20:53+09:00 -->
+
+<!-- Rate-limit retest: 2026-10-14T09:10+09:00 -->
