@@ -41,3 +41,43 @@
 <!-- Hobby-limit retrigger: 2026-10-12T20:53+09:00 -->
 
 <!-- Rate-limit retest: 2026-10-14T09:10+09:00 -->
+
+## 2026-10-14 implementation completion status
+
+The following implementation work is complete and is the current baseline:
+
+1. **ODDLY storefront design polish** — complete.
+   - Mobile-first layout, search, favorites, cart, product detail and responsive hero treatment are implemented.
+2. **AIO / GEO foundation** — complete.
+   - ODDLY branding is aligned across visible copy, structured data, product URLs and llms.txt.
+   - Unverified reviews, popularity, shipping or delivery claims must not be emitted.
+3. **Shopify real-product storefront integration** — complete in code.
+   - Live storefront data is treated as authoritative; demo content remains isolated to preview mode.
+4. **Japan-first product page enrichment** — complete.
+   - Product summary, intended audience, ODDLY recommendation points, stock, shipping and returns are supported.
+5. **“Select a product and let AI BUYER prepare the rest” flow** — complete through safe draft preparation.
+   - Selection → CJ freight lookup → safe price calculation → Shopify draft → Japan-oriented page optimization → publication queue.
+   - Automatic preparation explicitly sends `publishApproved:false`.
+6. **CJ / Shopify safety layer** — complete in code.
+   - Shopify real orders are rejected by the sandbox webhook.
+   - CJ order creation is sandbox-only.
+   - Durable Redis idempotency, duplicate prevention, HMAC verification, SKU/VID checks, order/freight limits, ambiguous-result stop conditions and tracking preflight checks are implemented.
+
+### Not yet production-approved
+
+The only remaining requirement before enabling any live commerce automation is a **fresh, real end-to-end sandbox verification in the deployed environment**:
+- signed Shopify test-order webhook delivery
+- Shopify variant ↔ CJ VID mapping
+- CJ sandbox order creation/reconciliation
+- durable Redis duplicate protection
+- sandbox tracking simulation
+- Shopify test fulfillment/tracking sync
+- zero unresolved reconciliation items
+
+These checks must be fresh (within 24 hours in the UI readiness gate).
+
+Until that evidence exists:
+- keep `SHOPIFY_LIVE_PUBLISH_ENABLED` disabled
+- keep real CJ ordering/payment disabled
+- do not treat `safeToTest` as production approval
+- keep search indexing gated until real product content is ready for public indexing
