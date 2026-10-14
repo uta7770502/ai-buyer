@@ -30,6 +30,7 @@ export default async function handler(req,res){
           vendor
           onlineStoreUrl
           featuredImage{url altText width height}
+          images(first:12){nodes{url altText width height}}
           audience:metafield(namespace:"custom",key:"adps_audience"){value}
           adpsSummary:metafield(namespace:"custom",key:"adps_summary"){value}
           adpsWhy:metafield(namespace:"custom",key:"adps_why"){value}
@@ -87,6 +88,7 @@ export default async function handler(req,res){
           url:String(p.featuredImage.url||''),
           altText:String(p.featuredImage.altText||p.title||'')
         }:null,
+        images:(p.images?.nodes||[]).filter(x=>/^https:\/\//.test(String(x?.url||''))).map(x=>({url:String(x.url),altText:String(x.altText||p.title||'')})),
         audience:String(p.audience?.value||''),
         summary:String(p.adpsSummary?.value||''),
         shortTitleJa:String(p.shortTitleJa?.value||''),
