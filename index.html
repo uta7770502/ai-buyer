@@ -225,7 +225,51 @@ function productCard(p,rank){
 }
 function recommendationCard(p,rank){const m=metrics(p),cls=m.score>=90?'good':m.score>=80?'mid':'';return '<button type="button" class="card recommendationCard" onclick="openDetail(\''+js(p.id)+'\')" aria-label="'+esc(japaneseProductName(p))+'の商品詳細を見る"><div class="pic">'+(p.image?'<img src="'+esc(p.image)+'" alt="">':'商品')+'</div><div class="recommendBadges"><span class="score '+cls+'">AI SCORE '+m.score+'</span><span class="rankBadge">#'+rank+'</span></div><div class="title">'+esc(japaneseProductName(p))+'</div><div class="meta">参考売価 '+yen(m.sell)+'</div><div class="recommendDetailHint">商品詳細を見る →</div></button>'}
 let latestProductSearch=0;
-async function searchProducts(p=1){const requestId=++latestProductSearch;const qv=document.getElementById('q').value.trim();currentQuery=qv;page=p;products.innerHTML='<div class="loading">CJ商品を検索中…</div>';pager.innerHTML='';try{const r=await fetch(`/api/cj-search?q=${encodeURIComponent(qv)}&page=${p}&size=20`);const j=await r.json();if(requestId!==latestProductSearch)return;if(!r.ok||!j.ok)throw new Error(j.error||'検索に失敗しました');results=j.products||[];totalPages=Math.max(1,j.totalPages||1);countLabel.textContent=`${j.totalRecords||results.length}件`;applyFilters();renderPager();enrichRiskList(results,6).then(()=>{if(requestId===latestProductSearch)applyFilters()}).catch(e=>{if(requestId===latestProductSearch)console.warn('商品リスク情報の取得に失敗しました',e)})}catch(e){if(requestId!==latestProductSearch)return;products.innerHTML=`<div class="error">${esc(e.message)}<br><span class="tiny">VercelにCJ_API_KEYを設定すると実検索できます。</span></div>`}}
+let lastCjProductSearchAt=0;
+let cjProductSearchChain=Promise.resolve();
+function waitMs(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+function isCjRateLimitMessage(msg){return /too many requests|qps limit|429|rate limit/i.test(String(msg||''))}
+function queuedCjSearch(qv,p,requestId){
+  const run=async()=>{
+    const since=Date.now()-lastCjProductSearchAt;
+    if(since<1150)await waitMs(1150-since);
+    for(let attempt=0;attempt<3;attempt++){
+      if(requestId!==latestProductSearch)return null;
+      lastCjProductSearchAt=Date.now();
+      const r=await fetch(`/api/cj-search?q=${encodeURIComponent(qv)}&page=${p}&size=20`);
+      let j={};try{j=await r.json()}catch{}
+      if(r.ok&&j.ok)return {r,j};
+      const message=j.error||('検索に失敗しました（HTTP '+r.status+'）');
+      if(!isCjRateLimitMessage(message)||attempt===2)throw new Error(message);
+      products.innerHTML='<div class="loading">CJの検索制限を避けるため少し待って再試行しています…</div>';
+      await waitMs(1250*(attempt+1));
+    }
+    return null;
+  };
+  const task=cjProductSearchChain.then(run,run);
+  cjProductSearchChain=task.catch(()=>{});
+  return task;
+}
+async function searchProducts(p=1){
+  const requestId=++latestProductSearch;
+  const qv=document.getElementById('q').value.trim();
+  currentQuery=qv;page=p;
+  products.innerHTML='<div class="loading">CJ商品を検索中…</div>';pager.innerHTML='';
+  try{
+    const result=await queuedCjSearch(qv,p,requestId);
+    if(!result||requestId!==latestProductSearch)return;
+    const {j}=result;
+    results=j.products||[];
+    totalPages=Math.max(1,j.totalPages||1);
+    countLabel.textContent=`${j.totalRecords||results.length}件`;
+    applyFilters();renderPager();
+    setTimeout(()=>enrichRiskList(results,6).then(()=>{if(requestId===latestProductSearch)applyFilters()}).catch(e=>{if(requestId===latestProductSearch)console.warn('商品リスク情報の取得に失敗しました',e)}),1400);
+  }catch(e){
+    if(requestId!==latestProductSearch)return;
+    const rate=isCjRateLimitMessage(e.message);
+    products.innerHTML=`<div class="error">${esc(rate?'CJの検索上限に達しました。数秒後にもう一度お試しください。':e.message)}<br><span class="tiny">${rate?'CJ側は1秒に1回までのため、自動で再試行しても取得できない場合があります。':'CJ接続状態を確認してください。'}</span></div>`;
+  }
+}
 function applyFilters(){const min=Number(minScore.value||0),sort=sortBy.value;filtered=results.filter(p=>metrics(p).score>=min&&!catalogRisk(p).exclude);filtered.sort((a,b)=>{const A=metrics(a),B=metrics(b);if(sort==='listed')return Number(b.listedNum||0)-Number(a.listedNum||0);if(sort==='priceLow')return A.cost-B.cost;if(sort==='margin')return B.margin-A.margin;return B.score-A.score});products.innerHTML=filtered.length?filtered.map((p,i)=>productCard(p,i+1)).join(''):'<div class="empty">条件に合う商品がありません。</div>'}
 function quick(qv){q.value=qv;searchProducts(1)}
 function renderPager(){pager.innerHTML=`<button ${page<=1?'disabled':''} onclick="searchProducts(${page-1})">← 前</button><span class="muted" style="padding:10px">${page} / ${totalPages}</span><button ${page>=totalPages?'disabled':''} onclick="searchProducts(${page+1})">次 →</button>`}
