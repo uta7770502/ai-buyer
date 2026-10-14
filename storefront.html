@@ -63,7 +63,7 @@ button,input{font:inherit}.wrap{max-width:1440px;margin:auto;padding:0 28px}
 .kicker{font-size:12px;font-weight:900;letter-spacing:.14em;margin-bottom:16px}.hero h1{font-size:clamp(58px,7vw,112px);line-height:.83;letter-spacing:-.07em;margin:0 0 22px}
 .hero p{font-size:20px;line-height:1.55;margin:0 0 28px;max-width:430px}.sub{font-size:13px!important;color:var(--muted)}
 .cta{border:0;border-radius:999px;background:#111;color:#fff;padding:17px 24px;font-weight:900;cursor:pointer;width:max-content}.cta:hover{transform:translateY(-1px)}
-.heroVisual{position:relative;min-height:540px;background:#e8e1d4;overflow:hidden}.heroVisual img{width:100%;height:100%;object-fit:cover;display:block}.heroBadge{position:absolute;right:4%;bottom:8%;width:146px;height:146px;border-radius:50%;background:var(--acid);display:grid;place-items:center;text-align:center;font-weight:950;transform:rotate(8deg);font-size:17px;line-height:1.05}
+.heroVisual{position:relative;min-height:540px;background:#e8e1d4;overflow:hidden}.heroSlider{position:absolute;inset:0;overflow:hidden}.heroTrack{display:flex;height:100%;transition:transform .65s cubic-bezier(.22,.61,.36,1);will-change:transform}.heroSlide{position:relative;min-width:100%;height:100%;overflow:hidden;background:#e8e1d4}.heroSlide img{width:100%;height:100%;object-fit:cover;display:block}.heroSlide.productSlide img{object-fit:contain;background:#f2f0e9;padding:5%}.heroSlideInfo{position:absolute;left:22px;bottom:22px;max-width:min(72%,430px);background:rgba(247,245,239,.94);backdrop-filter:blur(10px);padding:13px 15px;border-radius:14px;box-shadow:var(--shadow)}.heroSlideInfo small{display:block;font-size:9px;font-weight:950;letter-spacing:.12em;margin-bottom:4px}.heroSlideInfo b{display:block;font-size:18px;line-height:1.2}.heroSlideInfo span{display:block;font-size:14px;font-weight:900;margin-top:5px}.heroSlideBtn{position:absolute;inset:0;border:0;background:transparent;cursor:pointer}.heroBadge{position:absolute;right:4%;top:5%;width:112px;height:112px;border-radius:50%;background:var(--acid);display:grid;place-items:center;text-align:center;font-weight:950;transform:rotate(8deg);font-size:14px;line-height:1.05;z-index:4;pointer-events:none}.heroControls{position:absolute;right:18px;bottom:18px;z-index:5;display:flex;gap:7px}.heroControls button{width:38px;height:38px;border:0;border-radius:50%;background:rgba(255,255,255,.9);font-weight:950;cursor:pointer}.heroDots{position:absolute;left:22px;top:20px;z-index:5;display:flex;gap:6px}.heroDot{width:7px;height:7px;border:0;border-radius:99px;padding:0;background:rgba(17,17,17,.28);transition:.25s}.heroDot.on{width:24px;background:#111}.firstViewShelf{border-bottom:1px solid var(--line);background:#fff}.firstViewShelfInner{display:grid;grid-template-columns:auto repeat(4,minmax(0,1fr));gap:10px;align-items:stretch;padding-top:12px;padding-bottom:12px}.firstViewShelfLabel{display:flex;align-items:center;padding-right:8px;font-size:10px;font-weight:950;letter-spacing:.1em;white-space:nowrap}.firstViewItem{display:grid;grid-template-columns:52px minmax(0,1fr);gap:9px;align-items:center;border:0;background:#f4f3ee;border-radius:12px;padding:7px;text-align:left;cursor:pointer;min-width:0}.firstViewItem img{width:52px;height:52px;object-fit:contain;background:#fff;border-radius:8px}.firstViewItem b{display:block;font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.firstViewItem span{display:block;font-size:11px;font-weight:900;margin-top:4px}
 .trust{background:var(--paper);border-bottom:1px solid var(--line)}.trustGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:0}.trustItem{padding:24px 18px;border-right:1px solid var(--line);font-size:13px}.trustItem:last-child{border-right:0}.trustItem b{display:block;margin-bottom:4px}
 .section{padding:58px 0}.sectionHead{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:22px}.sectionTitle{display:flex;align-items:baseline;gap:16px}.sectionTitle h2{font-size:38px;letter-spacing:-.04em;margin:0}.sectionTitle span{font-size:13px;color:var(--muted)}.linkBtn{border:0;background:transparent;font-weight:800;cursor:pointer}
 .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:18px}.product{min-width:0}.thumb{position:relative;aspect-ratio:1/1;background:#e8e7e2;border-radius:16px;overflow:hidden;cursor:pointer}.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:.25s}.thumb:hover img{transform:scale(1.025)}.heart{position:absolute;right:10px;top:10px;width:34px;height:34px;border-radius:50%;border:0;background:#fff;cursor:pointer}.tag{position:absolute;left:10px;bottom:10px;background:var(--acid);font-size:11px;font-weight:950;padding:6px 8px;border-radius:5px}.rank{position:absolute;left:10px;top:10px;background:#111;color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900}.product h3{font-size:14px;line-height:1.45;margin:12px 0 6px}.price{font-size:19px;font-weight:950}.rating{font-size:12px;color:#444;margin-top:5px}
@@ -103,6 +103,16 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
 /* Storefront polish: compact mobile first view and accessible shopping surfaces. */
 @media(max-width:900px){
   .topbar{padding-top:env(safe-area-inset-top)}
+  .heroVisual{height:clamp(190px,29svh,245px);min-height:190px}
+  .heroSlide.productSlide img{padding:2% 10% 7%}
+  .heroSlideInfo{left:12px;bottom:12px;max-width:70%;padding:9px 10px;border-radius:10px}
+  .heroSlideInfo small{font-size:8px}.heroSlideInfo b{font-size:13px}.heroSlideInfo span{font-size:12px}
+  .heroBadge{width:68px;height:68px;font-size:10px;right:12px;top:12px}
+  .heroDots{left:12px;top:12px}.heroControls{right:10px;bottom:10px}.heroControls button{width:34px;height:34px}
+  .firstViewShelfInner{display:flex;overflow-x:auto;gap:8px;padding:9px 16px;scroll-snap-type:x proximity}
+  .firstViewShelfLabel{display:none}.firstViewItem{flex:0 0 150px;grid-template-columns:46px minmax(0,1fr);scroll-snap-align:start;padding:6px}
+  .firstViewItem img{width:46px;height:46px}
+  .firstViewItem b,.firstViewItem span{font-size:10px}
   .heroVisual{height:clamp(210px,36svh,310px);min-height:210px}
   .heroVisual img{object-position:center 72%}
   .heroCopy{padding-top:24px;padding-bottom:24px}
@@ -164,11 +174,15 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
     <p class="sub">Unexpected finds for everyday life.</p>
     <button class="cta" onclick="document.querySelector('#picks').scrollIntoView()">今週のピックを見る →</button>
   </div>
-  <div class="heroVisual">
-    <img src="https://images.unsplash.com/photo-1560807707-8cc77767d783?auto=format&fit=crop&w=1600&q=90" alt="暮らしを彩るセレクトアイテム">
+  <div class="heroVisual" aria-label="ODDLYおすすめスライダー">
+    <div class="heroSlider"><div class="heroTrack" id="heroTrack"></div></div>
+    <div class="heroDots" id="heroDots" aria-hidden="true"></div>
     <div class="heroBadge">GOOD<br>FINDS</div>
+    <div class="heroControls"><button type="button" onclick="moveHero(-1)" aria-label="前の商品">←</button><button type="button" onclick="moveHero(1)" aria-label="次の商品">→</button></div>
   </div>
 </section>
+
+<section class="firstViewShelf"><div class="wrap firstViewShelfInner" id="firstViewShelf"><div class="firstViewShelfLabel">QUICK PICKS</div></div></section>
 
 <section class="trust"><div class="wrap trustGrid">
   <div class="trustItem"><b>暮らしに役立つセレクション</b>毎週、新しい発見を。</div>
@@ -317,6 +331,8 @@ let favorites=new Set(Array.isArray(saved.favorites)?saved.favorites.filter(v=>t
 let searchMode='all';
 let products=previewMode?demoProducts.map(p=>({...p,currency:'JPY'})):[];
 let usingAuthoritativeProducts=false;
+let heroIndex=0,heroTimer=null;
+const heroFallback={id:'hero-dog',name:'Good finds for everyday life',price:null,img:'https://images.unsplash.com/photo-1560807707-8cc77767d783?auto=format&fit=crop&w=1600&q=90',fallback:true};
 let cart=Array.isArray(saved.cart)?saved.cart.filter(x=>x&&typeof x.id==='string'&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100).map(x=>({id:x.id,qty:Math.min(20,x.qty)})):[];
 const yen=n=>'¥'+Number(n).toLocaleString('ja-JP');
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -325,10 +341,50 @@ function persist(){try{localStorage.setItem(storageKey,JSON.stringify({cart,favo
 function announce(message){document.getElementById('announcer').textContent=message}
 function productPageUrl(p){return '/shop/products/'+encodeURIComponent(String(p.id||''))}
 function card(p){return `<article class="product"><div class="thumb"><button class="productOpen" data-action="product" data-id="${esc(p.id)}" aria-label="${esc(p.name)}の詳細"><img loading="lazy" src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></button><button class="heart" data-action="favorite" data-id="${esc(p.id)}" aria-label="${esc(p.name)}をお気に入り${favorites.has(p.id)?'から削除':'に追加'}" aria-pressed="${favorites.has(p.id)}">${favorites.has(p.id)?'♥':'♡'}</button><span class="tag">${previewMode?'SAMPLE':p.available?'ODDLY PICK':'SOLD OUT'}</span></div><h3><button class="productTitle" data-action="product" data-id="${esc(p.id)}">${esc(p.name)}</button></h3><div class="price">${yen(p.price)}</div><p class="productCategory">${esc(p.category||'ライフスタイル')}</p>${!previewMode&&p.authoritative?`<a class="productPageLink" href="${esc(productPageUrl(p))}" aria-label="${esc(p.name)}の商品ページを開く">商品ページを見る ↗</a>`:''}</article>`}
+function heroCandidates(){
+  const ranked=[...products].sort((a,b)=>{
+    const ar=Number.isFinite(Number(a.salesRank))?Number(a.salesRank):999999;
+    const br=Number.isFinite(Number(b.salesRank))?Number(b.salesRank):999999;
+    if(ar!==br)return ar-br;
+    return Number(Boolean(b.available))-Number(Boolean(a.available));
+  });
+  return [heroFallback,...ranked.slice(0,3)];
+}
+function renderHero(){
+  const track=document.getElementById('heroTrack'),dots=document.getElementById('heroDots'),shelf=document.getElementById('firstViewShelf');
+  if(!track||!dots||!shelf)return;
+  const slides=heroCandidates();
+  heroIndex=Math.min(heroIndex,Math.max(0,slides.length-1));
+  track.innerHTML=slides.map((p,i)=>{
+    const img=safeImage(p.img);
+    if(p.fallback)return '<div class="heroSlide"><img src="'+esc(img)+'" alt="犬と暮らしのイメージ"></div>';
+    return '<div class="heroSlide productSlide"><img src="'+esc(img)+'" alt="'+esc(p.name)+'"><button class="heroSlideBtn" type="button" data-action="product" data-id="'+esc(p.id)+'" aria-label="'+esc(p.name)+'の詳細を見る"></button><div class="heroSlideInfo"><small>ODDLY PICK</small><b>'+esc(p.name)+'</b><span>'+yen(p.price)+'</span></div></div>';
+  }).join('');
+  dots.innerHTML=slides.map((_,i)=>'<span class="heroDot '+(i===heroIndex?'on':'')+'"></span>').join('');
+  const picks=products.slice(0,4);
+  shelf.innerHTML='<div class="firstViewShelfLabel">QUICK PICKS</div>'+picks.map(p=>'<button type="button" class="firstViewItem" data-action="product" data-id="'+esc(p.id)+'"><img src="'+esc(safeImage(p.img))+'" alt=""><span><b>'+esc(p.name)+'</b><span>'+yen(p.price)+'</span></span></button>').join('');
+  applyHeroPosition();
+  startHeroAuto();
+}
+function applyHeroPosition(){
+  const track=document.getElementById('heroTrack');if(track)track.style.transform='translateX(-'+(heroIndex*100)+'%)';
+  document.querySelectorAll('.heroDot').forEach((d,i)=>d.classList.toggle('on',i===heroIndex));
+}
+function moveHero(step=1){
+  const n=heroCandidates().length;if(!n)return;
+  heroIndex=(heroIndex+step+n)%n;applyHeroPosition();startHeroAuto();
+}
+function startHeroAuto(){
+  clearInterval(heroTimer);
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  if(heroCandidates().length<2)return;
+  heroTimer=setInterval(()=>{heroIndex=(heroIndex+1)%heroCandidates().length;applyHeroPosition()},4800);
+}
 function render(){
   document.getElementById('pickGrid').innerHTML=products.slice(0,5).map(p=>card(p)).join('');
   document.getElementById('trendGrid').innerHTML=products.slice(5).map(p=>card(p)).join('');
   document.getElementById('trending').hidden=products.length<=5;
+  renderHero();
 }
 // Crawlable product links coexist with the in-page preview dialog.
 function productFaqItems(p){
@@ -528,6 +584,7 @@ async function loadShopifyProducts(){
   }
 }
 
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(heroTimer);else startHeroAuto()});
 function normalizeShopifyProduct(raw){
   const variant=raw?.variant||raw?.variants?.[0]||{};
   const price=Number(variant.price?.amount??variant.price??raw?.price??0);
