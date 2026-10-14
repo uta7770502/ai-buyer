@@ -314,6 +314,33 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 
 .cartOriginalName{display:block;font-size:12px;line-height:1.4;color:#666;font-weight:500;overflow-wrap:anywhere;max-height:2.8em;overflow:hidden}.cartJapaneseName{display:block;font-size:15px;font-weight:850;line-height:1.4;margin:5px 0}.cartItemCopy{min-width:0}.cartRow{align-items:start}@media(max-width:900px){.cartOriginalName{font-size:11px}.cartJapaneseName{font-size:14px}}
 .supplierDetails{margin-top:15px;border-top:1px solid #e5e3dc;padding-top:12px}.supplierDetails summary{cursor:pointer;font-size:13px;font-weight:750}.supplierDetails p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.7;color:#555;margin:10px 0 0}
+/* Editorial cards: place CTA clearly on the right for easier tapping. */
+.editorial .banner{position:relative;display:flex;flex-direction:column;justify-content:space-between;min-height:260px}
+.editorial .banner .linkBtn{
+  align-self:flex-end;
+  margin-top:24px;
+  padding:12px 16px;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(0,0,0,.12);
+  font-size:16px;
+  font-weight:900;
+  min-width:108px;
+  text-align:center;
+}
+.editorial .banner.b3 .linkBtn{
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.25);
+}
+@media(max-width:900px){
+  .editorial .banner{min-height:230px}
+  .editorial .banner .linkBtn{
+    margin-top:18px;
+    min-width:116px;
+    padding:13px 18px;
+    font-size:17px;
+  }
+}
 </style>
 <!-- deployment-refresh: storefront reconnect check -->
 </head>
