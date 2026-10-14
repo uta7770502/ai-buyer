@@ -94,7 +94,13 @@ test('authorization failure does not contact services',async t=>{
  assert.equal((await invoke(sync,payload,'POST',{...headers,cookie:'shopify_access_token=x; shopify_connected_shop=attacker.invalid'})).code,403);
 });
 test('missing client ID and noninteger quantity limit fail release gate',async t=>{
- configure(t,async()=>json({result:'PONG'}));assert.equal((await invoke(readiness,{},'GET')).data.safeToTest,true);
+ configure(t,async(url,opts={})=>{
+ const u=String(url);
+ if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.includes('.myshopify.com/admin/api/'))return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ if(u.includes('/product/getCategory'))return json({result:true,data:[]});
+ throw Error('Unexpected readiness request');
+});assert.equal((await invoke(readiness,{},'GET')).data.safeToTest,true);
  delete process.env.SHOPIFY_CLIENT_ID;let r=await invoke(readiness,{},'GET');assert.equal(r.data.safeToTest,false);assert.ok(r.data.blockers.includes('SHOPIFY_CLIENT_ID'));
  process.env.SHOPIFY_CLIENT_ID='test';process.env.CJ_MAX_ITEMS_PER_ORDER='1.5';assert.equal((await invoke(readiness,{},'GET')).data.safeToTest,false);
  process.env.CJ_MAX_ITEMS_PER_ORDER='10';process.env.CJ_SANDBOX_ORDER_ENABLED='false';r=await invoke(readiness,{},'GET');assert.ok(r.data.blockers.includes('CJ_SANDBOX_ORDER_ENABLED'));
@@ -153,7 +159,13 @@ for(const sandboxFlag of [0,undefined])test('real or unconfirmed CJ orders canno
 });
 
 test('release readiness distinguishes Redis ping from unverified external integrations',async t=>{
- configure(t,async()=>json({result:'PONG'}));
+ configure(t,async(url,opts={})=>{
+ const u=String(url);
+ if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.includes('.myshopify.com/admin/api/'))return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ if(u.includes('/product/getCategory'))return json({result:true,data:[]});
+ throw Error('Unexpected readiness request');
+ });
  const r=await invoke(readiness,{},'GET');
  assert.equal(r.code,200);
  assert.equal(r.data.redisReachable,true);
@@ -166,7 +178,13 @@ test('release readiness distinguishes Redis ping from unverified external integr
  assert.match(r.data.verification,/redis-ping/);
 });
 test('release readiness fails closed for missing numeric safety limits',async t=>{
- configure(t,async()=>json({result:'PONG'}));
+ configure(t,async(url,opts={})=>{
+ const u=String(url);
+ if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.includes('.myshopify.com/admin/api/'))return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
+ if(u.includes('/product/getCategory'))return json({result:true,data:[]});
+ throw Error('Unexpected readiness request');
+ });
  for(const key of ['CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_MAX_FREIGHT_USD']){
   const saved=process.env[key];
   for(const invalid of ['', ' ', 'Infinity', '-1']){
