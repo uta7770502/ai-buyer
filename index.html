@@ -285,28 +285,51 @@ function toggleCandidate(id){
       save();
       if(results.length)applyFilters();
       renderAll();
-      showCandidateToast('OFFにしました。ページ移動または再読み込みで販売候補から外れます');
+      showCandidateToast('OFF：この画面ではカードを残します。ページ移動・再読み込みで候補から外れます');
       return;
     }
     current.uiSelected=true;
+    current.autoSetupAttempts=0;
+    current.autoSetupLastError='';
+    current.shopifyPublishError='';
+    if(!current.shopifyProductId){
+      current.autoSetupState='queued';
+      current.autoSetupMessage='Shopify試験登録を開始します';
+      current.shopifyPublishState='';
+    }
     save();
     if(results.length)applyFilters();
     renderAll();
-    showCandidateToast('ONに戻しました');
+    showCandidateToast(current.shopifyProductId?'ON：Shopify下書き登録済み':'ON：Shopify試験登録を開始');
     if(!current.shopifyProductId&&current.shopifyPublishState!=='publishing'){
-      setTimeout(()=>{if(findActive(id)===current&&current.uiSelected!==false)autoPrepareSelectedProduct(current)},120);
+      setTimeout(()=>{if(findActive(id)===current&&current.uiSelected!==false)autoPrepareSelectedProduct(current,0)},80);
     }
     return;
   }
   cancelAutoPreparationRetry(id);
   const m=metrics(p);
-  const x={...p,costUsd:m.cost,price:m.sell,qty:12,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'queued',uiSelected:true};
+  const x={
+    ...p,
+    costUsd:m.cost,
+    price:m.sell,
+    qty:12,
+    status:'candidate',
+    aiScore:m.score,
+    aiReasons:m.reasons,
+    shippingDestination:'JP',
+    autoSetupState:'queued',
+    autoSetupMessage:'Shopify試験登録を開始します',
+    autoSetupAttempts:0,
+    autoSetupLastError:'',
+    shopifyPublishError:'',
+    uiSelected:true
+  };
   active.push(x);
   save();
   if(results.length)applyFilters();
   renderAll();
-  showCandidateToast('ON：送料・価格を自動計算しShopify下書き登録を開始');
-  setTimeout(()=>{if(findActive(id)===x&&x.uiSelected!==false)autoPrepareSelectedProduct(x)},120);
+  showCandidateToast('ON：送料・自動売価を確定してShopify試験登録を開始');
+  setTimeout(()=>{if(findActive(id)===x&&x.uiSelected!==false)autoPrepareSelectedProduct(x,0)},80);
 }
 function retryShopifyDraft(id){
   const x=findActive(id);
@@ -2192,7 +2215,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       if(findActive(x.id)!==x)return;
       x.status='test';
       x.autoSetupState='ready';
-      x.autoSetupMessage='AI自動準備完了。Shopify下書きで公開待ち';
+      x.autoSetupMessage='Shopify試験登録完了。下書きで公開待ち';
       x.autoPreparedAt=new Date().toISOString();
       x.autoSetupAttempts=0;
       x.autoSetupLastError='';
@@ -2200,7 +2223,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       save();renderAll();renderGrowthMode();renderDailyActions();
       addOps('商品自動準備',x.name+'：送料・売価・Shopify下書き・日本向けページの準備完了（公開・実注文は未実施）');
       queueAutomationCycle(500);
-      showCandidateToast('AI自動準備が完了しました。Shopify下書きで待機中');
+      showCandidateToast('Shopify試験登録が完了しました（下書き）');
     }else{
       throw new Error(x.shopifyPublishError||'Shopify下書きを作成できませんでした');
     }
