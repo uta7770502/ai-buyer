@@ -461,8 +461,12 @@ export default async function handler(req,res){
 
     const description=cleanHtml(p.descriptionHtml||p.description,5000);
     // Keep public metadata customer-facing; internal automation names are not product tags.
+    // A source category is descriptive text, not a Shopify taxonomy ID.
     const category=clean(p.productType||p.category||'',120);
-    const productTags=['ODDLY',...(category?[category]:[])];
+    const verifiedJapaneseCopy=/[\u3040-\u30ff\u3400-\u9fff]/.test(title)&&/[\u3040-\u30ff\u3400-\u9fff]/.test(description.replace(/<[^>]*>/g,''));
+    // A draft may be saved with untranslated copy, but it must not be treated as publication-ready.
+    const needsCopyReview=!verifiedJapaneseCopy;
+    const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
     const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft sku:'+cj.vid});
@@ -483,7 +487,7 @@ export default async function handler(req,res){
       if(upd.productUpdate?.userErrors?.length)throw Error(upd.productUpdate.userErrors.map(e=>e.message).join(' / '));
       ce=upd.productUpdate;
     }else{
-      const media=(Array.isArray(p.images)?p.images:[]).filter(Boolean).slice(0,6).map((url,i)=>({originalSource:String(url),mediaContentType:'IMAGE',alt:i===0?title:(title+' '+(i+1))}));
+      const media=[...new Set((Array.isArray(p.images)?p.images:[]).filter(url=>/^https:\/\//i.test(String(url||''))).map(url=>String(url).trim()))].slice(0,6).map((url,i)=>({originalSource:url,mediaContentType:'IMAGE',alt:i===0?title:(title+' '+(i+1))}));
       const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!,$media:[CreateMediaInput!]) { productCreate(product:$product,media:$media) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:productTags,...(petType?{productType:petType}:{})},media});
       ce=create.productCreate;
     }
