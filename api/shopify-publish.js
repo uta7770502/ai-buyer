@@ -50,7 +50,16 @@ async function cjVariant(productId){
   const p=j.data||{},vs=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
   const v=vs.find(x=>x&&(x.vid||x.id||x.variantId));
   if(!v)throw Error('CJバリエーションIDを取得できません');
-  return {vid:String(v.vid||v.id||v.variantId),sku:String(v.variantSku||v.sku||''),productId:String(p.pid||p.id||productId)};
+  // Supplier data is authoritative only for fields actually returned by CJ.
+  const rawImages=[p.productImage,p.productImageUrl,p.bigImage,p.image,...(Array.isArray(p.productImages)?p.productImages:[]),...(Array.isArray(p.images)?p.images:[])];
+  const extractImages=rawImages.flatMap(x=>{
+    if(typeof x==='string'){const z=x.trim();if(z.startsWith('[')){try{return JSON.parse(z)}catch{}}return z.split(/[,|]/)}
+    return [x?.url||x?.imageUrl||x?.src||''];
+  }).map(x=>String(x||'').trim()).filter(x=>/^https:\/\//i.test(x)).slice(0,12);
+  const rawDescription=String(p.description||p.productDescription||p.descriptionHtml||'');
+  const safeDescription=cleanHtml(rawDescription,4500);
+  return {vid:String(v.vid||v.id||v.variantId),sku:String(v.variantSku||v.sku||''),productId:String(p.pid||p.id||productId),supplierImages:[...new Set(extractImages)],supplierDescription:safeDescription,supplierTitle:clean(p.productName||p.name,250)};
+
 }
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
@@ -439,6 +448,16 @@ export default async function handler(req,res){
     const title=clean(p.title||p.name,255),description=cleanHtml(p.descriptionHtml||p.description,5000),vendor=clean(p.vendor||'AI BUYER',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
+    // Enrich draft listings with supplier facts and imagery, without inventing specifications.
+    // Existing merchant-authored copy takes precedence; CJ source text is included as supplied.
+    const merchantImages=(Array.isArray(p.images)?p.images:[]).filter(x=>/^https:\/\//i.test(String(x||'')));
+    p.images=[...new Set([...merchantImages,...cj.supplierImages])].slice(0,12);
+    if(cj.supplierDescription){
+      const existingCopy=String(p.descriptionHtml||p.description||'').trim();
+      p.descriptionHtml=(existingCopy?cleanHtml(existingCopy,1800)+'<hr>':'')+
+        '<h3>仕入れ元の商品情報（原文）</h3>'+cj.supplierDescription;
+    }
+
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
     const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft vendor:"AI BUYER" sku:'+cj.vid});
