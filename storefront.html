@@ -215,6 +215,36 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
   .heroControls button{width:36px!important;height:36px!important}
   .heroDots{left:12px!important;top:12px!important;z-index:7!important}
 }
+/* Preserve the full product photo across mixed aspect ratios, with a filled backdrop. */
+@media(max-width:900px){
+  .heroSlide.productSlide::before{
+    content:"";
+    position:absolute;
+    inset:0 52% 0 0;
+    background-image:var(--product-photo);
+    background-size:cover;
+    background-position:center;
+    filter:blur(14px) saturate(.85);
+    transform:scale(1.08);
+    opacity:.32;
+    z-index:0;
+  }
+  .heroSlide.productSlide img{
+    position:relative!important;
+    z-index:1!important;
+    grid-column:1!important;
+    grid-row:1!important;
+    width:100%!important;
+    height:100%!important;
+    object-fit:contain!important;
+    object-position:center!important;
+    background:transparent!important;
+    padding:0!important;
+    margin:0!important;
+    transform:scale(1.01)!important;
+  }
+  .heroSlide.productSlide .heroSlideInfo{position:relative!important;z-index:3!important}
+}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 /* Storefront polish: compact mobile first view and accessible shopping surfaces. */
 @media(max-width:900px){
@@ -547,7 +577,7 @@ function renderHero(){
     if(p.fallback)return '<div class="heroSlide"><img src="'+esc(img)+'" alt="犬と暮らしのイメージ"></div>';
     const title=p.shortTitleJa||naturalJaTitle(p.name,p.category);
     const desc=p.shortDescriptionJa||naturalJaDescription(p.name,p.summary);
-    return '<div class="heroSlide productSlide"><img src="'+esc(img)+'" alt="'+esc(title)+'"><button class="heroSlideBtn" type="button" data-action="product" data-id="'+esc(p.id)+'" aria-label="'+esc(title)+'の詳細を見る"></button><div class="heroSlideInfo"><small>ODDLY PICK</small><b>'+esc(title)+'</b><span class="heroDesc">'+esc(desc)+'</span><span class="heroPrice">'+yen(p.price)+'</span></div></div>';
+    return '<div class="heroSlide productSlide" style="--product-photo:url(&quot;'+esc(img)+'&quot;)"><img src="'+esc(img)+'" alt="'+esc(title)+'"><button class="heroSlideBtn" type="button" data-action="product" data-id="'+esc(p.id)+'" aria-label="'+esc(title)+'の詳細を見る"></button><div class="heroSlideInfo"><small>ODDLY PICK</small><b>'+esc(title)+'</b><span class="heroDesc">'+esc(desc)+'</span><span class="heroPrice">'+yen(p.price)+'</span></div></div>';
   }).join('');
   dots.innerHTML=slides.map((_,i)=>'<span class="heroDot '+(i===heroIndex?'on':'')+'"></span>').join('');
   const picks=products.slice(0,4);
