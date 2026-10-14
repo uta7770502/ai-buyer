@@ -62,7 +62,7 @@ export default async function handler(req,res){
     if(order.test!==true)
       return res.status(422).json({ok:false,error:'Only Shopify test orders are accepted by default'});
     // Sandbox must not forward orders with incomplete or ambiguous destination details.
-    if(!addr||typeof addr!=='object'||!String(addr.country_code||'').trim()||!String(addr.zip||'').trim()||!String(addr.address1||'').trim())
+    if(!addr||typeof addr!=='object'||!String(addr.country_code||'').trim()||!String(addr.zip||'').trim()||!String(addr.city||'').trim()||!String(addr.address1||'').trim())
       return res.status(422).json({ok:false,needsReview:true,error:'Shipping destination is incomplete; manual review required'});
     // Without durable event deduplication, retrying this handler may duplicate CJ sandbox orders.
     // Keep this endpoint disabled for live fulfillment.
