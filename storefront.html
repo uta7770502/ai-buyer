@@ -344,7 +344,7 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function safeImage(v){try{const u=new URL(v);return u.protocol==='https:'?u.href:''}catch{return ''}}
 function persist(){try{localStorage.setItem(storageKey,JSON.stringify({cart,favorites:[...favorites]}))}catch{announce('保存できませんでした。この画面内では引き続き利用できます。')}}
 function announce(message){document.getElementById('announcer').textContent=message}
-function productPageUrl(p){return '/shop/products/'+encodeURIComponent(String(p.id||''))}
+function productPageUrl(p){return '/shop/products/'+encodeURIComponent(String(p.handle||''))}
 function naturalJaTitle(title,category=''){
   const t=String(title||'').trim(),l=t.toLowerCase();
   if(!t)return '商品';
@@ -397,7 +397,7 @@ function naturalJaDescription(title,summary=''){
   if(/[ぁ-んァ-ヶ一-龠]/.test(jp))return jp.length>34?jp.slice(0,34)+'…':jp;
   return '使い方が分かりやすいODDLYセレクト';
 }
-function card(p){return `<article class="product"><div class="thumb"><button class="productOpen" data-action="product" data-id="${esc(p.id)}" aria-label="${esc(p.name)}の詳細"><img loading="lazy" src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></button><button class="heart" data-action="favorite" data-id="${esc(p.id)}" aria-label="${esc(p.name)}をお気に入り${favorites.has(p.id)?'から削除':'に追加'}" aria-pressed="${favorites.has(p.id)}">${favorites.has(p.id)?'♥':'♡'}</button><span class="tag">${previewMode?'SAMPLE':p.available?'ODDLY PICK':'SOLD OUT'}</span></div><h3><button class="productTitle" data-action="product" data-id="${esc(p.id)}">${esc(p.name)}</button></h3><div class="price">${yen(p.price)}</div><p class="productCategory">${esc(p.category||'ライフスタイル')}</p>${!previewMode&&p.authoritative?`<a class="productPageLink" href="${esc(productPageUrl(p))}" aria-label="${esc(p.name)}の商品ページを開く">商品ページを見る ↗</a>`:''}</article>`}
+function card(p){return `<article class="product"><div class="thumb"><button class="productOpen" data-action="product" data-id="${esc(p.id)}" aria-label="${esc(p.name)}の詳細"><img loading="lazy" src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></button><button class="heart" data-action="favorite" data-id="${esc(p.id)}" aria-label="${esc(p.name)}をお気に入り${favorites.has(p.id)?'から削除':'に追加'}" aria-pressed="${favorites.has(p.id)}">${favorites.has(p.id)?'♥':'♡'}</button><span class="tag">${previewMode?'SAMPLE':p.available?'ODDLY PICK':'SOLD OUT'}</span></div><h3><button class="productTitle" data-action="product" data-id="${esc(p.id)}">${esc(p.name)}</button></h3><div class="price">${yen(p.price)}</div><p class="productCategory">${esc(p.category||'ライフスタイル')}</p>${!previewMode&&p.authoritative&&p.handle?`<a class="productPageLink" href="${esc(productPageUrl(p))}" aria-label="${esc(p.name)}の商品ページを開く">商品ページを見る ↗</a>`:''}</article>`}
 function heroCandidates(){
   const ranked=[...products].sort((a,b)=>{
     const ar=Number.isFinite(Number(a.salesRank))?Number(a.salesRank):999999;
@@ -464,7 +464,7 @@ function productFaqItems(p){
 }
 function setProductSeo(p){
   const base='https://ai-buyer-nine.vercel.app/shop';
-  const url=p.authoritative?('https://ai-buyer-nine.vercel.app'+productPageUrl(p)):(base+'?product='+encodeURIComponent(p.id));
+  const url=p.authoritative&&p.handle?('https://ai-buyer-nine.vercel.app'+productPageUrl(p)):(base+'?product='+encodeURIComponent(p.id));
   document.title=p.name+' | ODDLY';
   const canonical=document.querySelector('link[rel="canonical"]');if(canonical)canonical.href=url;
   const ogTitle=document.querySelector('meta[property="og:title"]');if(ogTitle)ogTitle.content=p.name+' | ODDLY';
@@ -510,7 +510,7 @@ function productAnswerBlocks(p){
   const desc=p.shortDescriptionJa||naturalJaDescription(p.name,p.summary);
   const reasons=(p.why||[]).filter(x=>/[ぁ-んァ-ヶ一-龠]/.test(String(x))).filter(x=>!/(AI BUYER|仕入条件|掲載実績|継続監視|ご注文後)/.test(String(x))).slice(0,3);
   return `<section class="simpleProductInfo" aria-label="商品説明"><h3>商品について</h3><p>${esc(desc)}</p>${reasons.length?`<ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</section>
-  ${!previewMode&&p.authoritative?`<p class="productDetailLink"><a href="${esc(productPageUrl(p))}">詳しい商品情報を見る ↗</a></p>`:''}`;
+  `;
 }
 
 function openProduct(id,options={}){
