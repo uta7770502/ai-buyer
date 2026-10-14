@@ -1,0 +1,28 @@
+name: Shopify webhook safety regression
+on:
+  pull_request:
+    paths:
+      - 'api/shopify-order-webhook.js'
+      - 'tests/shopify-webhook-safety-regression.mjs'
+      - '.github/workflows/shopify-webhook-safety-regression.yml'
+  push:
+    branches:
+      - adps-webhook-safety-regression-20261014
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safety-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check webhook
+        run: node --experimental-default-type=module --check api/shopify-order-webhook.js
+      - name: Run fail-closed regression tests
+        run: node --experimental-default-type=module --test tests/shopify-webhook-safety-regression.mjs

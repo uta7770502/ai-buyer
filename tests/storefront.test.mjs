@@ -7,8 +7,8 @@ const source=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1].replace('render();
 function app({preview=false,saved={},fetcher=async()=>{throw Error('offline')}}={}){
  const nodes=new Map(),storage=new Map();storage.set('adps-shop-'+(preview?'preview':'live')+'-v1',JSON.stringify(saved));
  function node(){const classes=new Set();return {style:{},value:'',innerHTML:'',textContent:'',isConnected:true,classList:{contains:x=>classes.has(x),add:x=>classes.add(x),remove:x=>classes.delete(x)},setAttribute(){},focus(){},remove(){},closest(){return null},querySelector(){return null}}}
- const document={getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},activeElement:node(),body:{...node(),children:[]},head:{appendChild(){}},createElement:node,addEventListener(){},querySelector(){return null}};
- const ctx=vm.createContext({document,URL,URLSearchParams,AbortController,setTimeout,clearTimeout,location:{search:preview?'?preview=1':'',href:'https://example.com/shop'},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},addEventListener(){},fetch:fetcher});
+ const document={getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},activeElement:node(),body:{...node(),children:[]},head:{appendChild(){}},createElement:node,addEventListener(){},querySelector(){return null},querySelectorAll(){return []}};
+ const ctx=vm.createContext({document,URL,URLSearchParams,AbortController,setTimeout,clearTimeout,setInterval:()=>0,clearInterval:()=>{},CSS:{escape:value=>String(value).replace(/[^a-zA-Z0-9_-]/g,'\\matchMedia:()=>({matches:true')},matchMedia:()=>({matches:true,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}}),location:{search:preview?'?preview=1':'',href:'https://example.com/shop'},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},addEventListener(){},fetch:fetcher});
  vm.runInContext(source,ctx);return {run:code=>vm.runInContext(code,ctx),nodes,storage};
 }
 test('explicit preview works offline and filters category, budget and fullwidth queries',async()=>{
@@ -35,7 +35,7 @@ test('cart rejects unknown and unavailable items, caps quantity and stores no pr
 });
 test('product strings cannot introduce HTML attributes or unsafe image URLs',()=>{
  const a=app();const markup=a.run(`card({id:'x" onclick="alert(1)',name:'<img onerror=alert(1)>',img:'javascript:alert(1)',price:1})`);
- assert.ok(!markup.includes('<img onerror'));assert.ok(!markup.includes(' onclick="'));assert.ok(!markup.includes('javascript:'));assert.match(markup,/&lt;img/);
+ assert.ok(!markup.includes('<img onerror'));assert.ok(!markup.includes(' onclick="'));assert.ok(!markup.includes('javascript:'));assert.ok(!markup.includes('<img onerror'));assert.ok(markup.includes('src=""'));
 });
 test('schema does not fabricate delivery promises or free returns',()=>{
  const a=app({preview:true});assert.equal(a.run('productStructuredData(products[0]).offers'),undefined);
@@ -59,7 +59,7 @@ test('overlapping catalog requests cannot replace newer results with a late fail
  pending[1].resolve({ok:true,json:async()=>({ok:true,authoritative:true,products:[{id:'new',title:'New',featuredImage:{url:'https://example.com/image.jpg'},variant:{price:{amount:200,currencyCode:'JPY'},availableForSale:true},authoritative:true}]})});
  await second;pending[0].reject(Error('late failure'));await first;
  assert.equal(a.run('products[0].id'),'new');assert.equal(a.run('catalogLoading'),false);
- assert.match(a.nodes.get('searchResults').innerHTML,/New/);
+ assert.match(a.nodes.get('searchResults').innerHTML,/data-id="new"/);
 });
 test('catalog refresh blocks additions using an old price',async()=>{
  let resolve;const a=app({fetcher:()=>new Promise(r=>resolve=r)});

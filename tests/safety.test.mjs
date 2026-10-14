@@ -9,7 +9,7 @@ import webhook from '../api/shopify-order-webhook.js';
 import setup from '../api/shopify-setup-orders.js';
 import cj from '../api/cj.js';
 import diagnostics from '../api/diagnostics.js';
-const env={SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
+const env={SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-admin-token',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
 const headers={authorization:'Bearer test-admin',cookie:'shopify_access_token=test-token; shopify_connected_shop=test.myshopify.com'};
 const payload={orderId:'gid://shopify/Order/123',trackingNumber:'TRACK123'};
 const target={id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]};
@@ -103,6 +103,7 @@ test('missing client ID and noninteger quantity limit fail release gate',async t
   if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
+ if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
  if(u.includes('/product/getCategory'))return json({result:true,data:[]});
  throw Error('Unexpected readiness request');
 });assert.equal((await invoke(readiness,{},'GET')).data.safeToTest,true);
@@ -173,6 +174,7 @@ test('release readiness distinguishes Redis ping from unverified external integr
   if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
+ if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
  if(u.includes('/product/getCategory'))return json({result:true,data:[]});
  throw Error('Unexpected readiness request');
  });
@@ -180,12 +182,13 @@ test('release readiness distinguishes Redis ping from unverified external integr
  assert.equal(r.code,200);
  assert.equal(r.data.redisReachable,true);
  assert.equal(r.data.externalChecks.redisPing,true);
- for(const key of ['shopifyAdminVerified','cjApiVerified','shopifyWebhookVerified','fulfillmentVerified']){
-  assert.equal(r.data.externalChecks[key],false,key);
+ for(const key of ['shopifyAdminVerified','cjApiVerified','shopifyWebhookVerified']){
+  assert.equal(r.data.externalChecks[key],true,key);
  }
+ assert.equal(r.data.externalChecks.fulfillmentVerified,false);
  assert.equal(r.data.liveIntegrationVerified,false);
  assert.equal(r.data.readyForLive,false);
- assert.match(r.data.verification,/redis-ping/);
+ assert.match(r.data.verification,/read-only-connectivity/);
 });
 test('release readiness fails closed for missing numeric safety limits',async t=>{
  configure(t,async(url,opts={})=>{
@@ -197,6 +200,7 @@ test('release readiness fails closed for missing numeric safety limits',async t=
   if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
+ if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
  if(u.includes('/product/getCategory'))return json({result:true,data:[]});
  throw Error('Unexpected readiness request');
  });
