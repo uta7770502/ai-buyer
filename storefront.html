@@ -607,8 +607,31 @@ function closeSearch(){closeLayer('searchLayer')}
 function toggleFavorite(id){if(favorites.has(id))favorites.delete(id);else favorites.add(id);persist();render();if(document.getElementById('searchLayer').classList.contains('open'))renderSearch(document.getElementById('searchInput').value);const b=document.querySelector('#productDetail .detailFavorite[data-id="'+CSS.escape(String(id))+'"]');if(b){const on=favorites.has(id);b.classList.toggle('isFavorite',on);b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',(products.find(x=>x.id===id)?.shortTitleJa||'商品')+'をお気に入り'+(on?'から削除':'に追加'));b.innerHTML=(on?'♥':'♡')+'<span>お気に入り</span>'}announce(favorites.has(id)?'お気に入りに追加しました':'お気に入りから削除しました')}
 function selectSearch(value){document.getElementById('searchInput').value=value;renderSearch(value)}
 function searchProducts(q){
-  const v=String(q||'').normalize('NFKC').trim().toLowerCase();
-  const list=products.filter(p=>searchMode!=='favorites'||favorites.has(p.id)).filter(p=>v==='3,000円以下'?p.price<=3000:[p.name,p.category,p.audience,p.summary,...(p.why||[])].filter(Boolean).join(' ').normalize('NFKC').toLowerCase().includes(v));
+  const normalize=v=>String(v||'').normalize('NFKC').toLowerCase().replace(/[\s　・_-]+/g,'');
+  const v=normalize(q);
+  const aliases={
+    'ペット':['pet','pets','cat','dog','puppy','kitten','carrier','ペット用品','猫','犬'],
+    '猫':['cat','kitten','pet','キャット'],
+    '犬':['dog','puppy','pet','ドッグ'],
+    'バッグ':['bag','carrier','shoulder','かばん','鞄'],
+    '収納':['storage','organizer','整理'],
+    'キッチン':['kitchen','調理'],
+    'ガジェット':['gadget','electronics','電子'],
+    'ゴルフ':['golf'],
+    'トラベル':['travel','旅行']
+  };
+  const list=products.filter(p=>searchMode!=='favorites'||favorites.has(p.id)).filter(p=>{
+    if(!v)return true;
+    if(v==='3,000円以下'||v==='3000円以下')return p.price<=3000;
+    const fields=[p.name,p.shortTitleJa,naturalJaTitle(p.name,p.category),p.shortDescriptionJa,naturalJaDescription(p.name,p.summary),p.category,naturalJaCategory(p.category),p.audience,p.summary,p.supplierDescription,...(p.why||[])];
+    const haystack=normalize(fields.filter(Boolean).join(' '));
+    const terms=v.split(/[,、\s]+/).filter(Boolean);
+    return terms.every(term=>{
+      if(haystack.includes(term))return true;
+      const equivalents=aliases[term]||[];
+      return equivalents.some(alias=>haystack.includes(normalize(alias)));
+    });
+  });
   const sort=document.getElementById('searchSort').value;
   if(sort==='price-asc')list.sort((a,b)=>a.price-b.price);
   if(sort==='price-desc')list.sort((a,b)=>b.price-a.price);
