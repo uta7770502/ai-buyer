@@ -445,7 +445,7 @@ export default async function handler(req,res){
       }
       return res.status(200).json({ok:true,sync:true,action:syncAction,status});
     }
-    const title=clean(p.title||p.name,255),description=cleanHtml(p.descriptionHtml||p.description,5000),vendor=clean('ODDLY',255),price=Number(p.price);
+    const title=clean(p.title||p.name,255),vendor=clean('ODDLY',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
     // Enrich draft listings with supplier facts and imagery, without inventing specifications.
@@ -459,6 +459,10 @@ export default async function handler(req,res){
       p.descriptionHtml='<p>'+safeTitle+'の商品情報を確認中です。仕様・配送条件をご確認のうえ公開してください。</p>';
     }
 
+    const description=cleanHtml(p.descriptionHtml||p.description,5000);
+    // Keep public metadata customer-facing; internal automation names are not product tags.
+    const category=clean(p.productType||p.category||'',120);
+    const productTags=['ODDLY',...(category?[category]:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
     const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft sku:'+cj.vid});
@@ -469,7 +473,7 @@ export default async function handler(req,res){
     const matchingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
     if(matchingDrafts.length>1)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの下書きが複数あります。Shopifyで重複を確認してください。'});
     const existing=matchingDrafts[0]||null;
-    const petType=/\b(cat|dog|pet|puppy|kitten|carrier)\b/i.test(title)?'Pet Supplies':'';
+    const petType=category||(/\b(cat|dog|pet|puppy|kitten|carrier)\b/i.test(title)?'Pet Supplies':'');
     let ce;
     if(existing){
       ce={product:existing,userErrors:[]};
@@ -480,7 +484,7 @@ export default async function handler(req,res){
       ce=upd.productUpdate;
     }else{
       const media=(Array.isArray(p.images)?p.images:[]).filter(Boolean).slice(0,6).map((url,i)=>({originalSource:String(url),mediaContentType:'IMAGE',alt:i===0?title:(title+' '+(i+1))}));
-      const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!,$media:[CreateMediaInput!]) { productCreate(product:$product,media:$media) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:['AI BUYER','dropshipping'],...(petType?{productType:petType}:{})},media});
+      const create=await gql(shop,token,'mutation CreateProduct($product: ProductCreateInput!,$media:[CreateMediaInput!]) { productCreate(product:$product,media:$media) { product { id title handle status variants(first:1){nodes{id}} } userErrors { field message } } }',{product:{title,descriptionHtml:description,vendor,status:'DRAFT',tags:productTags,...(petType?{productType:petType}:{})},media});
       ce=create.productCreate;
     }
     if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
