@@ -647,6 +647,7 @@ function normalizeShopifyProduct(raw){
   const currency=String(variant.price?.currencyCode||raw?.currency||'JPY');
   return {
     id:String(raw?.handle||raw?.id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),
+    handle:String(raw?.handle||'').trim(),
     name:String(raw?.title||raw?.name||'商品'),
     shortTitleJa:String(raw?.shortTitleJa||'').trim(),
     shortDescriptionJa:String(raw?.shortDescriptionJa||'').trim(),
@@ -677,7 +678,7 @@ function productStructuredData(p){
     ...(p.audience?{"audience":{"@type":"Audience","audienceType":p.audience}}:{}),
     ...(p.sku?{"sku":p.sku}:{}),
     ...(p.brand?{"brand":{"@type":"Brand","name":p.brand}}:{}),
-    "url":"https://ai-buyer-nine.vercel.app/shop/products/"+encodeURIComponent(p.id)
+    "url":"https://ai-buyer-nine.vercel.app"+(p.handle?productPageUrl(p):'/shop?product='+encodeURIComponent(p.id))
   };
   if(p.authoritative!==true)return data;
   const availability=p.available===false?'https://schema.org/OutOfStock':'https://schema.org/InStock';
