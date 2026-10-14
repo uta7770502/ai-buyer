@@ -629,6 +629,7 @@ function renderHero(){
   const picks=products.slice(0,4);
   shelf.innerHTML='<div class="firstViewShelfLabel">QUICK PICKS</div>'+picks.map(p=>{const title=p.shortTitleJa||naturalJaTitle(p.name,p.category);return '<button type="button" class="firstViewItem" data-action="product" data-id="'+esc(p.id)+'"><img src="'+esc(safeImage(p.img))+'" alt=""><span><b>'+esc(title)+'</b><span>'+yen(p.price)+'</span></span></button>'}).join('');
   applyHeroPosition();
+  bindHeroSwipe();
   startHeroAuto();
 }
 function applyHeroPosition(){
@@ -638,6 +639,33 @@ function applyHeroPosition(){
 function moveHero(step=1){
   const n=heroCandidates().length;if(!n)return;
   heroIndex=(heroIndex+step+n)%n;applyHeroPosition();startHeroAuto();
+}
+let heroTouchStartX=0,heroTouchStartY=0,heroTouchMoved=false;
+function bindHeroSwipe(){
+  const slider=document.querySelector('.heroSlider');
+  if(!slider||slider.dataset.swipeBound==='1')return;
+  slider.dataset.swipeBound='1';
+  slider.addEventListener('touchstart',e=>{
+    const t=e.touches?.[0];if(!t)return;
+    heroTouchStartX=t.clientX;heroTouchStartY=t.clientY;heroTouchMoved=false;
+  },{passive:true});
+  slider.addEventListener('touchmove',e=>{
+    const t=e.touches?.[0];if(!t)return;
+    const dx=t.clientX-heroTouchStartX,dy=t.clientY-heroTouchStartY;
+    if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy))heroTouchMoved=true;
+  },{passive:true});
+  slider.addEventListener('touchend',e=>{
+    const t=e.changedTouches?.[0];if(!t)return;
+    const dx=t.clientX-heroTouchStartX,dy=t.clientY-heroTouchStartY;
+    if(Math.abs(dx)>=42&&Math.abs(dx)>Math.abs(dy)*1.2){
+      moveHero(dx<0?1:-1);
+      slider.dataset.suppressClick='1';
+      setTimeout(()=>{delete slider.dataset.suppressClick},350);
+    }
+  },{passive:true});
+  slider.addEventListener('click',e=>{
+    if(slider.dataset.suppressClick==='1'){e.preventDefault();e.stopPropagation()}
+  },true);
 }
 function startHeroAuto(){
   clearInterval(heroTimer);
