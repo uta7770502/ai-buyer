@@ -69,6 +69,7 @@ export default async function handler(req,res){
     const adminKey=String(process.env.AI_BUYER_ADMIN_KEY||'');
     const authorizedServerRequest=Boolean(adminKey&&req.headers.authorization==='Bearer '+adminKey);
     const serverToken=authorizedServerRequest?String(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||'').trim():'';
+    if(authorizedServerRequest&&!serverToken)return res.status(503).json({ok:false,error:'Server-side Shopify credential is not configured'});
     const token=serverToken||String(c.shopify_access_token||'');
     const shop=serverToken?String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase():String(c.shopify_connected_shop||'').toLowerCase();
     if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
