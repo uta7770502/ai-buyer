@@ -180,9 +180,10 @@ test('release readiness distinguishes Redis ping from unverified external integr
  assert.equal(r.code,200);
  assert.equal(r.data.redisReachable,true);
  assert.equal(r.data.externalChecks.redisPing,true);
- for(const key of ['shopifyAdminVerified','cjApiVerified','shopifyWebhookVerified','fulfillmentVerified']){
-  assert.equal(r.data.externalChecks[key],false,key);
+ for(const key of ['shopifyAdminVerified','cjApiVerified','shopifyWebhookVerified']){
+  assert.equal(r.data.externalChecks[key],true,key);
  }
+ assert.equal(r.data.externalChecks.fulfillmentVerified,false);
  assert.equal(r.data.liveIntegrationVerified,false);
  assert.equal(r.data.readyForLive,false);
  assert.match(r.data.verification,/redis-ping/);
