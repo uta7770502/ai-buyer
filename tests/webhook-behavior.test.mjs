@@ -7,7 +7,7 @@ import handler from '../api/shopify-order-webhook.js';
 const secret='test-only-webhook-secret';
 const validOrder={
   id:123,test:true,financial_status:'paid',current_total_price:'100.00',
-  currency:'JPY',line_items:[],shipping_address:{country_code:'JP'}
+  currency:'JPY',line_items:[],shipping_address:{country_code:'JP',zip:'100-0001',address1:'1-2-3'}
 };
 const keys=['SHOPIFY_CLIENT_SECRET','SHOPIFY_ALLOWED_SHOP_DOMAIN','CJ_SANDBOX_ORDER_ENABLED','SHOPIFY_ADMIN_ACCESS_TOKEN','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','CJ_ACCESS_TOKEN','CJ_MAX_ITEMS_PER_ORDER','CJ_MAX_ORDER_VALUE','CJ_ORDER_LIMIT_CURRENCY','CJ_ALLOWED_DESTINATION_COUNTRY','CJ_MAX_FREIGHT_USD'];
 async function invoke({order=validOrder,topic='orders/paid',shop='test.myshopify.com',hmacValid=true,enabled='false',validLine=false,fetchMock=null}={}){
@@ -76,7 +76,7 @@ test('sandbox order automation is disabled by default',async()=>{
 });
 
 test('incomplete shipping address stops before any external request',async()=>{
-  const x=await invoke({enabled:'true',validLine:true,order:{...validOrder,shipping_address:{country_code:'JP',address1:'1-2-3'}}});
+  const x=await invoke({enabled:'true',order:{...validOrder,shipping_address:{country_code:'JP',address1:'1-2-3'}}});
   assert.equal(x.statusCode,422);
   assert.equal(x.body.needsReview,true);
   assert.equal(x.calls,0);
