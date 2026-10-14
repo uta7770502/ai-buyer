@@ -96,3 +96,26 @@ test('cancelled order is skipped', async()=>{
   assert.equal(r.statusCode,200);
   assert.equal(r.body.skipped,true);
 });
+
+test('sandbox opt-in without durable Redis refuses dispatch', async()=>{
+  const previous={enabled:process.env.CJ_SANDBOX_ORDER_ENABLED,url:process.env.UPSTASH_REDIS_REST_URL,token:process.env.UPSTASH_REDIS_REST_TOKEN};
+  try{
+    const raw=Buffer.from(JSON.stringify(order()));
+    process.env.SHOPIFY_CLIENT_SECRET=secret;
+    process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=shop;
+    process.env.CJ_SANDBOX_ORDER_ENABLED='true';
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    const req=Readable.from([raw]);
+    req.method='POST';
+    req.headers={'x-shopify-hmac-sha256':crypto.createHmac('sha256',secret).update(raw).digest('base64'),'x-shopify-shop-domain':shop,'x-shopify-topic':'orders/paid','x-shopify-webhook-id':'no-redis-event'};
+    const res={statusCode:200,body:null,status(c){this.statusCode=c;return this;},json(b){this.body=b;return this;},end(){return this;}};
+    await handler(req,res);
+    assert.equal(res.statusCode,503);
+    assert.match(res.body.error,/deduplication/i);
+  }finally{
+    for(const [key,value] of Object.entries({CJ_SANDBOX_ORDER_ENABLED:previous.enabled,UPSTASH_REDIS_REST_URL:previous.url,UPSTASH_REDIS_REST_TOKEN:previous.token})){
+      if(value===undefined)delete process.env[key];else process.env[key]=value;
+    }
+  }
+});
