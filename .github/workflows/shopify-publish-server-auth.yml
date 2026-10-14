@@ -1,0 +1,23 @@
+name: Shopify publish server auth
+on:
+  pull_request:
+    paths:
+      - 'api/shopify-publish.js'
+      - 'tests/shopify-publish.test.mjs'
+      - '.github/workflows/shopify-publish-server-auth.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: node --check api/shopify-publish.js && node --check tests/shopify-publish.test.mjs
+      - name: Test Shopify publish authorization
+        run: node --test tests/shopify-publish.test.mjs

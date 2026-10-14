@@ -293,3 +293,37 @@ test('ad guard rejects zero requested budget for activating actions',async()=>{
   }
  }finally{if(previous===undefined)delete process.env.ADS_MAX_DAILY_JPY;else process.env.ADS_MAX_DAILY_JPY=previous}
 });
+
+test('server publishing rejects admin key without a server Shopify token',async()=>{
+ const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+ process.env.AI_BUYER_ADMIN_KEY='test-key';
+ delete process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+ const previousFetch=globalThis.fetch;
+ globalThis.fetch=async()=>{throw Error('Must not make external requests')};
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{authorization:'Bearer test-key',cookie:'shopify_access_token=browser-token; shopify_connected_shop=test.myshopify.com'},body:{}},res);
+  assert.equal(res.code,503);
+  assert.equal(res.body.ok,false);
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(oldKey===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=oldKey;
+  if(oldToken===undefined)delete process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;else process.env.SHOPIFY_ADMIN_ACCESS_TOKEN=oldToken;
+ }
+});
+test('server token requires correct admin key and does not grant browser access',async()=>{
+ const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+ process.env.AI_BUYER_ADMIN_KEY='test-key';
+ process.env.SHOPIFY_ADMIN_ACCESS_TOKEN='server-token';
+ const previousFetch=globalThis.fetch;
+ globalThis.fetch=async()=>{throw Error('Must not make external requests')};
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{authorization:'Bearer wrong-key'},body:{}},res);
+  assert.equal(res.code,401);
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(oldKey===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=oldKey;
+  if(oldToken===undefined)delete process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;else process.env.SHOPIFY_ADMIN_ACCESS_TOKEN=oldToken;
+ }
+});
