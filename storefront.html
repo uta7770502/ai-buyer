@@ -99,6 +99,19 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
   .mobileNav button{min-height:44px;touch-action:manipulation}
   .modalCard{max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain}
 }
+/* Distinguish rotating product recommendations from the permanent brand statement. */
+@media(max-width:900px){
+  .heroSlide.productSlide{background:#e8e9e2}
+  .heroSlide.productSlide img{background:#e8e9e2}
+  .heroSlide.productSlide .heroSlideInfo{
+    background:#17251f;color:#fff;border-top:3px solid #d7ff00;
+    padding:10px 14px 12px;
+  }
+  .heroSlide.productSlide .heroSlideInfo small{color:#d7ff00}
+  .heroSlide.productSlide .heroSlideInfo .heroDesc{color:#d5ded8}
+  .heroSlide.productSlide .heroSlideInfo .heroPrice{color:#fff}
+  .heroCopy{background:#f7f5ef;border-top:1px solid #d7d7d0}
+}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 /* Storefront polish: compact mobile first view and accessible shopping surfaces. */
 @media(max-width:900px){
