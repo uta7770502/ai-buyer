@@ -112,6 +112,14 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
   .heroSlide.productSlide .heroSlideInfo .heroPrice{color:#fff}
   .heroCopy{background:#f7f5ef;border-top:1px solid #d7d7d0}
 }
+/* Fix mobile carousel copy contrast: the caption is a sibling of the slide, not inside it. */
+@media(max-width:900px){
+  .heroSlideInfo{background:#17251f!important;color:#fff!important;border-top:3px solid #d7ff00!important}
+  .heroSlideInfo small{color:#d7ff00!important}
+  .heroSlideInfo b,.heroSlideInfo .heroPrice,.heroSlideInfo span:not(.heroDesc){color:#fff!important}
+  .heroSlideInfo .heroDesc{color:#dce5de!important}
+  .heroVisual:has(.heroSlide.productSlide) .heroSlideInfo{background:#17251f!important}
+}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 /* Storefront polish: compact mobile first view and accessible shopping surfaces. */
 @media(max-width:900px){
