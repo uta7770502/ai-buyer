@@ -20,12 +20,6 @@ export default async function handler(req,res){
     if(!p)return res.status(404).send('Product not found');
     const v=p.variants?.nodes?.[0],price=v?.price?.amount==null?NaN:Number(v.price.amount),currency=v?.price?.currencyCode;
     const base='https://ai-buyer-nine.vercel.app';
-    const aioIndexReady=Boolean(
-      String(summary||'').trim()&&
-      String(audience||'').trim()&&
-      Array.isArray(why)&&why.length>0
-    );
-    const indexable=Boolean(searchIndexEnabled&&aioIndexReady);
     const url=base+'/shop/products/'+encodeURIComponent(handle);
     const image=String(p.featuredImage?.url||'');
     const validImage=/^https:\/\//.test(image)?image:'';
@@ -33,6 +27,8 @@ export default async function handler(req,res){
     const summary=String(p.adpsSummary?.value||'').trim()||description;
     const audience=String(p.audience?.value||'').trim();
     const why=String(p.adpsWhy?.value||'').split(/\r?\n|\|/).map(x=>x.trim()).filter(Boolean).slice(0,6);
+    const aioIndexReady=Boolean(summary&&audience&&why.length);
+    const indexable=Boolean(searchIndexEnabled&&aioIndexReady);
     const shippingPrice=Number(p.shippingPrice?.value);
     const shippingCountry=String(p.shippingCountry?.value||'JP').toUpperCase();
     const returnDays=Number(p.returnDays?.value);
