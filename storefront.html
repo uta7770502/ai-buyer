@@ -156,6 +156,8 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 
 /* Concise Japanese product modal: no repeated descriptions or FAQ */
 .simpleProductInfo{padding:16px 0;border-top:1px solid var(--line);margin-top:16px}.simpleProductInfo h3,.simpleProductFacts h3{font-size:15px;margin:0 0 8px}.simpleProductInfo p{font-size:15px;line-height:1.7;margin:0}.simpleProductInfo ul{padding-left:20px;font-size:13px;line-height:1.7}.simpleProductFacts{padding:14px 0}.simpleProductFacts .bullets{margin:0}.simpleProductFacts .bullets li{font-size:13px;color:#555;padding:7px 0}.productDetailLink{font-size:13px;margin:8px 0}.productDetailLink a{color:inherit;text-underline-offset:3px}.detailInfo .buyBtn{color:#111}.detailInfo h2{line-height:1.3;overflow-wrap:anywhere}@media(max-width:900px){.productDetail{gap:14px}.detailImg{aspect-ratio:1.15/1}.detailInfo h2{font-size:24px;margin:5px 0 9px}.detailPrice{font-size:26px}.simpleProductInfo{margin-top:12px}.simpleProductFacts{padding:12px 0}}
+
+.productGallery{width:100%;min-width:0}.galleryMain{position:relative;background:#f2f1ed;border-radius:16px;overflow:hidden;aspect-ratio:1/1}.galleryMain>img{display:block;width:100%;height:100%;object-fit:contain}.galleryCount{position:absolute;bottom:12px;left:12px;padding:5px 9px;border-radius:99px;background:#fffdf4e8;font-size:12px;font-weight:800}.galleryNav{position:absolute;top:50%;transform:translateY(-50%);border:0;border-radius:50%;background:#fffef1e8;width:36px;height:36px;font-size:28px;cursor:pointer;line-height:1}.galleryNav.prev{left:9px}.galleryNav.next{right:9px}.galleryThumbs{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:5px}.galleryThumb{flex:0 0 65px;width:65px;height:65px;border:2px solid transparent;background:#f2f1ed;border-radius:9px;overflow:hidden;padding:2px;cursor:pointer}.galleryThumb.active{border-color:#111}.galleryThumb img{width:100%;height:100%;object-fit:contain}@media(max-width:900px){.galleryMain{aspect-ratio:1.15/1}.galleryThumb{flex-basis:58px;width:58px;height:58px}}
 </style>
 <!-- deployment-refresh: storefront reconnect check -->
 </head>
@@ -513,13 +515,32 @@ function productAnswerBlocks(p){
   `;
 }
 
+function productGallery(p){
+  const imgs=[...(Array.isArray(p.images)?p.images:[]),p.img].filter(x=>/^https:\/\//.test(String(x||'')));
+  const unique=[...new Set(imgs)];
+  if(!unique.length)unique.push(safeImage(p.img));
+  return `<div class="productGallery" data-gallery="${esc(p.id)}"><div class="galleryMain"><img id="galleryMainImg" src="${esc(unique[0])}" alt="${esc(p.shortTitleJa||naturalJaTitle(p.name,p.category))}"><div class="galleryCount" id="galleryCount">1 / ${unique.length}</div>${unique.length>1?`<button class="galleryNav prev" type="button" onclick="moveProductImage(-1)" aria-label="前の画像">‹</button><button class="galleryNav next" type="button" onclick="moveProductImage(1)" aria-label="次の画像">›</button>`:''}</div>${unique.length>1?`<div class="galleryThumbs">${unique.map((src,i)=>`<button type="button" class="galleryThumb ${i===0?'active':''}" onclick="setProductImage(${i})" aria-label="商品画像${i+1}"><img loading="lazy" src="${esc(src)}" alt=""></button>`).join('')}</div>`:''}</div>`;
+}
+let activeGalleryImages=[],activeGalleryIndex=0;
+function setProductImage(index){
+  if(!activeGalleryImages.length)return;
+  activeGalleryIndex=(index+activeGalleryImages.length)%activeGalleryImages.length;
+  const img=document.getElementById('galleryMainImg'),count=document.getElementById('galleryCount');
+  if(img)img.src=activeGalleryImages[activeGalleryIndex];
+  if(count)count.textContent=(activeGalleryIndex+1)+' / '+activeGalleryImages.length;
+  document.querySelectorAll('.galleryThumb').forEach((x,i)=>x.classList.toggle('active',i===activeGalleryIndex));
+}
+function moveProductImage(step){setProductImage(activeGalleryIndex+step)}
 function openProduct(id,options={}){
   const p=products.find(x=>x.id===id);if(!p)return;
   if(catalogLoading){announce('商品情報を更新しています。少しお待ちください。');return}
   setProductSeo(p);
+  activeGalleryImages=[...new Set([...(Array.isArray(p.images)?p.images:[]),p.img].filter(x=>/^https:\/\//.test(String(x||''))))];
+  if(!activeGalleryImages.length)activeGalleryImages=[safeImage(p.img)];
+  activeGalleryIndex=0;
   if(options.history!==false){const u=new URL(location.href);u.searchParams.set('product',p.id);history.pushState({product:p.id},'',u)}
   document.getElementById('productModal').setAttribute('aria-labelledby','detailTitle');
-  document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg"><img src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"></div><div class="detailInfo"><div class="kicker">${previewMode?'DESIGN PREVIEW':'ODDLY PICK'}</div><h2 id="detailTitle">${esc(p.shortTitleJa||naturalJaTitle(p.name,p.category))}</h2><div class="detailPrice">${yen(p.price)}</div>${productAnswerBlocks(p)}<div class="simpleProductFacts"><h3>配送・返品について</h3><ul class="bullets">${productFacts(p).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><button class="buyBtn" data-action="add" data-id="${esc(p.id)}" ${!previewMode&&!p.available?'disabled':''}>${previewMode?'プレビューのカートに追加':p.available?'カートに入れる':'在庫切れ'}</button></div></div>`;
+  document.getElementById('productDetail').innerHTML=`<div class="productDetail"><div class="detailImg">${productGallery(p)}</div><div class="detailInfo"><div class="kicker">${previewMode?'DESIGN PREVIEW':'ODDLY PICK'}</div><h2 id="detailTitle">${esc(p.shortTitleJa||naturalJaTitle(p.name,p.category))}</h2><div class="detailPrice">${yen(p.price)}</div>${productAnswerBlocks(p)}<div class="simpleProductFacts"><h3>配送・返品について</h3><ul class="bullets">${productFacts(p).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><button class="buyBtn" data-action="add" data-id="${esc(p.id)}" ${!previewMode&&!p.available?'disabled':''}>${previewMode?'プレビューのカートに追加':p.available?'カートに入れる':'在庫切れ'}</button></div></div>`;
   openLayer('productModal');
 }
 function closeProduct(options={}){
@@ -657,6 +678,7 @@ function normalizeShopifyProduct(raw){
     price:Number.isFinite(price)?price:0,
     currency,
     img:String(raw?.featuredImage?.url||raw?.image||''),
+    images:(Array.isArray(raw?.images)?raw.images:[]).map(x=>String(typeof x==='string'?x:x?.url||'')).filter(x=>/^https:\/\//.test(x)).slice(0,12),
     why:Array.isArray(raw?.why)?raw.why.filter(Boolean).slice(0,6):[],
     available:variant.availableForSale===true&&raw?.available!==false,
     sku:String(variant.sku||raw?.sku||''),
