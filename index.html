@@ -1369,7 +1369,7 @@ async function checkReleaseReadiness(){
     const r=await fetch('/api/release-readiness',{headers:{Authorization:'Bearer '+key}});
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'公開準備チェックに失敗しました');
-    if(j.safetyContract!=='sandbox-v1'||j.mode!=='sandbox'||j.liveCjOrdersEnabled!==false||j.readyForLive!==false||j.verification!=='configuration-only'){
+    if(j.safetyContract!=='sandbox-v1'||j.mode!=='sandbox'||j.liveCjOrdersEnabled!==false||j.readyForLive!==false||j.verification!=='read-only-connectivity'){
       throw new Error('公開準備APIの安全モードを確認できません');
     }
     releaseReadiness=j;
