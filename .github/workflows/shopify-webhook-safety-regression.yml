@@ -5,6 +5,9 @@ on:
       - 'api/shopify-order-webhook.js'
       - 'tests/shopify-webhook-safety-regression.mjs'
       - '.github/workflows/shopify-webhook-safety-regression.yml'
+  push:
+    branches:
+      - adps-webhook-safety-regression-20261014
   workflow_dispatch:
 
 permissions:
