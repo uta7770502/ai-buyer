@@ -52,7 +52,7 @@ function fixture(t,{sandbox=1,simulationTimeout=false,cjTimeout=false}={}){
   throw Error('Unexpected external API; real payment endpoints are forbidden');
  });
  async function paidWebhook({validSignature=true,testOrder=true}={}){
-  const raw=Buffer.from(JSON.stringify({id:123,test:testOrder,financial_status:'paid',currency:'USD',total_price:'20',line_items:[{id:456,sku:'CJ-VID123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}],shipping_address:{country_code:'JP',country:'Japan',city:'Test City',address1:'Test address',name:'Sandbox Tester'}}));
+  const raw=Buffer.from(JSON.stringify({id:123,test:testOrder,financial_status:'paid',currency:'USD',total_price:'20',line_items:[{id:456,sku:'CJ-VID123',quantity:1,fulfillable_quantity:1,variant_id:22,product_id:33}],shipping_address:{country_code:'JP',country:'Japan',zip:'1000001',city:'Test City',address1:'Test address',name:'Sandbox Tester'}}));
   const req={method:'POST',headers:{'x-shopify-topic':'orders/paid','x-shopify-shop-domain':'test.myshopify.com','x-shopify-webhook-id':'test-event','x-shopify-hmac-sha256':validSignature?crypto.createHmac('sha256','test-secret').update(raw).digest('base64'):'invalid'},async *[Symbol.asyncIterator](){yield raw}};
   const r=res();await webhook(req,r);return r;
  }
