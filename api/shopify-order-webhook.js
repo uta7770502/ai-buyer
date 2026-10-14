@@ -58,8 +58,12 @@ export default async function handler(req,res){
     // Do not create a new CJ order for fulfilled or closed Shopify orders.
     if(order.closed_at||order.fulfillment_status==='fulfilled'||order.fulfillment_status==='restocked')
       return res.status(200).json({ok:true,skipped:true,reason:'Order already closed or fulfilled'});
+    // Test orders must be marked by Shopify itself, never inferred from client input.
     if(order.test!==true)
       return res.status(422).json({ok:false,error:'Only Shopify test orders are accepted by default'});
+    // Sandbox must not forward orders with incomplete or ambiguous destination details.
+    if(!addr||typeof addr!=='object'||!String(addr.country_code||'').trim()||!String(addr.zip||'').trim()||!String(addr.address1||'').trim())
+      return res.status(422).json({ok:false,needsReview:true,error:'Shipping destination is incomplete; manual review required'});
     // Without durable event deduplication, retrying this handler may duplicate CJ sandbox orders.
     // Keep this endpoint disabled for live fulfillment.
     // A valid HMAC proves app origin, not that the order belongs to the configured merchant.
