@@ -70,3 +70,29 @@ test('valid test order stays disabled without explicit sandbox opt-in', async()=
   assert.equal(r.statusCode,503);
   assert.match(r.body.error,/disabled/i);
 });
+
+test('zero-value paid order requires review', async()=>{
+  const r=await request(order({total_price:'0'}));
+  assert.equal(r.statusCode,200);
+  assert.equal(r.body.skipped,true);
+  assert.equal(r.body.needsReview,true);
+});
+test('refunded order requires review', async()=>{
+  const r=await request(order({refunds:[{id:1}]}));
+  assert.equal(r.statusCode,200);
+  assert.equal(r.body.needsReview,true);
+});
+test('fulfilled order is skipped', async()=>{
+  const r=await request(order({fulfillment_status:'fulfilled'}));
+  assert.equal(r.statusCode,200);
+  assert.equal(r.body.skipped,true);
+});
+test('missing order identifier is rejected', async()=>{
+  const r=await request(order({id:null}));
+  assert.equal(r.statusCode,400);
+});
+test('cancelled order is skipped', async()=>{
+  const r=await request(order({cancelled_at:'2026-10-14T00:00:00Z'}));
+  assert.equal(r.statusCode,200);
+  assert.equal(r.body.skipped,true);
+});
