@@ -120,6 +120,15 @@ button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visib
   .heroSlideInfo .heroDesc{color:#dce5de!important}
   .heroVisual:has(.heroSlide.productSlide) .heroSlideInfo{background:#17251f!important}
 }
+/* Mobile: enlarge featured product photography while preserving full uncropped image. */
+@media(max-width:900px){
+  .heroSlide.productSlide img{
+    width:100%!important;height:100%!important;max-width:none!important;
+    object-fit:contain!important;object-position:center!important;
+    padding:0!important;transform:scale(1.45);transform-origin:center center;
+  }
+  .heroSlide.productSlide{overflow:hidden}
+}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 /* Storefront polish: compact mobile first view and accessible shopping surfaces. */
 @media(max-width:900px){
