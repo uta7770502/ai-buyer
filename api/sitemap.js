@@ -25,7 +25,13 @@ export default async function handler(req,res){
   if(enabled&&shop&&token){
     const query=`query SitemapProducts($first:Int!,$after:String){
       products(first:$first,after:$after,sortKey:UPDATED_AT,reverse:true){
-        nodes{handle updatedAt}
+        nodes{
+          handle
+          updatedAt
+          audience:metafield(namespace:"custom",key:"adps_audience"){value}
+          summary:metafield(namespace:"custom",key:"adps_summary"){value}
+          why:metafield(namespace:"custom",key:"adps_why"){value}
+        }
         pageInfo{hasNextPage endCursor}
       }
     }`;
@@ -43,7 +49,12 @@ export default async function handler(req,res){
         const connection=j.data?.products;
         if(!Array.isArray(connection?.nodes)||!connection?.pageInfo)throw Error('Invalid Shopify sitemap response');
         for(const p of connection.nodes){
-          if(!p?.handle)continue;
+          const aioReady=Boolean(
+            String(p?.audience?.value||'').trim()&&
+            String(p?.summary?.value||'').trim()&&
+            String(p?.why?.value||'').trim()
+          );
+          if(!p?.handle||!aioReady)continue;
           urls.push({
             loc:ORIGIN+'/shop/products/'+encodeURIComponent(p.handle),
             lastmod:p.updatedAt||''
