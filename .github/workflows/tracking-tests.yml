@@ -76,4 +76,4 @@ jobs:
         run: |
           find api lib tests -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \) -print0 | xargs -0 -r -n 1 node --check
       - name: Run tracking safety contract tests
-        run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs tests/webhook-behavior.test.mjs tests/readiness-behavior.test.mjs tests/safety.test.mjs tests/storefront.test.mjs tests/shopify-publish.test.mjs tests/sandbox-flow.test.mjs
+        run: node --test tests/tracking-contract.test.mjs tests/tracking-behavior.test.mjs tests/webhook-behavior.test.mjs tests/readiness-behavior.test.mjs tests/safety.test.mjs tests/storefront.test.mjs tests/shopify-publish.test.mjs tests/sandbox-flow.test.mjs tests/oddly-product.test.mjs
