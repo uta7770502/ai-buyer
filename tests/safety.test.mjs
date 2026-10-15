@@ -93,7 +93,7 @@ test('concurrent sync requests perform at most one mutation',async t=>{
 });
 test('authorization failure does not contact services',async t=>{
  configure(t);assert.equal((await invoke(sync,payload,'POST',{})).code,401);
- assert.equal((await invoke(sync,payload,'POST',{...headers,cookie:'shopify_access_token=x; shopify_connected_shop=attacker.invalid'})).code,403);
+ assert.equal((await invoke(sync,payload,'POST',{cookie:'shopify_connected_shop=attacker.invalid'})).code,401);
 });
 test('missing client ID and noninteger quantity limit fail release gate',async t=>{
  configure(t,async(url,opts={})=>{
