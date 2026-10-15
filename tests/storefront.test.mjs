@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const html=fs.readFileSync(new URL('../storefront.html',import.meta.url),'utf8');
-const source=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1].replace('render();loadShopifyProducts();','');
+const source=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1].replace('render();loadStorefrontLaunchConfig();loadShopifyProducts();','').replace('render();loadShopifyProducts();','');
 function app({preview=false,saved={},fetcher=async()=>{throw Error('offline')}}={}){
  const nodes=new Map(),storage=new Map();storage.set('adps-shop-'+(preview?'preview':'live')+'-v1',JSON.stringify(saved));
  function node(){const classes=new Set();return {style:{},value:'',innerHTML:'',textContent:'',isConnected:true,classList:{contains:x=>classes.has(x),add:x=>classes.add(x),remove:x=>classes.delete(x)},setAttribute(){},focus(){},remove(){},closest(){return null},querySelector(){return null}}}
