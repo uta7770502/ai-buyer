@@ -1,3 +1,4 @@
+import { loadShopifySession } from '../lib/shopify-session-store.js';
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
@@ -68,7 +69,7 @@ export default async function handler(req,res){
     const c=cookies(req);
     const adminKey=String(process.env.AI_BUYER_ADMIN_KEY||'');
     const authorizedServerRequest=Boolean(adminKey&&req.headers.authorization==='Bearer '+adminKey);
-    const serverToken=authorizedServerRequest?String(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||'').trim():'';
+    const serverToken=authorizedServerRequest?(String(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||'').trim()||(process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY?await loadShopifySession(String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase()):'')):'';
     if(authorizedServerRequest&&!serverToken)return res.status(503).json({ok:false,error:'Server-side Shopify credential is not configured'});
     const token=serverToken||String(c.shopify_access_token||'');
     const shop=serverToken?String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase():String(c.shopify_connected_shop||'').toLowerCase();
