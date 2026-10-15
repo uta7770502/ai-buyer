@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/policies",
+      "destination": "/policies.html"
+    },
+    {
       "source": "/shop/products/:handle",
       "destination": "/api/oddly-product?handle=:handle"
     },
@@ -71,6 +75,14 @@
     {
       "source": "/api/shopify-env-check",
       "destination": "/api/diagnostics?action=shopify-env-check"
+    },
+    {
+      "source": "/api/storefront-checkout",
+      "destination": "/api/diagnostics?action=storefront-checkout"
+    },
+    {
+      "source": "/api/storefront-config",
+      "destination": "/api/diagnostics?action=storefront-config"
     }
   ]
 }
