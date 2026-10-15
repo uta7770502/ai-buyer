@@ -1,4 +1,4 @@
-import { loadShopifySession } from '../lib/shopify-session-store.js';
+import { getShopifyAuthContext } from '../lib/shopify-auth-context.js';
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
@@ -66,16 +66,9 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});
   try{
-    const c=cookies(req);
-    const adminKey=String(process.env.AI_BUYER_ADMIN_KEY||'');
-    const authorizedServerRequest=Boolean(adminKey&&req.headers.authorization==='Bearer '+adminKey);
-    const serverToken=authorizedServerRequest?(String(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||'').trim()||(process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY?await loadShopifySession(String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase()):'')):'';
-    if(authorizedServerRequest&&!serverToken)return res.status(503).json({ok:false,error:'Server-side Shopify credential is not configured'});
-    const token=serverToken||String(c.shopify_access_token||'');
-    const shop=serverToken?String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase():String(c.shopify_connected_shop||'').toLowerCase();
-    if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
-    const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
-    if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowed)||shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
+    const auth=await getShopifyAuthContext(req);
+    if(!auth.ok)return res.status(auth.status).json({ok:false,authRequired:Boolean(auth.authRequired),error:auth.error});
+    const {token,shop}=auth;
     const raw=req.body||{}; const formPublish=String(raw.formPublish||'')==='1'; const p=raw;
     if(formPublish){p.images=p.image?[p.image]:[];p.descriptionHtml='';p.publishApproved=false;}
     if(p.adHealth===true){
