@@ -313,12 +313,14 @@ test('server publishing rejects admin key without a server Shopify token',async(
   globalThis.fetch=previousFetch;
   if(oldKey===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=oldKey;
   if(oldToken===undefined)delete process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;else process.env.SHOPIFY_ADMIN_ACCESS_TOKEN=oldToken;
+  if(oldAllowed===undefined)delete process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;else process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=oldAllowed;
  }
 });
 test('server token requires correct admin key and does not grant browser access',async()=>{
- const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+ const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,oldAllowed=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;
  process.env.AI_BUYER_ADMIN_KEY='test-key';
  process.env.SHOPIFY_ADMIN_ACCESS_TOKEN='server-token';
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
  const previousFetch=globalThis.fetch;
  globalThis.fetch=async()=>{throw Error('Must not make external requests')};
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
