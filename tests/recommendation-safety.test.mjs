@@ -43,3 +43,19 @@ test('publication gate rechecks demand, product type and verified inventory',()=
   assert.match(block,/CJ Trending未確認/);
   assert.match(block,/検証済み在庫が少ない/);
 });
+
+test('market monitor blocks launch on supplier suspension price spike delay and unknown state',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const evalStart=html.indexOf('function evaluateMonitor(');
+  const evalEnd=html.indexOf('function renderMonitor(',evalStart);
+  const monitor=html.slice(evalStart,evalEnd);
+  assert.match(monitor,/kind:'販売停止'/);
+  assert.match(monitor,/kind:'価格急騰'/);
+  assert.match(monitor,/kind:'配送長期化'/);
+  assert.match(monitor,/a\.level==='critical'/);
+  const gateStart=html.indexOf('function launchEligibility(');
+  const gateEnd=html.indexOf('function scaleEligibility(',gateStart);
+  const gate=html.slice(gateStart,gateEnd);
+  assert.match(gate,/x\.monitorRisk!=='ok'/);
+  assert.match(gate,/最新CJ監視未確認/);
+});
