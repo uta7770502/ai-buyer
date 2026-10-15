@@ -1,0 +1,25 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ODDLY | ご利用ガイド・ポリシー</title><style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:#f7f6f1;color:#171717}.wrap{max-width:900px;margin:auto;padding:28px 18px 80px}a{color:inherit}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ddd;padding-bottom:18px}.brand{font-size:26px;font-weight:900}.card{background:#fff;border:1px solid #ddd;border-radius:18px;padding:22px;margin:18px 0}.card h2{margin-top:0}.row{display:grid;grid-template-columns:180px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid #eee}.row:last-child{border:0}.warn{background:#fff3cd;border:1px solid #ffe69c;border-radius:12px;padding:14px;line-height:1.7}.muted{color:#666;line-height:1.8}@media(max-width:620px){.row{grid-template-columns:1fr;gap:4px}.top{align-items:flex-start;gap:14px;flex-direction:column}}</style></head><body><main class="wrap"><div class="top"><div class="brand">ODDLY</div><a href="/shop">ショップへ戻る</a></div><div id="status" class="warn">販売開始前の情報を確認中です。</div>
+<section class="card" id="commerce"><h2>特定商取引法に基づく表記</h2><div id="commerceRows"></div></section>
+<section class="card" id="shipping"><h2>配送ポリシー</h2><p id="shippingText" class="muted"></p><p id="feesText" class="muted"></p></section>
+<section class="card" id="returns"><h2>返品・交換ポリシー</h2><p id="returnText" class="muted"></p><p id="returnShippingText" class="muted"></p></section>
+<section class="card" id="privacy"><h2>プライバシーポリシー</h2><p class="muted">ODDLYは、注文対応、配送、問い合わせ対応、サービス改善、不正利用防止など、サービス提供に必要な範囲で個人情報を取り扱います。法令に基づく場合等を除き、本人の同意なく目的外で第三者へ提供しません。Shopify等のサービス提供事業者を利用する場合は、サービス提供に必要な範囲で情報が処理されることがあります。</p><p class="muted">個人情報に関するお問い合わせ先：<span id="privacyContact">販売開始前に掲載</span></p></section>
+</main><script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function row(k,v){return '<div class="row"><b>'+esc(k)+'</b><span>'+esc(v||'販売開始前に掲載')+'</span></div>'}
+fetch('/api/storefront-config',{headers:{Accept:'application/json'}}).then(r=>r.json()).then(j=>{
+ const c=j.commerce||{};
+ document.getElementById('commerceRows').innerHTML=[
+  row('販売業者',c.sellerName),row('運営責任者',c.representative),row('所在地',c.address),row('電話番号',c.phone),row('メールアドレス',c.email),
+  row('商品代金以外の必要料金',c.additionalFees),row('支払時期',c.paymentTiming),row('商品の引渡時期',c.shippingWindow),
+  row('返品・交換',c.returnDays?('商品到着後'+c.returnDays+'日以内。'+(c.returnConditions||'')):c.returnConditions)
+ ].join('');
+ document.getElementById('shippingText').textContent=c.shippingWindow||'販売開始前に配送時期を掲載します。';
+ document.getElementById('feesText').textContent=c.additionalFees||'販売開始前に送料・その他必要料金を掲載します。';
+ document.getElementById('returnText').textContent=c.returnDays?('返品受付期間：商品到着後'+c.returnDays+'日以内。 '+(c.returnConditions||'')):(c.returnConditions||'販売開始前に返品条件を掲載します。');
+ document.getElementById('returnShippingText').textContent=c.returnShipping||'販売開始前に返送費用の負担条件を掲載します。';
+ document.getElementById('privacyContact').textContent=j.privacy?.contact||'販売開始前に掲載';
+ const s=document.getElementById('status');
+ if(j.legalReady){s.textContent='販売条件・各種ポリシーを掲載しています。';s.style.background='#eaf7ee';s.style.borderColor='#b7dfc2'}else{s.textContent='販売開始前の確認中です。未入力の販売者情報があるため、現在は購入できません。'}
+}).catch(()=>{document.getElementById('status').textContent='販売条件を取得できませんでした。現在は購入できません。'});
+</script></body></html>
