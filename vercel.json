@@ -71,6 +71,10 @@
     {
       "source": "/api/shopify-env-check",
       "destination": "/api/diagnostics?action=shopify-env-check"
+    },
+    {
+      "source": "/api/storefront-checkout",
+      "destination": "/api/diagnostics?action=storefront-checkout"
     }
   ]
 }
