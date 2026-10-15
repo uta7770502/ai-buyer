@@ -1,3 +1,4 @@
+import { getShopifyAuthContext } from '../lib/shopify-auth-context.js';
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
@@ -20,10 +21,9 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
   try{
-    const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'').toLowerCase();
-    if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
-    const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
-    if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(allowed)||shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
+    const auth=await getShopifyAuthContext(req,{allowAdminKey:false});
+    if(!auth.ok)return res.status(auth.status).json({ok:false,authRequired:Boolean(auth.authRequired),error:auth.error});
+    const {token,shop}=auth;
     const webhookBase=String(process.env.SHOPIFY_WEBHOOK_BASE_URL||'').trim().replace(/\/$/,'');
     if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(webhookBase))return res.status(500).json({ok:false,error:'SHOPIFY_WEBHOOK_BASE_URL must be a valid HTTPS origin'});
     const expectedWebhookUri=webhookBase+'/api/shopify-order-webhook';
