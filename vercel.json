@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/policies",
+      "destination": "/policies.html"
+    },
+    {
       "source": "/shop/products/:handle",
       "destination": "/api/oddly-product?handle=:handle"
     },
