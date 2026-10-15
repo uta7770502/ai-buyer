@@ -52,7 +52,7 @@ test('market monitor blocks launch on supplier suspension price spike delay and 
   assert.match(monitor,/kind:'販売停止'/);
   assert.match(monitor,/kind:'価格急騰'/);
   assert.match(monitor,/kind:'配送長期化'/);
-  assert.match(monitor,/a\.level==='critical'/);
+  assert.match(html,/ev\.alerts\.some\(a=>a\.level==='critical'\)/);
   const gateStart=html.indexOf('function launchEligibility(');
   const gateEnd=html.indexOf('function scaleEligibility(',gateStart);
   const gate=html.slice(gateStart,gateEnd);
