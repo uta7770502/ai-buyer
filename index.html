@@ -1658,7 +1658,11 @@ async function checkReleaseReadiness(){
           :j.safeToTest
             ?'安全にサンドボックステスト可能 / 本番CJ注文はOFF'
             :'設定確認が必要です';
-      meta.textContent=base+' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP');
+      const shopifyState=j.shopifyServerAuthReady?'Shopify認証OK':'Shopify認証要確認';
+      const webhookState=j.externalChecks?.shopifyWebhookVerified?'Webhook OK':'Webhook要確認';
+      const cjState=j.externalChecks?.cjApiVerified?'CJ接続OK':'CJ接続要確認';
+      const redisState=j.externalChecks?.redisPing?'Redis OK':'Redis要確認';
+      meta.textContent=base+' / '+shopifyState+' / '+webhookState+' / '+cjState+' / '+redisState+' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP');
     }
     renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();
     renderTestChecklist();
