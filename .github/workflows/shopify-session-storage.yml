@@ -5,6 +5,7 @@ on:
       - 'lib/shopify-session-store.js'
       - 'api/shopify-callback.js'
       - 'api/shopify-publish.js'
+      - 'api/shopify-session-status.js'
       - 'tests/shopify-session-store.test.mjs'
       - '.github/workflows/shopify-session-storage.yml'
   workflow_dispatch:
@@ -19,5 +20,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --check lib/shopify-session-store.js && node --check api/shopify-callback.js && node --check api/shopify-publish.js
+      - run: node --check lib/shopify-session-store.js && node --check api/shopify-callback.js && node --check api/shopify-publish.js && node --check api/shopify-session-status.js
       - run: node --test tests/shopify-session-store.test.mjs tests/shopify-publish.test.mjs
