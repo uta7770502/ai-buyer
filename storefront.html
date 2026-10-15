@@ -486,7 +486,7 @@ section[id],#faq-title{scroll-margin-top:95px}.shoppingGuide{border:1px solid va
 
 <section class="story"><div><h3>LIFE IS MORE FUN<br>WITH GOOD FINDS.</h3><p>ちょっとしたモノで、毎日はもっと楽しくなる。</p></div></section>
 </main>
-<footer class="shopFooter wrap"><div><b>ODDLY</b><p>Good finds for your everyday.</p></div><nav aria-label="ショップのご案内"><a href="#picks">商品を見る</a><a href="#guide">配送・返品・保存について</a><a href="#faq-title">よくある質問</a></nav><p class="tiny">販売者情報・お問い合わせ窓口・各種ポリシーは販売開始前に掲載します。</p></footer>
+<footer class="shopFooter wrap"><div><b>ODDLY</b><p>Good finds for your everyday.</p></div><nav aria-label="ショップのご案内"><a href="#picks">商品を見る</a><a href="/policies#commerce">特商法表記</a><a href="/policies#shipping">配送</a><a href="/policies#returns">返品・交換</a><a href="/policies#privacy">プライバシー</a><a href="#faq-title">よくある質問</a></nav><p class="tiny">販売条件・各種ポリシーは公開前の最終確認を経て有効化します。</p></footer>
 
 <nav class="mobileNav">
   <button onclick="scrollTo({top:0,behavior:'smooth'})"><span>⌂</span>ホーム</button>
@@ -789,8 +789,31 @@ function renderCart(){
   document.getElementById('cartItems').innerHTML=rows.length?rows.map(p=>`<div class="cartRow"><img src="${esc(safeImage(p.img))}" alt="${esc(p.name)}"><div class="cartItemCopy"><b class="cartOriginalName">${esc(p.name)}</b><span class="cartJapaneseName">${esc(p.shortTitleJa||naturalJaTitle(p.name,p.category))}</span><div>${yen(p.price)}</div><div class="qty"><button aria-label="数量を減らす" data-action="decrease" data-id="${esc(p.id)}">−</button><span>${p.qty}</span><button aria-label="数量を増やす" data-action="increase" data-id="${esc(p.id)}" ${p.qty>=20?'disabled':''}>＋</button></div></div><button class="close" aria-label="カートから削除" data-action="remove" data-id="${esc(p.id)}">×</button></div>`).join(''):`<div class="emptyState">${usingAuthoritativeProducts||previewMode?'カートは空です。気になる商品を探してみてください。':'保存したカートは商品情報の取得後に表示します。'}</div>`;
   document.getElementById('cartCount').textContent='('+rows.reduce((n,p)=>n+p.qty,0)+')';
   document.getElementById('cartTotal').textContent=yen(rows.reduce((n,p)=>n+p.price*p.qty,0));
-  document.getElementById('checkoutButton').disabled=true;
-  document.getElementById('checkoutButton').textContent=previewMode?'プレビューのため購入できません':'購入機能は準備中です';
+  const checkoutButton=document.getElementById('checkoutButton');
+  const canCheckout=!previewMode&&storefrontLaunch.checkoutEnabled===true&&storefrontLaunch.legalReady===true&&rows.length>0&&rows.every(x=>x.variantId&&x.available!==false);
+  checkoutButton.disabled=!canCheckout;
+  checkoutButton.textContent=previewMode?'プレビューのため購入できません':canCheckout?'Shopifyで購入手続きへ':'購入機能は準備中です';
+  checkoutButton.onclick=canCheckout?beginCheckout:null;
+}
+async function beginCheckout(){
+  const button=document.getElementById('checkoutButton');
+  const rows=cart.map(row=>({...products.find(p=>p.id===row.id),qty:row.qty})).filter(x=>x.id&&x.variantId&&x.available!==false);
+  if(!rows.length||!storefrontLaunch.checkoutEnabled||!storefrontLaunch.legalReady)return;
+  button.disabled=true;button.textContent='Shopifyへ接続中…';
+  try{
+    const r=await fetch('/api/storefront-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:rows.map(x=>({merchandiseId:x.variantId,quantity:x.qty}))})});
+    const j=await r.json();
+    if(!r.ok||!j.ok||!/^https:\/\//.test(String(j.checkoutUrl||'')))throw Error(j.error||'チェックアウトを開始できません');
+    location.href=j.checkoutUrl;
+  }catch(e){announce(String(e.message||'チェックアウトを開始できません'));renderCart()}
+}
+async function loadStorefrontLaunchConfig(){
+  try{
+    const r=await fetch('/api/storefront-config',{headers:{Accept:'application/json'}});
+    const j=await r.json();
+    storefrontLaunch={checkoutEnabled:j.checkoutEnabled===true,legalReady:j.legalReady===true};
+  }catch{storefrontLaunch={checkoutEnabled:false,legalReady:false}}
+  renderCart();
 }
 function changeQty(id,d){const row=cart.find(p=>p.id===id);if(!row||!Number.isSafeInteger(d)||Math.abs(d)!==1)return;row.qty=Math.min(20,Math.max(0,(Number.isSafeInteger(row.qty)?row.qty:0)+d));if(row.qty<=0)cart=cart.filter(p=>p.id!==id);persist();renderCart();announce(row.qty>0?'数量を'+row.qty+'点に変更しました':'商品をカートから削除しました')}
 function removeCart(id){cart=cart.filter(p=>p.id!==id);persist();renderCart()}
@@ -864,6 +887,7 @@ function renderSearch(q){
   document.getElementById('searchResults').innerHTML=`<p class="searchCount" role="status">${isFav?'保存した商品 ': '検索結果 '}${list.length}件</p>`+(list.length?cards:`<div class="emptyState">${isFav?'お気に入りはまだありません。商品詳細のハートから保存できます。':'該当する商品がありません。別の言葉で探してみてください。'}</div>`);
 }
 
+let storefrontLaunch={checkoutEnabled:false,legalReady:false};
 let catalogRequest=0;
 let catalogLoading=false;
 let catalogController=null;
@@ -943,6 +967,7 @@ function normalizeShopifyProduct(raw){
     why:Array.isArray(raw?.why)?raw.why.filter(Boolean).slice(0,6):[],
     available:variant.availableForSale===true&&raw?.available!==false,
     sku:String(variant.sku||raw?.sku||''),
+    variantId:String(variant.id||raw?.variantId||''),
     brand:String(raw?.vendor||raw?.brand||''),
     url:String(raw?.onlineStoreUrl||raw?.url||''),
     shipping:raw?.shipping&&Number.isFinite(Number(raw.shipping.price))&&Number(raw.shipping.price)>=0?raw.shipping:null,
@@ -1058,7 +1083,7 @@ document.addEventListener('keydown',event=>{
     else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
   }
 });
-render();loadShopifyProducts();
+render();loadStorefrontLaunchConfig();loadShopifyProducts();
 </script>
 </body>
 </html>
