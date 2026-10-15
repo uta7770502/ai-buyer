@@ -161,13 +161,19 @@ async function enrichRiskList(list,limit=6){const targets=list.filter(x=>x&&x.id
 function launchEligibility(x){
   if(!x)return {ready:false,reasons:['商品情報なし']};
   const reasons=[],risk=catalogRisk(x),unit=growthUnitEconomics(x);
+  const listed=Number(x.listedNum||0),inventory=Number(x.verifiedInventory??x.inventory??0);
+  const safeType=!['1','3','5'].includes(String(x.productType??''));
+  if(x.trending!==true)reasons.push('CJ Trending未確認');
+  if(listed<SAFE_TREND_MIN_LISTINGS)reasons.push('他店舗掲載実績が30件未満');
+  if(!safeType)reasons.push('販売対象外の商品タイプ');
+  if(inventory<=20)reasons.push('検証済み在庫が少ない');
   if(!hasValidShipping(x))reasons.push('送料未確定');
   if(!x.shopifyProductId||!x.shopifyVariantId||x.shopifyPublishState==='error')reasons.push('Shopify下書き未完了');
   if(!x.growthPageOptimized)reasons.push('商品ページ最適化未完了');
   if(risk.exclude||x.monitorRisk==='stop'||x.monitorStopCandidate||x.stopCandidate)reasons.push('販売リスクあり');
   if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
   if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
-  return {ready:reasons.length===0,reasons,unit};
+  return {ready:reasons.length===0,reasons,unit,listed,inventory,safeType,trending:x.trending===true};
 }
 function scaleEligibility(x){
   if(!x)return {ready:false,reasons:['商品情報なし']};
@@ -224,7 +230,7 @@ function productCard(p,rank){
   const cls=shown>=90?'good':shown>=80?'mid':'';
   return '<div class="card"><div class="product"><div class="pic">'+(p.image?'<img src="'+esc(p.image)+'" alt="">':'商品')+'</div><div><span class="score '+cls+'">AI SCORE '+shown+'</span>'+(rank?'<span class="rankBadge">#'+rank+'</span>':'')+(on?'<span class="statusDot status-'+(state.key==='live'?'live':state.key==='test'||state.key==='ready'?'test':'candidate')+'">'+state.label+'</span>':'')+'<div class="title">'+esc(japaneseProductName(p))+'</div><div class="meta">CJ価格 '+usd(m.cost)+' / 参考売価 '+yen(price)+(on&&state.label?'<br><span role="status" aria-live="polite">AI BUYER：'+esc(on.autoSetupMessage||state.label)+'</span>':'')+(on&&state.key==='ready'?'<br><b>公開条件クリア</b>：AIが公開待ちキューで管理中':'')+shopifyPreparationBadge(on)+'</div></div></div>'+(risk.reasons.length?'<div class="riskLine">'+risk.reasons.map(x=>'⚠ '+esc(x)).join('　')+'</div>':'')+'<div class="actions"><button class="secondary" onclick="openDetail(\''+js(p.id)+'\')">詳細</button><button type="button" role="switch" aria-label="販売候補を選択" aria-checked="'+(selected?'true':'false')+'" class="selectionToggle" '+(risk.exclude&&!selected?'disabled':'')+' onclick="toggleCandidate(\''+js(p.id)+'\')"><span class="switchTrack" aria-hidden="true"><span class="switchThumb"></span></span><span>'+(selected?'ON・選択中':risk.exclude?'選択不可':'OFF・未選択')+'</span></button></div>'+(on&&!on.shopifyProductId&&state.key==='review'?'<button type="button" class="secondary" style="margin-top:8px;width:100%;min-height:40px" onclick="retryShopifyDraft(\''+js(p.id)+'\')">Shopify試験登録を再実行</button>':'')+(on&&state.key==='review'?'<div role="alert" style="margin-top:8px;color:#b42318;font-size:12px;font-weight:800">要確認：'+esc(on.autoSetupMessage||on.shopifyPublishError||'自動運用を確認してください')+'</div>':'')+'</div>'
 }
-function recommendationCard(p,rank){const m=metrics(p),cls=m.score>=90?'good':m.score>=80?'mid':'';return '<button type="button" class="card recommendationCard" onclick="openDetail(\''+js(p.id)+'\')" aria-label="'+esc(japaneseProductName(p))+'の商品詳細を見る"><div class="pic">'+(p.image?'<img src="'+esc(p.image)+'" alt="">':'商品')+'</div><div class="recommendBadges"><span class="score '+cls+'">AI SCORE '+m.score+'</span><span class="rankBadge">#'+rank+'</span></div><div class="title">'+esc(japaneseProductName(p))+'</div><div class="meta">参考売価 '+yen(m.sell)+'</div><div class="recommendDetailHint">商品詳細を見る →</div></button>'}
+function recommendationCard(p,rank){const m=metrics(p),cls=m.score>=90?'good':m.score>=80?'mid':'',listed=Number(p.listedNum||0);return '<button type="button" class="card recommendationCard" onclick="openDetail(\''+js(p.id)+'\')" aria-label="'+esc(japaneseProductName(p))+'の商品詳細を見る"><div class="pic">'+(p.image?'<img src="'+esc(p.image)+'" alt="">':'商品')+'</div><div class="recommendBadges"><span class="score '+cls+'">AI SCORE '+m.score+'</span><span class="rankBadge">#'+rank+'</span><span class="signal strong">売れ筋確認済</span></div><div class="title">'+esc(japaneseProductName(p))+'</div><div class="meta">参考売価 '+yen(m.sell)+' / 他店舗掲載 '+listed+'件</div><div class="recommendDetailHint">商品詳細を見る →</div></button>'}
 let latestProductSearch=0;
 let lastCjProductSearchAt=0;
 let cjProductSearchChain=Promise.resolve();
