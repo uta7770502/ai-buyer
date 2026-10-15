@@ -75,6 +75,10 @@
     {
       "source": "/api/storefront-checkout",
       "destination": "/api/diagnostics?action=storefront-checkout"
+    },
+    {
+      "source": "/api/storefront-config",
+      "destination": "/api/diagnostics?action=storefront-config"
     }
   ]
 }
