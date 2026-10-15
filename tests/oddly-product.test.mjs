@@ -5,7 +5,7 @@ import productPage from '../api/oddly-product.js';
 
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 test('AI growth suggestions do not silently select or create Shopify drafts',()=>{
-  const start=html.indexOf("if(goal.phase==='chase'){");
+  const start=html.indexOf("const openSlots=");
   const end=html.indexOf("for(const x of pool){",start);
   assert.ok(start>=0&&end>start);
   const section=html.slice(start,end);
