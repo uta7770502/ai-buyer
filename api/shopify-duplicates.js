@@ -1,3 +1,4 @@
+import { getShopifyAuthContext } from '../lib/shopify-auth-context.js';
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
@@ -8,10 +9,9 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   if(!['GET','POST'].includes(req.method))return res.status(405).json({ok:false,error:'Method not allowed'});
   try{
-    const c=cookies(req),token=String(c.shopify_access_token||''),shop=String(c.shopify_connected_shop||'').toLowerCase();
-    if(!token||!shop)return res.status(401).json({ok:false,authRequired:true,error:'Shopify認証が必要です'});
-    const allowed=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
-    if(shop!==allowed)return res.status(403).json({ok:false,error:'Shopify shop is not authorized'});
+    const auth=await getShopifyAuthContext(req,{allowAdminKey:false});
+    if(!auth.ok)return res.status(auth.status).json({ok:false,authRequired:Boolean(auth.authRequired),error:auth.error});
+    const {token,shop}=auth;
     const d=await gql(shop,token,'query AiBuyerProducts($q:String!){ products(first:100, query:$q) { nodes { id title handle status vendor productType featuredMedia { preview { image { url } } } audience:metafield(namespace:"custom",key:"adps_audience"){value} adpsSummary:metafield(namespace:"custom",key:"adps_summary"){value} adpsWhy:metafield(namespace:"custom",key:"adps_why"){value} variants(first:10){nodes{id sku price}} } } }',{q:'vendor:AI BUYER'});
     const allRows=d.products?.nodes||[];
     const rows=allRows.filter(p=>p.status==='DRAFT');
