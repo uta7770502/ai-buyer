@@ -83,6 +83,10 @@
     {
       "source": "/api/storefront-config",
       "destination": "/api/diagnostics?action=storefront-config"
+    },
+    {
+      "source": "/api/prelaunch-product-audit",
+      "destination": "/api/diagnostics?action=prelaunch-product-audit"
     }
   ]
 }

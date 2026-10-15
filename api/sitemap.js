@@ -20,7 +20,7 @@ export default async function handler(req,res){
   const shop=safeShop(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN);
   const token=String(process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN||'').trim();
   const enabled=process.env.ODDLY_SEARCH_INDEX_ENABLED==='true';
-  const urls=enabled?[{loc:ORIGIN+'/shop',priority:'1.0'}]:[];
+  const urls=enabled?[{loc:ORIGIN+'/shop',priority:'1.0'},{loc:ORIGIN+'/policies',priority:'0.4'}]:[];
 
   if(enabled&&shop&&token){
     const query=`query SitemapProducts($first:Int!,$after:String){
