@@ -312,7 +312,7 @@ function toggleCandidate(id){
     ...p,
     costUsd:m.cost,
     price:m.sell,
-    qty:12,
+    qty:0,
     status:'candidate',
     aiScore:m.score,
     aiReasons:m.reasons,
@@ -738,9 +738,7 @@ async function runGrowthEngine(silent=false){
     const candidates=(today?.products||[]).filter(p=>!findActive(p.id)).sort((a,b)=>(b.aiScore||metrics(b).score)-(a.aiScore||metrics(a).score)).slice(0,openSlots);
     for(const p of candidates){
       const m=metrics(p);
-      const added={...p,costUsd:Number(p.costUsd??m.cost),price:Number(p.price??m.sell),qty:0,status:'candidate',aiScore:Number(p.aiScore||m.score),aiReasons:p.aiReasons||m.reasons,growthAutoAddedAt:now,shippingDestination:'JP',autoSetupState:'queued',autoSetupMessage:'AIが自動準備を開始します'};
-      active.push(added);
-      actions.push({type:'test',tag:'自動補充',text:(p.name||'商品')+'：目標到達用の空きテスト枠へ自動追加。AI '+(added.aiScore||m.score)+'。送料確認→売価→Shopify下書き→ページ最適化まで自動準備します。'});
+      actions.push({type:'test',tag:'選択待ち',text:(p.name||'商品')+'：追加テスト候補（AI '+(p.aiScore||m.score)+'）。「この商品を選ぶ」で選択した後に限り、送料確認→売価→Shopify下書き→ページ最適化を自動準備します。'});
     }
   }else{
     actions.push({type:'wait',tag:'新規抑制',text:'日商目標が見えているため、新規商品の自動補充は停止。勝ち商品の利益維持を優先。'});
@@ -2167,6 +2165,7 @@ const autoPreparationInFlight=new WeakSet();
 const autoPreparationRetryTimers=new Map();
 function cancelAutoPreparationRetry(id){const key=String(id);const timer=autoPreparationRetryTimers.get(key);if(timer!==undefined){clearTimeout(timer);autoPreparationRetryTimers.delete(key)}}
 async function autoPrepareSelectedProduct(x,attempt=0){
+  if(x?.uiSelected===false)return;
   if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x)||x.shopifyPublishState==='publishing'||x.shopifyPublishState==='published'||x.shopifyPublished||x.autoSetupState==='ready')return;
   if(Number(x.autoSetupAttempts||0)>=3&&attempt>0)return;
   if(attempt>0&&x.autoSetupState==='needs_review'&&!autoPrepareRetryable(x.autoSetupLastError||x.autoSetupMessage))return;
