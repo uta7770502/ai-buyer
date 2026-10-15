@@ -29,11 +29,14 @@ export default async function handler(req,res){
     const why=String(p.adpsWhy?.value||'').split(/\r?\n|\|/).map(x=>x.trim()).filter(Boolean).slice(0,6);
     const aioIndexReady=Boolean(summary&&audience&&why.length);
     const indexable=Boolean(searchIndexEnabled&&aioIndexReady);
-    const shippingPrice=Number(p.shippingPrice?.value);
+    const rawShippingPrice=String(p.shippingPrice?.value??'').trim();
+    const rawReturnDays=String(p.returnDays?.value??'').trim();
+    const shippingPrice=rawShippingPrice===''?NaN:Number(rawShippingPrice);
+    const returnDays=rawReturnDays===''?NaN:Number(rawReturnDays);
     const shippingCountry=String(p.shippingCountry?.value||'JP').toUpperCase();
-    const returnDays=Number(p.returnDays?.value);
-    const shipping=Number.isFinite(shippingPrice)&&shippingPrice>=0?{price:shippingPrice,country:shippingCountry}:null;
-    const returns=Number.isInteger(returnDays)&&returnDays>0?{days:returnDays,country:shippingCountry}:null;
+    const validCountry=/^[A-Z]{2}$/.test(shippingCountry);
+    const shipping=validCountry&&Number.isFinite(shippingPrice)&&shippingPrice>=0?{price:shippingPrice,country:shippingCountry}:null;
+    const returns=validCountry&&Number.isInteger(returnDays)&&returnDays>0?{days:returnDays,country:shippingCountry}:null;
     const hasValidOffer=Number.isFinite(price)&&price>0&&currency==='JPY'&&typeof v?.availableForSale==='boolean';
     const offer=hasValidOffer?{'@type':'Offer',price:price.toFixed(0),priceCurrency:'JPY',availability:v.availableForSale?'https://schema.org/InStock':'https://schema.org/OutOfStock',url}:undefined;
     if(offer&&shipping)offer.shippingDetails={'@type':'OfferShippingDetails','shippingRate':{'@type':'MonetaryAmount','value':shipping.price,'currency':'JPY'},'shippingDestination':{'@type':'DefinedRegion','addressCountry':shipping.country}};
