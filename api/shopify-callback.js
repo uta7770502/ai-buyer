@@ -1,3 +1,4 @@
+import { createShopifyBrowserSession } from '../lib/shopify-auth-context.js';
 import { saveShopifySession } from '../lib/shopify-session-store.js';
 import crypto from 'crypto';
 function parseCookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
@@ -30,10 +31,13 @@ export default async function handler(req,res){
     if(process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY){
       await saveShopifySession(shop,j.access_token);
     }
-    const maxAge=60*60*24*365;
+    const maxAge=60*60*24*30;
     const opts='Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+maxAge;
+    const browserSession=createShopifyBrowserSession(shop,maxAge);
     res.setHeader('Set-Cookie',[
+      'shopify_session='+encodeURIComponent(browserSession)+'; '+opts,
       'shopify_connected_shop='+encodeURIComponent(shop)+'; '+opts,
+      'shopify_access_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
       'shopify_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'
     ]);
     const appBase=String(process.env.SHOPIFY_WEBHOOK_BASE_URL||'').trim().replace(/\/$/,'');
