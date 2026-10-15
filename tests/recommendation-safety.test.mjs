@@ -30,3 +30,16 @@ test('AI recommendation gate requires trending, listing evidence and safe produc
   assert.match(html,/安全性/);
   assert.match(html,/trending=1&minListed=/);
 });
+
+test('publication gate rechecks demand, product type and verified inventory',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const start=html.indexOf('function launchEligibility(');
+  const end=html.indexOf('function scaleEligibility(',start);
+  const block=html.slice(start,end);
+  assert.match(block,/x\.trending!==true/);
+  assert.match(block,/listed<SAFE_TREND_MIN_LISTINGS/);
+  assert.match(block,/\['1','3','5'\]\.includes/);
+  assert.match(block,/inventory<=20/);
+  assert.match(block,/CJ Trending未確認/);
+  assert.match(block,/検証済み在庫が少ない/);
+});
