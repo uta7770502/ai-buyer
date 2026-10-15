@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import publish from '../api/shopify-publish.js';
+import { createShopifyBrowserSession } from '../lib/shopify-auth-context.js';
+process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY='22'.repeat(32);
+process.env.SHOPIFY_ADMIN_ACCESS_TOKEN='test-token';
+const browserCookie=(shop='test.myshopify.com')=>'shopify_session='+encodeURIComponent(createShopifyBrowserSession(shop,3600))+'; shopify_connected_shop='+shop;
 
 async function invoke({method='POST',cookie='',allowed='test.myshopify.com',body={}}={}){
  const old=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;
@@ -20,21 +24,21 @@ test('Shopify publish requires a connected shop session',async()=>{
  const r=await invoke();assert.equal(r.code,401);assert.equal(r.body.authRequired,true);
 });
 test('Shopify publish blocks a different shop even with a token',async()=>{
- const r=await invoke({cookie:'shopify_access_token=token; shopify_connected_shop=other.myshopify.com'});
+ const r=await invoke({cookie:browserCookie('other.myshopify.com')});
  assert.equal(r.code,403);
 });
 test('Shopify publish rejects missing allowlist',async()=>{
- const r=await invoke({allowed:'',cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'});
- assert.equal(r.code,403);
+ const r=await invoke({allowed:'',cookie:browserCookie()});
+ assert.equal(r.code,503);
 });
 
 test('Shopify publish rejects missing product title without calling external APIs',async()=>{
- const r=await invoke({cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com',body:{price:1200,cjProductId:'cj-test'}});
+ const r=await invoke({cookie:browserCookie(),body:{price:1200,cjProductId:'cj-test'}});
  assert.equal(r.code,400);assert.match(r.body.error,/商品名/);
 });
 test('Shopify publish rejects zero, negative and nonfinite prices before CJ lookup',async()=>{
  for(const price of [0,-1,'NaN','Infinity']){
-  const r=await invoke({cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com',body:{title:'Safe product',price,cjProductId:'cj-test'}});
+  const r=await invoke({cookie:browserCookie(),body:{title:'Safe product',price,cjProductId:'cj-test'}});
   assert.equal(r.code,400);
  }
 });
@@ -53,7 +57,7 @@ test('CJ product lookup failure prevents any Shopify draft creation',async()=>{
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
   assert.equal(res.code,500);
   assert.match(res.body.error,/CJ product unavailable/);
   assert.equal(calls.length,1);
@@ -84,7 +88,7 @@ test('valid CJ product creates Shopify draft but never publishes without approva
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Sample',price:1200,cjProductId:'cj-test',publishApproved:true}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test',publishApproved:true}},res);
   assert.equal(res.code,200);assert.equal(res.body.status,'DRAFT');assert.equal(res.body.published,false);
   assert.ok(requests.length>=3);
   assert.equal(requests[1].variables.product.status,'DRAFT');
@@ -110,7 +114,7 @@ test('duplicate CJ SKU drafts block creation before any Shopify mutation',async(
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
   assert.equal(res.code,409);assert.match(res.body.error,/複数/);
   assert.equal(queries.length,1);
  }finally{
@@ -136,7 +140,7 @@ test('single matching CJ SKU draft is updated rather than creating a duplicate',
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Updated',price:1200,cjProductId:'cj-test'}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Updated',price:1200,cjProductId:'cj-test'}},res);
   assert.equal(res.code,200);assert.equal(res.body.status,'DRAFT');
   assert.equal(res.body.productId,'gid://shopify/Product/1');
   assert.ok(queries.some(x=>x.query.includes('RefreshDraft')));
@@ -160,7 +164,7 @@ test('truncated Shopify draft search stops before product creation',async()=>{
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
   assert.equal(res.code,409);assert.match(res.body.error,/検索結果/);
   assert.equal(queries.length,1);
  }finally{
@@ -180,7 +184,7 @@ test('growth page optimization refuses an active Shopify product before mutation
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{growthPageOptimize:true,productId:'gid://shopify/Product/12',descriptionHtml:'Test product description'}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{growthPageOptimize:true,productId:'gid://shopify/Product/12',descriptionHtml:'Test product description'}},res);
   assert.equal(res.code,409);
   assert.match(res.body.error,/公開中/);
   assert.equal(queries.length,1);
@@ -202,7 +206,7 @@ test('growth page optimization updates a verified draft without publishing',asyn
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{growthPageOptimize:true,productId:'gid://shopify/Product/12',descriptionHtml:'Japanese description'}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{growthPageOptimize:true,productId:'gid://shopify/Product/12',descriptionHtml:'Japanese description'}},res);
   assert.equal(res.code,200);
   assert.equal(res.body.growthPageOptimized,true);
   assert.equal(res.body.product.status,'DRAFT');
@@ -229,7 +233,7 @@ test('incomplete Shopify duplicate-search pagination fails closed before creatin
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{cookie:'shopify_access_token=token; shopify_connected_shop=test.myshopify.com'},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
   assert.equal(res.code,409);
   assert.equal(queries.length,1);
   assert.ok(queries.every(q=>!q.includes('CreateProduct')));
@@ -240,7 +244,7 @@ test('incomplete Shopify duplicate-search pagination fails closed before creatin
 });
 
 test('ad guard rejects invalid yen amounts before approval',async()=>{
- const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ const cookie=browserCookie();
  for(const field of ['dailyBudgetJpy','currentSpendJpy','requestedBudgetJpy']){
   for(const value of [-1,0.5,'Infinity','NaN',null,undefined,'',' ',true,false,'0x10','1e3','+100','01',[],[1],{value:100}]){
    const body={adGuard:true,provider:'meta',action:'create',dailyBudgetJpy:1000,currentSpendJpy:0,requestedBudgetJpy:100};
@@ -253,7 +257,7 @@ test('ad guard rejects invalid yen amounts before approval',async()=>{
 });
 
 test('ad guard never approves without a valid server-side daily cap',async()=>{
- const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ const cookie=browserCookie();
  const previous=process.env.ADS_MAX_DAILY_JPY;
  try{
   for(const invalid of [undefined,'','0','-10','Infinity','1.5']){
@@ -267,7 +271,7 @@ test('ad guard never approves without a valid server-side daily cap',async()=>{
 });
 
 test('ad guard respects both user daily budget and server cap',async()=>{
- const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ const cookie=browserCookie();
  const previous=process.env.ADS_MAX_DAILY_JPY;
  try{
   process.env.ADS_MAX_DAILY_JPY='2000';
@@ -281,7 +285,7 @@ test('ad guard respects both user daily budget and server cap',async()=>{
 });
 
 test('ad guard rejects zero requested budget for activating actions',async()=>{
- const cookie='shopify_access_token=token; shopify_connected_shop=test.myshopify.com';
+ const cookie=browserCookie();
  const previous=process.env.ADS_MAX_DAILY_JPY;
  try{
   process.env.ADS_MAX_DAILY_JPY='2000';
@@ -295,26 +299,29 @@ test('ad guard rejects zero requested budget for activating actions',async()=>{
 });
 
 test('server publishing rejects admin key without a server Shopify token',async()=>{
- const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+ const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,oldAllowed=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;
  process.env.AI_BUYER_ADMIN_KEY='test-key';
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
  delete process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
  const previousFetch=globalThis.fetch;
  globalThis.fetch=async()=>{throw Error('Must not make external requests')};
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
-  await publish({method:'POST',headers:{authorization:'Bearer test-key',cookie:'shopify_access_token=browser-token; shopify_connected_shop=test.myshopify.com'},body:{}},res);
+  await publish({method:'POST',headers:{authorization:'Bearer test-key',cookie:browserCookie()},body:{}},res);
   assert.equal(res.code,503);
   assert.equal(res.body.ok,false);
  }finally{
   globalThis.fetch=previousFetch;
   if(oldKey===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=oldKey;
   if(oldToken===undefined)delete process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;else process.env.SHOPIFY_ADMIN_ACCESS_TOKEN=oldToken;
+  if(oldAllowed===undefined)delete process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;else process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=oldAllowed;
  }
 });
 test('server token requires correct admin key and does not grant browser access',async()=>{
- const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+ const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldToken=process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,oldAllowed=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;
  process.env.AI_BUYER_ADMIN_KEY='test-key';
  process.env.SHOPIFY_ADMIN_ACCESS_TOKEN='server-token';
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
  const previousFetch=globalThis.fetch;
  globalThis.fetch=async()=>{throw Error('Must not make external requests')};
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
@@ -325,5 +332,6 @@ test('server token requires correct admin key and does not grant browser access'
   globalThis.fetch=previousFetch;
   if(oldKey===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=oldKey;
   if(oldToken===undefined)delete process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;else process.env.SHOPIFY_ADMIN_ACCESS_TOKEN=oldToken;
+  if(oldAllowed===undefined)delete process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;else process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=oldAllowed;
  }
 });

@@ -9,8 +9,10 @@ import webhook from '../api/shopify-order-webhook.js';
 import setup from '../api/shopify-setup-orders.js';
 import cj from '../api/cj.js';
 import diagnostics from '../api/diagnostics.js';
-const env={SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-admin-token',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
-const headers={authorization:'Bearer test-admin',cookie:'shopify_access_token=test-token; shopify_connected_shop=test.myshopify.com'};
+import { createShopifyBrowserSession } from '../lib/shopify-auth-context.js';
+process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY='33'.repeat(32);
+const env={SHOPIFY_TOKEN_ENCRYPTION_KEY:'33'.repeat(32),SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-admin-token',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
+const headers={authorization:'Bearer test-admin',cookie:'shopify_session='+encodeURIComponent(createShopifyBrowserSession('test.myshopify.com',3600))+'; shopify_connected_shop=test.myshopify.com'};
 const payload={orderId:'gid://shopify/Order/123',trackingNumber:'TRACK123'};
 const target={id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]};
 const order={id:payload.orderId,test:true,cancelledAt:null,displayFinancialStatus:'PAID',fulfillmentOrders:{nodes:[target],pageInfo:{hasNextPage:false}}};
@@ -91,7 +93,7 @@ test('concurrent sync requests perform at most one mutation',async t=>{
 });
 test('authorization failure does not contact services',async t=>{
  configure(t);assert.equal((await invoke(sync,payload,'POST',{})).code,401);
- assert.equal((await invoke(sync,payload,'POST',{...headers,cookie:'shopify_access_token=x; shopify_connected_shop=attacker.invalid'})).code,403);
+ assert.equal((await invoke(sync,payload,'POST',{cookie:'shopify_connected_shop=attacker.invalid'})).code,401);
 });
 test('missing client ID and noninteger quantity limit fail release gate',async t=>{
  configure(t,async(url,opts={})=>{
