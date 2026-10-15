@@ -33,7 +33,6 @@ export default async function handler(req,res){
     const maxAge=60*60*24*365;
     const opts='Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+maxAge;
     res.setHeader('Set-Cookie',[
-      'shopify_access_token='+encodeURIComponent(j.access_token)+'; '+opts,
       'shopify_connected_shop='+encodeURIComponent(shop)+'; '+opts,
       'shopify_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'
     ]);
