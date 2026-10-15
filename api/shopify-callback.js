@@ -1,3 +1,4 @@
+import { saveShopifySession } from '../lib/shopify-session-store.js';
 import crypto from 'crypto';
 function parseCookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 function safeShop(v){const s=String(v||'').toLowerCase();return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(s)?s:''}
@@ -24,6 +25,11 @@ export default async function handler(req,res){
     const r=await fetch('https://'+shop+'/admin/oauth/access_token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,client_secret:clientSecret,code}),signal:AbortSignal.timeout(10000)});
     const j=await r.json();
     if(!r.ok||!j.access_token)throw Error(j.error_description||j.error||'アクセストークン取得に失敗しました');
+    // Persist only when encryption is explicitly configured. Never write plaintext to Redis.
+    // If configured storage fails, fail the OAuth callback instead of claiming automation is ready.
+    if(process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY){
+      await saveShopifySession(shop,j.access_token);
+    }
     const maxAge=60*60*24*365;
     const opts='Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+maxAge;
     res.setHeader('Set-Cookie',[

@@ -1,0 +1,23 @@
+name: Encrypted Shopify session tests
+on:
+  pull_request:
+    paths:
+      - 'lib/shopify-session-store.js'
+      - 'api/shopify-callback.js'
+      - 'api/shopify-publish.js'
+      - 'tests/shopify-session-store.test.mjs'
+      - '.github/workflows/shopify-session-storage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  encrypted-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check lib/shopify-session-store.js && node --check api/shopify-callback.js && node --check api/shopify-publish.js
+      - run: node --test tests/shopify-session-store.test.mjs tests/shopify-publish.test.mjs
