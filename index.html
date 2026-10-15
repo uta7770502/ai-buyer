@@ -1667,7 +1667,10 @@ async function checkReleaseReadiness(){
       const webhookState=j.externalChecks?.shopifyWebhookVerified?'Webhook OK':'Webhook要確認';
       const cjState=j.externalChecks?.cjApiVerified?'CJ接続OK':'CJ接続要確認';
       const redisState=j.externalChecks?.redisPing?'Redis OK':'Redis要確認';
-      meta.textContent=base+' / '+shopifyState+' / '+webhookState+' / '+cjState+' / '+redisState+' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP');
+      const legalState=j.legalReady?'法務OK':'法務情報要入力';
+      const checkoutState=j.checkoutEnabled?'Checkout ON':'Checkout OFF';
+      const prelaunchState=j.prelaunchReady?'公開直前READY':'公開前チェック残り';
+      meta.textContent=base+' / '+shopifyState+' / '+webhookState+' / '+cjState+' / '+redisState+' / '+legalState+' / '+checkoutState+' / '+prelaunchState+' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP');
     }
     renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();
     renderTestChecklist();
