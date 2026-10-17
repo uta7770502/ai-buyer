@@ -8,6 +8,7 @@ import shopifySandboxOrder from '../lib/routes/shopify-sandbox-order.js';
 import storefrontCheckout from '../lib/routes/storefront-checkout.js';
 import storefrontConfig from '../lib/routes/storefront-config.js';
 import prelaunchProductAudit from '../lib/routes/prelaunch-product-audit.js';
+import prelaunchOneAction from '../lib/routes/prelaunch-one-action.js';
 
 function normalizeShopHost(v){return String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'')}
 function shopifyEnvCheck(req,res){
@@ -33,7 +34,8 @@ const handlers={
   'shopify-env-check':shopifyEnvCheck,
   'storefront-checkout':storefrontCheckout,
   'storefront-config':storefrontConfig,
-  'prelaunch-product-audit':prelaunchProductAudit
+  'prelaunch-product-audit':prelaunchProductAudit,
+  'prelaunch-one-action':prelaunchOneAction
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');
