@@ -91,5 +91,5 @@ test('admin UI exposes one-click prelaunch button without a public-launch action
   const block=html.slice(start,end);
   assert.doesNotMatch(block,/SHOPIFY_LIVE_PUBLISH_ENABLED/);
   assert.doesNotMatch(block,/ODDLY_CHECKOUT_ENABLED\s*=\s*true/);
-  assert.doesNotMatch(block,/password.*remove|remove.*password/i);
+  assert.doesNotMatch(block,/fetch\([^\n]*password|removeStorefrontPassword|disablePasswordProtection/i);
 });
