@@ -87,6 +87,10 @@
     {
       "source": "/api/prelaunch-product-audit",
       "destination": "/api/diagnostics?action=prelaunch-product-audit"
+    },
+    {
+      "source": "/api/prelaunch-one-action",
+      "destination": "/api/diagnostics?action=prelaunch-one-action"
     }
   ]
 }
