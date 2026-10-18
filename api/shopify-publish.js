@@ -354,6 +354,26 @@ export default async function handler(req,res){
       });
     }
 
+    if(p.prelaunchDraftRepair===true){
+      const productId=String(p.productId||'').trim();
+      if(!/^gid:\/\/shopify\/Product\/\d+$/.test(productId))return res.status(400).json({ok:false,error:'Shopify商品IDが不正です'});
+      const existing=await gql(shop,token,'query PrelaunchRepairTarget($id:ID!){product(id:$id){id title description status vendor}}',{id:productId});
+      const product=existing.product;
+      if(!product)return res.status(404).json({ok:false,error:'Shopify商品が見つかりません'});
+      if(product.status!=='DRAFT')return res.status(409).json({ok:false,error:'公開中の商品は自動修復しません'});
+      if(!['ODDLY','AI BUYER'].includes(String(product.vendor||'')))return res.status(403).json({ok:false,error:'ODDLY管理対象の商品ではありません'});
+      const update={id:productId};
+      const titleJa=clean(p.titleJa,250);
+      if(titleJa&&/[\u3040-\u30ff\u3400-\u9fff]/.test(titleJa))update.title=titleJa;
+      const descriptionJa=cleanHtml(p.descriptionHtml||'',5000);
+      if(descriptionJa&&/[\u3040-\u30ff\u3400-\u9fff]/.test(descriptionJa))update.descriptionHtml=descriptionJa;
+      if(Object.keys(update).length===1)return res.status(409).json({ok:false,error:'安全に自動修復できる日本語情報がありません'});
+      const d=await gql(shop,token,'mutation PrelaunchRepair($product:ProductUpdateInput!){productUpdate(product:$product){product{id title status} userErrors{field message}}}',{product:update});
+      const errs=d.productUpdate?.userErrors||[];
+      if(errs.length)return res.status(409).json({ok:false,error:errs.map(x=>x.message).join(' / ')});
+      return res.status(200).json({ok:true,prelaunchDraftRepair:true,product:d.productUpdate?.product||null,changedPublicationState:false});
+    }
+
     if(p.aioBackfill===true){
       const productId=String(p.productId||'').trim();
       if(!/^gid:\/\/shopify\/Product\/\d+$/.test(productId))return res.status(400).json({ok:false,error:'Shopify商品IDが不正です'});

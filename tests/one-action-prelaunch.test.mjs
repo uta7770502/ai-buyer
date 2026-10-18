@@ -102,3 +102,12 @@ test('one-action UI auto-repairs known draft metadata and respects CJ QPS pacing
   assert.match(html,/productIssues=.*reasons/);
   assert.match(html,/await waitMs\(1150\)/);
 });
+
+test('prelaunch auto repair localizes draft titles but never active products',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const api=fs.readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  assert.match(html,/prelaunchDraftRepair:true/);
+  assert.match(html,/titleJa:japaneseProductName\(local\)/);
+  assert.match(api,/if\(product\.status!=='DRAFT'\)return res\.status\(409\)/);
+  assert.match(api,/changedPublicationState:false/);
+});
