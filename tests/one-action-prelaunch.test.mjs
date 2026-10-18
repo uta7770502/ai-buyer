@@ -93,3 +93,12 @@ test('admin UI exposes one-click prelaunch button without a public-launch action
   assert.doesNotMatch(block,/ODDLY_CHECKOUT_ENABLED\s*=\s*true/);
   assert.doesNotMatch(block,/fetch\([^\n]*password|removeStorefrontPassword|disablePasswordProtection/i);
 });
+
+test('one-action UI auto-repairs known draft metadata and respects CJ QPS pacing',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/async function repairPrelaunchDraftMetadata/);
+  assert.match(html,/shippingCountry:'JP'/);
+  assert.match(html,/shippingPriceJpy=shipping/);
+  assert.match(html,/productIssues=.*reasons/);
+  assert.match(html,/await waitMs\(1150\)/);
+});
