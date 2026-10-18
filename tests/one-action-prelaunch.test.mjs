@@ -111,3 +111,11 @@ test('prelaunch auto repair localizes draft titles but never active products',()
   assert.match(api,/if\(product\.status!=='DRAFT'\)return res\.status\(409\)/);
   assert.match(api,/changedPublicationState:false/);
 });
+
+test('prelaunch repair also fixes orphan Shopify drafts without local candidate state',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/\|\|null;/);
+  assert.match(html,/const source=local\|\|\{name:row\.title\|\|''\}/);
+  assert.match(html,/kitchen knife sharpener\|knife sharpener/);
+  assert.match(html,/shippingCountry:'JP'/);
+});

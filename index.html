@@ -215,6 +215,8 @@ function japaneseProductName(p){
     [/golf putting practice mat|swing trajectory paper/i,'ゴルフ パッティング練習マット'],
     [/four.legged pet outfit|pet outfit/i,'ペット用 四つ足ウェア'],
     [/electric hair pulling|blowing comb/i,'ペット用 電動グルーミングブラシ'],
+    [/kitchen knife sharpener|knife sharpener/i,'家庭用 包丁研ぎ器'],
+    [/dogs? water bottle|drinking bowl/i,'携帯用 ペット給水ボトル'],
     [/dog mattress|dog mat|pet sleeping pad/i,'犬用 ペットマット']
   ];
   for(const [re,name] of patterns)if(re.test(raw))return name;
@@ -1650,24 +1652,24 @@ async function repairPrelaunchDraftMetadata(auditProducts){
     policyReturnDays=Number(pj?.commerce?.returnDays||0);
   }catch{}
   for(const row of blocked){
-    const local=active.find(x=>String(x.shopifyProductId||'')===String(row.id||''));
-    if(!local)continue;
-    const shipping=Number(local.shippingJpy);
+    const local=active.find(x=>String(x.shopifyProductId||'')===String(row.id||''))||null;
+    const shipping=Number(local?.shippingJpy);
     const payload={
       aioBackfill:true,
       productId:row.id,
-      adpsAudience:local.adpsAudience||local.audience||'',
-      adpsSummary:local.adpsSummary||local.summary||'',
-      adpsWhy:local.adpsWhy||local.why||[],
+      adpsAudience:local?.adpsAudience||local?.audience||'',
+      adpsSummary:local?.adpsSummary||local?.summary||'',
+      adpsWhy:local?.adpsWhy||local?.why||[],
       shippingCountry:'JP'
     };
     if(row.status==='DRAFT'&&(row.reasons||[]).includes('商品名が日本語未確認')){
       try{
+        const source=local||{name:row.title||''};
         const rr=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
           prelaunchDraftRepair:true,
           productId:row.id,
-          titleJa:japaneseProductName(local),
-          descriptionHtml:shopifyDescription(local)
+          titleJa:japaneseProductName(source),
+          descriptionHtml:local?shopifyDescription(local):''
         })});
         await rr.json().catch(()=>({}));
       }catch{}
