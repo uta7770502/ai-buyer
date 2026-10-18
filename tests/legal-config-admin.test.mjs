@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const storefront=fs.readFileSync(new URL('../lib/routes/storefront-config.js',import.meta.url),'utf8');
+const readiness=fs.readFileSync(new URL('../lib/routes/release-readiness.js',import.meta.url),'utf8');
+const store=fs.readFileSync(new URL('../lib/legal-config-store.js',import.meta.url),'utf8');
+
+test('legal config is admin-gated and encrypted at rest',()=>{
+  assert.match(store,/aes-256-gcm/);
+  assert.match(store,/ai-buyer:oddly:legal-config:v1/);
+  assert.match(store,/SHOPIFY_TOKEN_ENCRYPTION_KEY/);
+  assert.match(store,/UPSTASH_REDIS_REST_URL/);
+  assert.match(store,/UPSTASH_REDIS_REST_TOKEN/);
+  assert.match(store,/SET/);
+  assert.match(store,/GET/);
+  assert.match(storefront,/req\.method==='POST'/);
+  assert.match(storefront,/Authorization|authorization/);
+  assert.match(storefront,/AI_BUYER_ADMIN_KEY/);
+  assert.match(storefront,/saveLegalConfig/);
+  assert.match(storefront,/source:stored\?'encrypted-redis':'environment'/);
+});
+
+test('readiness consumes encrypted legal config before env fallback',()=>{
+  assert.match(readiness,/loadLegalConfig/);
+  assert.match(readiness,/legalValue\(legal\.sellerName,'ODDLY_SELLER_NAME'\)/);
+  assert.match(readiness,/legalValue\(legal\.returnDays,'ODDLY_RETURN_DAYS'\)/);
+  assert.match(readiness,/legalSource:Object\.keys\(legal\)\.length\?'encrypted-redis':'environment'/);
+});
+
+test('admin UI contains one-screen legal form and save flow',()=>{
+  for(const id of ['legalSellerName','legalRepresentative','legalAddress','legalPhone','legalEmail','legalPaymentTiming','legalShippingWindow','legalReturnDays','legalReturnConditions','legalReturnShipping','legalAdditionalFees','legalPrivacyContact']){
+    assert.match(index,new RegExp('id="'+id+'"'));
+  }
+  assert.match(index,/async function saveLegalAdminForm/);
+  assert.match(index,/\/api\/storefront-config/);
+  assert.match(index,/特商法・返品条件・返品日数を公開前チェックへ反映/);
+});
