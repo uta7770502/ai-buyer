@@ -1661,6 +1661,18 @@ async function repairPrelaunchDraftMetadata(auditProducts){
       adpsWhy:local.adpsWhy||local.why||[],
       shippingCountry:'JP'
     };
+    if(row.status==='DRAFT'&&(row.reasons||[]).includes('商品名が日本語未確認')){
+      try{
+        const rr=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          prelaunchDraftRepair:true,
+          productId:row.id,
+          titleJa:japaneseProductName(local),
+          descriptionHtml:shopifyDescription(local)
+        })});
+        await rr.json().catch(()=>({}));
+      }catch{}
+      await waitMs(250);
+    }
     if(Number.isFinite(shipping)&&shipping>=0)payload.shippingPriceJpy=shipping;
     if(Number.isInteger(policyReturnDays)&&policyReturnDays>0)payload.returnDays=policyReturnDays;
     attempted++;
@@ -1741,7 +1753,7 @@ async function runOneActionPrelaunch(){
     if(status)status.textContent=ready
       ?'完了：公開系スイッチはすべてOFFのまま。最終公開操作だけ残っています。'
       :'安全な自動準備は完了しました。下の残り項目を解消後、もう一度このボタンを押してください。';
-    const productIssues=(j.productAudit?.products||[]).filter(x=>!x.ready).slice(0,12);
+    const productIssues=(j.productAudit?.products||[]).filter(x=>x.status==='DRAFT'&&!x.ready).slice(0,12);
     if(blockersBox)blockersBox.innerHTML=unique.length
       ?'<b>残り：</b><br>'+unique.map(x=>'・'+esc(x)).join('<br>')+
         (productIssues.length?'<br><br><b>下書き商品の不足：</b><br>'+productIssues.map(x=>'・'+esc(x.title||x.id)+'：'+esc((x.reasons||[]).join(' / '))).join('<br>'):'')
