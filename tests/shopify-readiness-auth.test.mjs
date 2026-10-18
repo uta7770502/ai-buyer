@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source=readFileSync(new URL('../lib/routes/release-readiness.js',import.meta.url),'utf8')
-  .replace("import { loadShopifySession } from '../shopify-session-store.js';",'').replace('export default async function handler','async function handler')+'\nthis.handler=handler;';
+  .replace("import { loadShopifySession } from '../shopify-session-store.js';",'').replace("import { loadLegalConfig } from '../legal-config-store.js';",'').replace('export default async function handler','async function handler')+'\nthis.handler=handler;';
 
 function run(env={}){
-  const context={loadShopifySession:async()=>null,process:{env:{AI_BUYER_ADMIN_KEY:'test-admin-key',...env}},fetch:async()=>{throw Error('Network calls must not be made in this fixture')},AbortSignal,Date,Boolean,String,Number,RegExp};
+  const context={loadShopifySession:async()=>null,loadLegalConfig:async()=>null,process:{env:{AI_BUYER_ADMIN_KEY:'test-admin-key',...env}},fetch:async()=>{throw Error('Network calls must not be made in this fixture')},AbortSignal,Date,Boolean,String,Number,RegExp};
   vm.runInNewContext(source,context);
   let status=0,body;
   const res={setHeader(){},status(code){status=code;return this},json(value){body=JSON.parse(JSON.stringify(value));return this}};
