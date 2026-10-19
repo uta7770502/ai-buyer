@@ -1663,6 +1663,22 @@ async function checkAioGeoAudit(){
   }
 }
 
+function conservativePrelaunchAio(row){
+  const title=String(row?.title||'').trim();
+  if(/kitchen knife sharpener|包丁研ぎ/i.test(title)){
+    return {
+      audience:'家庭で包丁のメンテナンスをしたい方',
+      summary:'家庭で包丁の切れ味を整える用途の包丁研ぎ器です。詳細仕様は商品ページの確認情報を優先します。',
+      why:['用途が明確なキッチン用品','日常のメンテナンス用途として検討しやすい']
+    };
+  }
+  return {
+    audience:'この商品カテゴリの商品を探している方',
+    summary:title?title+'の商品情報です。詳細仕様は商品ページの確認情報を優先します。':'商品情報です。詳細仕様は商品ページの確認情報を優先します。',
+    why:['用途が分かりやすい商品','商品詳細を確認して選べる']
+  };
+}
+
 async function repairPrelaunchDraftMetadata(auditProducts){
   const blocked=(Array.isArray(auditProducts)?auditProducts:[]).filter(x=>!x.ready);
   if(!blocked.length)return {attempted:0,updated:0,remaining:0};
@@ -1676,12 +1692,13 @@ async function repairPrelaunchDraftMetadata(auditProducts){
   for(const row of blocked){
     const local=active.find(x=>String(x.shopifyProductId||'')===String(row.id||''))||null;
     const shipping=Number(local?.shippingJpy);
+    const fallbackAio=conservativePrelaunchAio(row);
     const payload={
       aioBackfill:true,
       productId:row.id,
-      adpsAudience:local?.adpsAudience||local?.audience||'',
-      adpsSummary:local?.adpsSummary||local?.summary||'',
-      adpsWhy:local?.adpsWhy||local?.why||[],
+      adpsAudience:local?.adpsAudience||local?.audience||fallbackAio.audience,
+      adpsSummary:local?.adpsSummary||local?.summary||fallbackAio.summary,
+      adpsWhy:local?.adpsWhy||local?.why||fallbackAio.why,
       shippingCountry:'JP'
     };
     if(row.status==='DRAFT'&&(row.reasons||[]).includes('商品名が日本語未確認')){
