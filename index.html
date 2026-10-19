@@ -1708,7 +1708,7 @@ async function repairPrelaunchDraftMetadata(auditProducts){
           prelaunchDraftRepair:true,
           productId:row.id,
           titleJa:japaneseProductName(source),
-          descriptionHtml:local?shopifyDescription(local):''
+          descriptionHtml:local?shopifyDescription(local):('<p>'+japaneseProductName(source)+'の商品です。詳細仕様・サイズ・素材・配送条件は商品ページの確認情報を優先してください。</p>')
         })});
         await rr.json().catch(()=>({}));
       }catch{}

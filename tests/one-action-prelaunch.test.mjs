@@ -136,3 +136,14 @@ test('readiness UI accepts current read-only verification contract',()=>{
   assert.match(html,/verification==='read-only-connectivity'/);
   assert.doesNotMatch(html,/verification==='configuration-only'/);
 });
+
+test('orphan draft repair creates safe Japanese copy and clears review tag only after verification',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const api=fs.readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  assert.match(html,/詳細仕様・サイズ・素材・配送条件は商品ページの確認情報を優先してください/);
+  assert.match(api,/product\(id:\$id\)\{id title description status vendor tags\}/);
+  assert.match(api,/filter\(x=>String\(x\|\|''\)!=='要日本語確認'\)/);
+  assert.match(api,/finalTitle/);
+  assert.match(api,/finalDescription/);
+  assert.match(api,/changedPublicationState:false/);
+});
