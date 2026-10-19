@@ -37,3 +37,12 @@ test('admin UI contains one-screen legal form and save flow',()=>{
   assert.match(index,/\/api\/storefront-config/);
   assert.match(index,/特商法・返品条件・返品日数を公開前チェックへ反映/);
 });
+
+test('saving legal data automatically reruns safe prelaunch checks',()=>{
+  const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const start=index.indexOf('async function saveLegalAdminForm');
+  const end=index.indexOf('async function runOneActionPrelaunch',start);
+  const block=index.slice(start,end);
+  assert.match(block,/await runOneActionPrelaunch\(\)/);
+  assert.doesNotMatch(block,/ODDLY_CHECKOUT_ENABLED\s*=\s*true|SHOPIFY_LIVE_PUBLISH_ENABLED|removeStorefrontPassword|disablePasswordProtection/);
+});
