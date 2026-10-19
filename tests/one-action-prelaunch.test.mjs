@@ -147,3 +147,12 @@ test('orphan draft repair creates safe Japanese copy and clears review tag only 
   assert.match(api,/finalDescription/);
   assert.match(api,/changedPublicationState:false/);
 });
+
+test('final launch checklist stays locked until explicit approval',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/承認商品のACTIVE化/);
+  assert.match(html,/Checkout本番ON/);
+  assert.match(html,/Shopify決済の最終確認/);
+  assert.match(html,/ストアパスワード解除/);
+  assert.match(html,/最終承認があるまで実行しません/);
+});
