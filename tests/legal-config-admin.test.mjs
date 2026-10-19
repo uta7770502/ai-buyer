@@ -79,3 +79,11 @@ test('legal copy suggestions are review-only and never auto-save',()=>{
   assert.doesNotMatch(block,/fetch\('/);
   assert.match(block,/実際の運用・配送条件・返品方針に合っているか確認/);
 });
+
+test('legal UI shows exact missing fields and blocks incomplete save',()=>{
+  const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(index,/function updateLegalMissingSummary/);
+  assert.match(index,/公開直前READYまで残り/);
+  assert.match(index,/const missingBeforeSave=updateLegalMissingSummary\(\)/);
+  assert.match(index,/未入力：/);
+});
