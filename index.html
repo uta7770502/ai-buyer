@@ -1830,6 +1830,9 @@ async function saveLegalAdminForm(){
   const val=id=>String(document.getElementById(id)?.value||'').trim();
   const missingBeforeSave=updateLegalMissingSummary();
   if(missingBeforeSave.length){if(status)status.textContent='未入力：'+missingBeforeSave.join(' / ');return}
+  const emailCheck=val('legalEmail'),privacyCheck=val('legalPrivacyContact')||emailCheck,returnDaysCheck=Number(val('legalReturnDays'));
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCheck)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(privacyCheck)){if(status)status.textContent='メールアドレスの形式を確認してください。';return}
+  if(!Number.isInteger(returnDaysCheck)||returnDaysCheck<1||returnDaysCheck>365){if(status)status.textContent='返品受付日数は1〜365日の整数で入力してください。';return}
   const payload={
     sellerName:val('legalSellerName'),representative:val('legalRepresentative'),address:val('legalAddress'),
     phone:val('legalPhone'),email:val('legalEmail'),paymentTiming:val('legalPaymentTiming'),

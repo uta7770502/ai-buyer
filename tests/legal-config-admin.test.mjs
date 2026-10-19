@@ -87,3 +87,11 @@ test('legal UI shows exact missing fields and blocks incomplete save',()=>{
   assert.match(index,/const missingBeforeSave=updateLegalMissingSummary\(\)/);
   assert.match(index,/未入力：/);
 });
+
+test('legal config validates return days and email before save',()=>{
+  const api=fs.readFileSync(new URL('../lib/routes/storefront-config.js',import.meta.url),'utf8');
+  const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(api,/n>=1&&n<=365/);
+  assert.match(index,/返品受付日数は1〜365日の整数/);
+  assert.match(index,/メールアドレスの形式を確認してください/);
+});
