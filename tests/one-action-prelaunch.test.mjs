@@ -130,3 +130,9 @@ test('orphan Shopify drafts receive conservative AIO metadata without inventing 
   assert.match(html,/adpsAudience:local\?\.adpsAudience\|\|local\?\.audience\|\|fallbackAio\.audience/);
   assert.match(html,/adpsWhy:local\?\.adpsWhy\|\|local\?\.why\|\|fallbackAio\.why/);
 });
+
+test('readiness UI accepts current read-only verification contract',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/verification==='read-only-connectivity'/);
+  assert.doesNotMatch(html,/verification==='configuration-only'/);
+});
