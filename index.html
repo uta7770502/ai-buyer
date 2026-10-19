@@ -79,6 +79,7 @@ html,body{min-height:100%;height:auto!important;overflow-y:auto!important;-webki
     <label style="grid-column:1/-1">返品送料の負担<textarea id="legalReturnShipping" style="width:100%;min-height:58px;border:1px solid #e4e4e4;border-radius:10px;padding:9px;margin-top:4px;font:inherit"></textarea></label>
     <label style="grid-column:1/-1">商品代金以外の追加料金<textarea id="legalAdditionalFees" style="width:100%;min-height:58px;border:1px solid #e4e4e4;border-radius:10px;padding:9px;margin-top:4px;font:inherit"></textarea></label>
   </div>
+  <button id="legalShopifyPrefillBtn" class="ghost" onclick="prefillLegalFromShopify()" style="margin-bottom:8px">Shopify店舗情報から基本情報を自動入力</button>
   <button id="legalConfigSaveBtn" class="ghost" onclick="saveLegalAdminForm()">法務情報を暗号化保存</button>
   <div id="legalConfigStatus" class="tiny" style="margin-top:7px">実情報を入力してください。未入力項目は公開ゲートで停止します。</div>
 </div><div class="card" id="oneActionPrelaunchCard" style="border:2px solid #111">
@@ -1707,6 +1708,24 @@ async function repairPrelaunchDraftMetadata(auditProducts){
     await waitMs(350);
   }
   return {attempted,updated,remaining:Math.max(0,blocked.length-updated)};
+}
+
+async function prefillLegalFromShopify(){
+  const status=document.getElementById('legalConfigStatus'),btn=document.getElementById('legalShopifyPrefillBtn');
+  if(btn){btn.disabled=true;btn.textContent='Shopifyから取得中…'}
+  try{
+    const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({legalPrefill:true})});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||'Shopify店舗情報を取得できませんでした');
+    const fill=(id,v)=>{const el=document.getElementById(id);if(el&&!el.value&&String(v||'').trim())el.value=String(v).trim()};
+    fill('legalSellerName',j.sellerName);
+    fill('legalAddress',j.address);
+    fill('legalPhone',j.phone);
+    fill('legalEmail',j.email);
+    fill('legalPrivacyContact',j.email);
+    if(status)status.textContent='Shopify店舗情報から基本情報を入力しました。責任者・配送・返品条件は実際の運用内容を確認して入力してください。';
+  }catch(e){if(status)status.textContent='自動入力エラー: '+String(e?.message||e)}
+  finally{if(btn){btn.disabled=false;btn.textContent='Shopify店舗情報から基本情報を自動入力'}}
 }
 
 async function loadLegalAdminForm(){
