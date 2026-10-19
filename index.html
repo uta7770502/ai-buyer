@@ -83,7 +83,8 @@ html,body{min-height:100%;height:auto!important;overflow-y:auto!important;-webki
   <button id="legalSuggestedCopyBtn" class="ghost" onclick="fillLegalSuggestedCopy()" style="margin-bottom:8px">法務文面の候補を入力（保存はしない）</button>
   <button id="legalConfigSaveBtn" class="ghost" onclick="saveLegalAdminForm()">法務情報を暗号化保存</button>
   <div id="legalConfigStatus" class="tiny" style="margin-top:7px">実情報を入力してください。未入力項目は公開ゲートで停止します。</div>
-</div><div class="card" id="oneActionPrelaunchCard" style="border:2px solid #111">
+  <div id="legalMissingSummary" class="tiny" style="margin-top:8px;font-weight:800"></div>
+<script id="legal-live-summary">document.addEventListener('input',e=>{if(e.target&&/^legal/.test(e.target.id||''))try{updateLegalMissingSummary()}catch{}})</script></div><div class="card" id="oneActionPrelaunchCard" style="border:2px solid #111">
   <div class="sectionHead" style="margin:0 0 8px">
     <div><b style="font-size:16px">公開直前まで自動準備</b><div class="tiny">公開・実発注・広告・Checkout・検索公開はONにしません</div></div>
     <span id="oneActionPrelaunchBadge" class="muted">SAFE</span>
@@ -1768,6 +1769,29 @@ async function prefillLegalFromShopify(){
   finally{if(btn){btn.disabled=false;btn.textContent='Shopify店舗情報から基本情報を自動入力'}}
 }
 
+function updateLegalMissingSummary(){
+  const rows=[
+    ['legalSellerName','販売業者名'],
+    ['legalRepresentative','運営責任者'],
+    ['legalAddress','所在地'],
+    ['legalPhone','電話番号'],
+    ['legalEmail','メール'],
+    ['legalPaymentTiming','支払時期'],
+    ['legalShippingWindow','発送時期'],
+    ['legalReturnDays','返品受付日数'],
+    ['legalReturnConditions','返品条件'],
+    ['legalReturnShipping','返品送料'],
+    ['legalAdditionalFees','追加料金'],
+    ['legalPrivacyContact','プライバシー連絡先']
+  ];
+  const missing=rows.filter(([id])=>!String(document.getElementById(id)?.value||'').trim()).map(([,label])=>label);
+  const box=document.getElementById('legalMissingSummary');
+  if(box){
+    box.textContent=missing.length?'公開直前READYまで残り '+missing.length+'項目：'+missing.join(' / '):'法務入力はすべて埋まっています。保存すると公開直前チェックまで自動実行します。';
+  }
+  return missing;
+}
+
 async function loadLegalAdminForm(){
   const badge=document.getElementById('legalConfigBadge'),status=document.getElementById('legalConfigStatus');
   if(!badge)return;
@@ -1787,12 +1811,15 @@ async function loadLegalAdminForm(){
     badge.textContent=j.legalReady?'入力済':'未完了';
     badge.className=j.legalReady?'pass':'muted';
     if(status)status.textContent=j.legalReady?'法務情報は保存済みです。返品日数もShopify下書きへ自動同期できます。':'未入力項目があります。実情報を入力して保存してください。';
+    updateLegalMissingSummary();
   }catch(e){if(status)status.textContent='法務情報確認エラー: '+String(e?.message||e)}
 }
 async function saveLegalAdminForm(){
   const key=getTestAdminKey(),btn=document.getElementById('legalConfigSaveBtn'),status=document.getElementById('legalConfigStatus');
   if(!key){if(status)status.textContent='先にテスト管理者キーを入力してください。';return}
   const val=id=>String(document.getElementById(id)?.value||'').trim();
+  const missingBeforeSave=updateLegalMissingSummary();
+  if(missingBeforeSave.length){if(status)status.textContent='未入力：'+missingBeforeSave.join(' / ');return}
   const payload={
     sellerName:val('legalSellerName'),representative:val('legalRepresentative'),address:val('legalAddress'),
     phone:val('legalPhone'),email:val('legalEmail'),paymentTiming:val('legalPaymentTiming'),
