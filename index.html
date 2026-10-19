@@ -1740,7 +1740,18 @@ async function prefillLegalFromShopify(){
     fill('legalPhone',j.phone);
     fill('legalEmail',j.email);
     fill('legalPrivacyContact',j.email);
-    if(status)status.textContent='Shopify店舗情報から基本情報を入力しました。責任者・配送・返品条件は実際の運用内容を確認して入力してください。';
+    if(status){
+      const missing=[
+        ['legalRepresentative','運営責任者'],
+        ['legalPaymentTiming','支払時期'],
+        ['legalShippingWindow','発送時期'],
+        ['legalReturnDays','返品受付日数'],
+        ['legalReturnConditions','返品条件'],
+        ['legalReturnShipping','返品送料'],
+        ['legalAdditionalFees','追加料金']
+      ].filter(([id])=>!String(document.getElementById(id)?.value||'').trim()).map(([,label])=>label);
+      status.textContent='Shopify店舗情報から基本情報を入力しました。'+(missing.length?'残り：'+missing.join(' / ')+'。実際の運用内容を確認して入力してください。':'基本情報の自動入力が完了しました。');
+    }
   }catch(e){if(status)status.textContent='自動入力エラー: '+String(e?.message||e)}
   finally{if(btn){btn.disabled=false;btn.textContent='Shopify店舗情報から基本情報を自動入力'}}
 }
@@ -2710,5 +2721,12 @@ document.addEventListener('click',e=>{
 })();
 q.addEventListener('keydown',e=>{if(e.key==='Enter')searchProducts(1)});hydrateRules();hydrateBudget();hydrateMonitorSettings();renderWatch();renderHistory();renderToday();renderScanSummary();renderLearningHistory();renderOpsLog();renderAll();renderAutoOverview();renderMonitor();applyUiMode();hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();hydrateTestContextUI();hydrateGrowthSettings();hydrateSalesGoals();const __admin=document.getElementById('adminKeyInput');if(__admin){const __k=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();if(__k)__admin.value=__k;}renderTestChecklist();renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();renderReturnAudit();refreshSalesSummary();maybeDailyGrowth();setTimeout(checkConnection,700);setTimeout(async()=>{await checkShopify(false);if(shopifyConnected)await ensureOrderAutomationSilently();if(shopifyConnected)await checkShopifyDuplicates();const params=new URLSearchParams(location.search);const pending=sessionStorage.getItem('aiBuyerPendingPublishId');if(params.get('shopify')==='connected'&&pending&&shopifyConnected){sessionStorage.removeItem('aiBuyerPendingPublishId');history.replaceState({},'',location.pathname);const x=findActive(pending);if(x){showCandidateToast('Shopify認証完了。出品を再開します…');setTimeout(()=>autoPublishCandidate(x),300)}}},900);setTimeout(checkAdConnections,1050);setTimeout(maybeDailyMonitor,1200);setTimeout(resumeAutoPreparation,1800);setTimeout(()=>{if(active.some(x=>!x.archived&&(x.status==='test'||x.autoSetupState==='ready')))queueAutomationCycle(1200)},2200);setInterval(maybeDailyMonitor,30*60*1000);setInterval(()=>{if(cjConnected)maybeDailyScan()},30*60*1000);setInterval(resumeAutoPreparation,30*60*1000);setInterval(()=>{if(shopifyConnected)ensureOrderAutomationSilently()},60*60*1000);setInterval(()=>{if(shopifyConnected)checkShopifyDuplicates()},60*60*1000);setInterval(()=>{if(shopifyConnected)refreshSalesSummary({silent:true})},30*60*1000);setInterval(()=>{hydrateReleaseReadinessUI();hydrateReconciliationSummaryUI();renderAutomationDashboard()},5*60*1000);
 
-setTimeout(loadLegalAdminForm,700);
+setTimeout(async()=>{
+  await loadLegalAdminForm();
+  try{
+    const ids=['legalSellerName','legalAddress','legalPhone','legalEmail'];
+    const empty=ids.some(id=>!String(document.getElementById(id)?.value||'').trim());
+    if(empty)await prefillLegalFromShopify();
+  }catch{}
+},700);
 </script></body></html>
