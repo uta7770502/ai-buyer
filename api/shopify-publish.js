@@ -71,6 +71,21 @@ export default async function handler(req,res){
     const {token,shop}=auth;
     const raw=req.body||{}; const formPublish=String(raw.formPublish||'')==='1'; const p=raw;
     if(formPublish){p.images=p.image?[p.image]:[];p.descriptionHtml='';p.publishApproved=false;}
+    if(p.legalPrefill===true){
+      const d=await gql(shop,token,`query OddlyLegalPrefill { shop { name contactEmail billingAddress { address1 address2 city province provinceCode zip country countryCodeV2 phone } } }`);
+      const s=d?.shop||{},a=s.billingAddress||{};
+      const address=[a.zip,a.province||a.provinceCode,a.city,a.address1,a.address2].map(x=>clean(x,160)).filter(Boolean).join(' ');
+      return res.status(200).json({
+        ok:true,
+        legalPrefill:true,
+        source:'shopify-admin-read-only',
+        sellerName:clean(s.name,160),
+        address:clean(address,300),
+        phone:clean(a.phone,80),
+        email:clean(s.contactEmail,160)
+      });
+    }
+
     if(p.adHealth===true){
       const metaAccountId=String(process.env.META_AD_ACCOUNT_ID||'').replace(/^act_/,'');
       const metaToken=String(process.env.META_ACCESS_TOKEN||'');
