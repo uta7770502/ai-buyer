@@ -57,3 +57,13 @@ test('legal form can prefill read-only Shopify business contact data',()=>{
   assert.match(index,/async function prefillLegalFromShopify/);
   assert.doesNotMatch(index.slice(index.indexOf('async function prefillLegalFromShopify'),index.indexOf('async function loadLegalAdminForm')),/ODDLY_CHECKOUT_ENABLED|SHOPIFY_LIVE_PUBLISH_ENABLED|removeStorefrontPassword/);
 });
+
+test('legal basics auto-prefill on load but are not auto-saved',()=>{
+  const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(index,/if\(empty\)await prefillLegalFromShopify\(\)/);
+  assert.match(index,/残り：/);
+  const start=index.indexOf('setTimeout(async()=>');
+  const end=index.indexOf('},700);',start);
+  const boot=index.slice(start,end);
+  assert.doesNotMatch(boot,/saveLegalAdminForm\(/);
+});
