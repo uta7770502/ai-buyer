@@ -67,3 +67,15 @@ test('legal basics auto-prefill on load but are not auto-saved',()=>{
   const boot=index.slice(start,end);
   assert.doesNotMatch(boot,/saveLegalAdminForm\(/);
 });
+
+test('legal copy suggestions are review-only and never auto-save',()=>{
+  const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(index,/法務文面の候補を入力（保存はしない）/);
+  assert.match(index,/function fillLegalSuggestedCopy/);
+  const start=index.indexOf('function fillLegalSuggestedCopy');
+  const end=index.indexOf('async function prefillLegalFromShopify',start);
+  const block=index.slice(start,end);
+  assert.doesNotMatch(block,/saveLegalAdminForm\(/);
+  assert.doesNotMatch(block,/fetch\('/);
+  assert.match(block,/実際の運用・配送条件・返品方針に合っているか確認/);
+});
