@@ -46,3 +46,14 @@ test('saving legal data automatically reruns safe prelaunch checks',()=>{
   assert.match(block,/await runOneActionPrelaunch\(\)/);
   assert.doesNotMatch(block,/ODDLY_CHECKOUT_ENABLED\s*=\s*true|SHOPIFY_LIVE_PUBLISH_ENABLED|removeStorefrontPassword|disablePasswordProtection/);
 });
+
+test('legal form can prefill read-only Shopify business contact data',()=>{
+  const api=fs.readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(api,/legalPrefill===true/);
+  assert.match(api,/shop \{ name contactEmail billingAddress/);
+  assert.match(api,/source:'shopify-admin-read-only'/);
+  assert.match(index,/Shopify店舗情報から基本情報を自動入力/);
+  assert.match(index,/async function prefillLegalFromShopify/);
+  assert.doesNotMatch(index.slice(index.indexOf('async function prefillLegalFromShopify'),index.indexOf('async function loadLegalAdminForm')),/ODDLY_CHECKOUT_ENABLED|SHOPIFY_LIVE_PUBLISH_ENABLED|removeStorefrontPassword/);
+});
