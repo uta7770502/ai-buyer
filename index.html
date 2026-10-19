@@ -1343,7 +1343,7 @@ function hydrateReleaseReadinessUI(){
   const blockers=Array.isArray(releaseReadiness.blockers)?releaseReadiness.blockers:[];
   const warnings=Array.isArray(releaseReadiness.warnings)?releaseReadiness.warnings:[];
   const fresh=releaseCheckIsFresh();
-  const safeMode=releaseReadiness.safetyContract==='sandbox-v1'&&releaseReadiness.mode==='sandbox'&&releaseReadiness.liveCjOrdersEnabled===false&&releaseReadiness.readyForLive===false&&releaseReadiness.verification==='configuration-only';
+  const safeMode=releaseReadiness.safetyContract==='sandbox-v1'&&releaseReadiness.mode==='sandbox'&&releaseReadiness.liveCjOrdersEnabled===false&&releaseReadiness.readyForLive===false&&releaseReadiness.verification==='read-only-connectivity';
   const ready=Boolean(releaseReadiness.safeToTest)&&safeMode&&!blockers.length&&!warnings.length&&fresh;
   st.className=ready?'connectionState ok':'connectionState ng';
   st.textContent=ready?'テストOK':fresh?'要確認':'再確認';
@@ -1364,7 +1364,7 @@ function finalTestGateState(){
   const keys=['shopify','webhook','order','tracking','sync','duplicate'];
   const testsComplete=Boolean(testProgress.shopify&&testProgress.webhook&&testProgress.order&&testProgress.tracking&&testProgress.sync&&testProgress.duplicate);
   const testsFresh=keys.every(k=>testTimestampIsFresh(testProgress.timestamps?.[k]));
-  const releaseOk=Boolean(releaseReadiness&&releaseReadiness.safetyContract==='sandbox-v1'&&releaseReadiness.mode==='sandbox'&&releaseReadiness.liveCjOrdersEnabled===false&&releaseReadiness.readyForLive===false&&releaseReadiness.verification==='configuration-only'&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length);
+  const releaseOk=Boolean(releaseReadiness&&releaseReadiness.safetyContract==='sandbox-v1'&&releaseReadiness.mode==='sandbox'&&releaseReadiness.liveCjOrdersEnabled===false&&releaseReadiness.readyForLive===false&&releaseReadiness.verification==='read-only-connectivity'&&releaseReadiness.safeToTest&&releaseCheckIsFresh()&&!(releaseReadiness.blockers||[]).length&&!(releaseReadiness.warnings||[]).length);
   const reconciliationOk=Boolean(reconciliationSummaryIsFresh()&&reconciliationCriticalCount===0&&reconciliationReviewCount===0);
   const returnAuditOk=returnAuditIsFresh();
   const aioAuditOk=Boolean(aioAuditIsFresh()&&Number(aioAudit?.missing||0)===0);
