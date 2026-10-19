@@ -1746,9 +1746,10 @@ async function saveLegalAdminForm(){
     const r=await fetch('/api/storefront-config',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(payload)});
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'法務情報を保存できませんでした');
-    if(status)status.textContent='保存完了：特商法・返品条件・返品日数を公開前チェックへ反映しました。';
+    if(status)status.textContent='保存完了：法務情報を反映し、公開直前チェックまで自動実行します。';
     await loadLegalAdminForm();
     await checkReleaseReadiness();
+    await runOneActionPrelaunch();
   }catch(e){if(status)status.textContent='保存エラー: '+String(e?.message||e)}
   finally{if(btn){btn.disabled=false;btn.textContent='法務情報を暗号化保存'}}
 }
