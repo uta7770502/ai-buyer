@@ -121,3 +121,12 @@ test('prelaunch repair also fixes orphan Shopify drafts without local candidate 
   assert.match(html,/kitchen knife sharpener\|knife sharpener/);
   assert.match(html,/shippingCountry:'JP'/);
 });
+
+test('orphan Shopify drafts receive conservative AIO metadata without inventing specs',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/function conservativePrelaunchAio/);
+  assert.match(html,/家庭で包丁のメンテナンスをしたい方/);
+  assert.match(html,/詳細仕様は商品ページの確認情報を優先します/);
+  assert.match(html,/adpsAudience:local\?\.adpsAudience\|\|local\?\.audience\|\|fallbackAio\.audience/);
+  assert.match(html,/adpsWhy:local\?\.adpsWhy\|\|local\?\.why\|\|fallbackAio\.why/);
+});
