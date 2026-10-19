@@ -1925,7 +1925,7 @@ async function runOneActionPrelaunch(){
       ?'<b>残り：</b><br>'+unique.map(x=>'・'+esc(x)).join('<br>')+
         (productIssues.length?'<br><br><b>下書き商品の不足：</b><br>'+productIssues.map(x=>'・'+esc(x.title||x.id)+'：'+esc((x.reasons||[]).join(' / '))).join('<br>'):'')
       :'<b>残りの自動チェック項目はありません。</b><br>商品ACTIVE化 / Checkout ON / 決済最終確認 / パスワード解除は実行していません。';
-    localStorage.setItem('aiBuyerOneActionPrelaunch',JSON.stringify({checkedAt:new Date().toISOString(),ready,blockers:unique}));
+    localStorage.setItem('aiBuyerOneActionPrelaunch',JSON.stringify({checkedAt:new Date().toISOString(),ready,blockers:unique,finalLaunchManifest:j.finalLaunchManifest||null}));
     addOps('公開直前ワンアクション',ready?'安全準備完了：公開操作のみ残し':'安全準備完了：残り '+unique.length+'件');
     renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();
   }catch(e){
@@ -2356,8 +2356,12 @@ function renderGoLiveReadiness(){
     }).join(''):'';
   }
   const finalSteps=document.getElementById('finalLaunchSteps'),approval=document.getElementById('finalLaunchApproval');
-  let prelaunchReady=false;
-  try{prelaunchReady=JSON.parse(localStorage.getItem('aiBuyerOneActionPrelaunch')||'{}').ready===true}catch{}
+  let prelaunchReady=false,serverVerified=false;
+  try{
+    const saved=JSON.parse(localStorage.getItem('aiBuyerOneActionPrelaunch')||'{}');
+    prelaunchReady=saved.ready===true;
+    serverVerified=saved.finalLaunchManifest?.serverVerified===true&&saved.finalLaunchManifest?.requiresExplicitUserApproval===true;
+  }catch{}
   const finalSequence=[
     ['1','承認商品のACTIVE化'],
     ['2','Checkout本番ON'],
@@ -2365,9 +2369,11 @@ function renderGoLiveReadiness(){
     ['4','ストアパスワード解除']
   ];
   if(finalSteps)finalSteps.innerHTML=finalSequence.map(([n,label])=>'<div><span>'+n+' '+esc(label)+'</span><b class="waitText">'+(prelaunchReady?'最終承認後':'LOCK')+'</b></div>').join('');
-  if(approval)approval.textContent=prelaunchReady
-    ?'公開直前READY。上の4操作はユーザーの最終承認があるまで実行しません。'
-    :'公開前チェック完了後に最終4操作へ進みます。現在は公開ロック中です。';
+  if(approval)approval.textContent=prelaunchReady&&serverVerified
+    ?'公開直前READY（サーバー確認済み）。上の4操作はユーザーの最終承認があるまで実行しません。'
+    :prelaunchReady
+      ?'公開直前READYですが、サーバー最終確認をもう一度実行してください。'
+      :'公開前チェック完了後に最終4操作へ進みます。現在は公開ロック中です。';
   if(note){
     if(passed===total)note.textContent='サンドボックス検証条件OK。公開待ち商品 '+waiting+'件。実公開・実広告・実CJ発注は現在もサーバー安全ロック中です。';
     else note.textContent='残り '+(total-passed)+'条件。未完了項目と商品別の不足条件をAI BUYERが継続確認します。本番処理は開始しません。';
