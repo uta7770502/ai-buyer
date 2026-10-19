@@ -1717,6 +1717,16 @@ async function repairPrelaunchDraftMetadata(auditProducts){
       await waitMs(250);
     }
     if(Number.isFinite(shipping)&&shipping>=0)payload.shippingPriceJpy=shipping;
+    else if(String(row.sku||'').trim()){
+      try{
+        const fr=await fetch('/api/cj-freight?vid='+encodeURIComponent(String(row.sku).trim())+'&destination=JP&origin=CN',{cache:'no-store'});
+        const fj=await fr.json();
+        if(fr.ok&&fj.ok){
+          const opts=(Array.isArray(fj.options)?fj.options:[]).filter(o=>o&&Number.isFinite(Number(o.usd))&&Number(o.usd)>=0).sort((a,b)=>Number(a.usd)-Number(b.usd));
+          if(opts.length)payload.shippingPriceJpy=Math.round(Number(opts[0].usd)*fx);
+        }
+      }catch{}
+    }
     if(Number.isInteger(policyReturnDays)&&policyReturnDays>0)payload.returnDays=policyReturnDays;
     attempted++;
     try{
