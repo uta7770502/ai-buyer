@@ -156,3 +156,12 @@ test('final launch checklist stays locked until explicit approval',()=>{
   assert.match(html,/ストアパスワード解除/);
   assert.match(html,/最終承認があるまで実行しません/);
 });
+
+test('orphan draft shipping can be recovered from CJ variant ID',()=>{
+  const freight=fs.readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(freight,/product\/variant\/queryByVid/);
+  assert.match(freight,/variantData\.data\?\.pid/);
+  assert.match(html,/\/api\/cj-freight\?vid=/);
+  assert.match(html,/payload\.shippingPriceJpy=Math\.round\(Number\(opts\[0\]\.usd\)\*fx\)/);
+});
