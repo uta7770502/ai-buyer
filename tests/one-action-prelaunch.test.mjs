@@ -165,3 +165,13 @@ test('orphan draft shipping can be recovered from CJ variant ID',()=>{
   assert.match(html,/\/api\/cj-freight\?vid=/);
   assert.match(html,/payload\.shippingPriceJpy=Math\.round\(Number\(opts\[0\]\.usd\)\*fx\)/);
 });
+
+test('final launch manifest requires explicit user approval and stays non-mutating',()=>{
+  const route=fs.readFileSync(new URL('../lib/routes/prelaunch-one-action.js',import.meta.url),'utf8');
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(route,/requiresExplicitUserApproval:true/);
+  assert.match(route,/serverVerified:readyToFinalManualStep/);
+  assert.match(route,/forbiddenUntilApproval/);
+  assert.match(html,/サーバー確認済み/);
+  assert.match(html,/requiresExplicitUserApproval===true/);
+});
