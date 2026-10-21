@@ -1815,19 +1815,19 @@ function legalDraftNotice(message){
 function saveLegalLocalDraft(){
   try{
     const values=Object.fromEntries(LEGAL_DRAFT_FIELDS.map(id=>[id,String(document.getElementById(id)?.value||'')]));
-    localStorage.setItem(LEGAL_DRAFT_KEY,JSON.stringify({savedAt:Date.now(),values}));
-    legalDraftNotice('下書きをこのブラウザに保存しました（Shopifyには未反映）');
+    sessionStorage.setItem(LEGAL_DRAFT_KEY,JSON.stringify({savedAt:Date.now(),values}));
+    legalDraftNotice('下書きをこのタブ内に一時保存しました（タブ終了時に消去・Shopify未反映）');
   }catch{legalDraftNotice('下書きの保存に失敗しました。ブラウザの保存設定をご確認ください。')}
 }
 function restoreLegalLocalDraft(){
   try{
-    const draft=JSON.parse(localStorage.getItem(LEGAL_DRAFT_KEY)||'null');
+    const draft=JSON.parse(sessionStorage.getItem(LEGAL_DRAFT_KEY)||'null');
     if(!draft||!draft.values||typeof draft.values!=='object')return;
     for(const id of LEGAL_DRAFT_FIELDS){
       const el=document.getElementById(id),value=draft.values[id];
       if(el&&!el.value&&typeof value==='string')el.value=value;
     }
-    legalDraftNotice('前回の下書きを復元しました（この端末内のみ・未正式保存）');
+    legalDraftNotice('このタブの下書きを復元しました（未正式保存）');
     updateLegalMissingSummary();
   }catch{legalDraftNotice('保存済み下書きを読み込めませんでした。')}
 }
@@ -1854,7 +1854,7 @@ async function loadLegalAdminForm(){
     };
     if(j.legalReady){
       clearTimeout(legalDraftTimer);
-      try{localStorage.removeItem(LEGAL_DRAFT_KEY)}catch{}
+      try{sessionStorage.removeItem(LEGAL_DRAFT_KEY)}catch{}
       for(const [id,v] of Object.entries(values)){const el=document.getElementById(id);if(el)el.value=String(v)}
       legalDraftNotice('正式保存済みの情報を表示しています');
     }else{
@@ -1887,7 +1887,7 @@ async function saveLegalAdminForm(){
     const r=await fetch('/api/storefront-config',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(payload)});
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'法務情報を保存できませんでした');
-    try{localStorage.removeItem(LEGAL_DRAFT_KEY)}catch{}
+    try{sessionStorage.removeItem(LEGAL_DRAFT_KEY)}catch{}
     legalDraftNotice('正式保存済み（端末内の下書きは削除しました）');
     if(status)status.textContent='保存完了：法務情報を反映し、公開直前チェックまで自動実行します。';
     await loadLegalAdminForm();
