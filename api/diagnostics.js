@@ -1,3 +1,4 @@
+import shopifyLegalPreview from '../lib/routes/shopify-legal-preview.js';
 import automationHealth from '../lib/routes/automation-health.js';
 import automationOrderStatus from '../lib/routes/automation-order-status.js';
 import automationReconciliation from '../lib/routes/automation-reconciliation.js';
@@ -24,6 +25,7 @@ function shopifyEnvCheck(req,res){
 }
 
 const handlers={
+  'shopify-legal-preview':shopifyLegalPreview,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,
