@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {buildLegalNotice} from '../api/shopify-legal-preview.js';
+import {buildLegalNotice} from '../lib/routes/shopify-legal-preview.js';
 
 const valid={
   sellerName:'Example',representative:'Representative',address:'Tokyo',
