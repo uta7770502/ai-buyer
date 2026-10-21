@@ -91,6 +91,10 @@
     {
       "source": "/api/prelaunch-one-action",
       "destination": "/api/diagnostics?action=prelaunch-one-action"
+    },
+    {
+      "source": "/api/shopify-legal-preview",
+      "destination": "/api/diagnostics?action=shopify-legal-preview"
     }
   ]
 }
