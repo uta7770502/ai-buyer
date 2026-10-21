@@ -1,5 +1,6 @@
 import legalDraft from '../lib/routes/legal-draft.js';
 import returnTriage from '../lib/routes/return-triage.js';
+import profitEstimate from '../lib/routes/profit-estimate.js';
 import shopifyLegalPreview from '../lib/routes/shopify-legal-preview.js';
 import automationHealth from '../lib/routes/automation-health.js';
 import automationOrderStatus from '../lib/routes/automation-order-status.js';
@@ -29,6 +30,7 @@ function shopifyEnvCheck(req,res){
 const handlers={
   'legal-draft':legalDraft,
   'return-triage':returnTriage,
+  'profit-estimate':profitEstimate,
   'shopify-legal-preview':shopifyLegalPreview,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
