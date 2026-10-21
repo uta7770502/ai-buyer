@@ -1852,7 +1852,14 @@ async function loadLegalAdminForm(){
       legalReturnConditions:x.returnConditions||'',legalReturnShipping:x.returnShipping||'',
       legalAdditionalFees:x.additionalFees||'',legalPrivacyContact:j.privacy?.contact||x.email||''
     };
-    for(const [id,v] of Object.entries(values)){const el=document.getElementById(id);if(el&&!el.value)el.value=String(v)}
+    if(j.legalReady){
+      clearTimeout(legalDraftTimer);
+      try{localStorage.removeItem(LEGAL_DRAFT_KEY)}catch{}
+      for(const [id,v] of Object.entries(values)){const el=document.getElementById(id);if(el)el.value=String(v)}
+      legalDraftNotice('正式保存済みの情報を表示しています');
+    }else{
+      for(const [id,v] of Object.entries(values)){const el=document.getElementById(id);if(el&&!el.value)el.value=String(v)}
+    }
     badge.textContent=j.legalReady?'入力済':'未完了';
     badge.className=j.legalReady?'pass':'muted';
     if(status)status.textContent=j.legalReady?'法務情報は保存済みです。返品日数もShopify下書きへ自動同期できます。':'未入力項目があります。実情報を入力して保存してください。';
