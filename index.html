@@ -1763,6 +1763,8 @@ async function prefillLegalFromShopify(){
     fill('legalPhone',j.phone);
     fill('legalEmail',j.email);
     fill('legalPrivacyContact',j.email);
+    updateLegalMissingSummary();
+    saveLegalLocalDraft();
     if(status){
       const missing=[
         ['legalRepresentative','運営責任者'],
@@ -1802,6 +1804,39 @@ function updateLegalMissingSummary(){
   return missing;
 }
 
+const LEGAL_DRAFT_KEY='oddly:legal-draft:v1';
+const LEGAL_DRAFT_FIELDS=['legalSellerName','legalRepresentative','legalAddress','legalPhone','legalEmail','legalPaymentTiming','legalShippingWindow','legalReturnDays','legalReturnConditions','legalReturnShipping','legalAdditionalFees','legalPrivacyContact'];
+let legalDraftTimer;
+function legalDraftNotice(message){
+  let node=document.getElementById('legalDraftStatus');
+  if(!node){node=document.createElement('div');node.id='legalDraftStatus';node.className='tiny';node.style.marginTop='7px';document.getElementById('legalConfigStatus')?.after(node)}
+  node.textContent=message;
+}
+function saveLegalLocalDraft(){
+  try{
+    const values=Object.fromEntries(LEGAL_DRAFT_FIELDS.map(id=>[id,String(document.getElementById(id)?.value||'')]));
+    localStorage.setItem(LEGAL_DRAFT_KEY,JSON.stringify({savedAt:Date.now(),values}));
+    legalDraftNotice('下書きをこのブラウザに保存しました（Shopifyには未反映）');
+  }catch{legalDraftNotice('下書きの保存に失敗しました。ブラウザの保存設定をご確認ください。')}
+}
+function restoreLegalLocalDraft(){
+  try{
+    const draft=JSON.parse(localStorage.getItem(LEGAL_DRAFT_KEY)||'null');
+    if(!draft||!draft.values||typeof draft.values!=='object')return;
+    for(const id of LEGAL_DRAFT_FIELDS){
+      const el=document.getElementById(id),value=draft.values[id];
+      if(el&&!el.value&&typeof value==='string')el.value=value;
+    }
+    legalDraftNotice('前回の下書きを復元しました（この端末内のみ・未正式保存）');
+    updateLegalMissingSummary();
+  }catch{legalDraftNotice('保存済み下書きを読み込めませんでした。')}
+}
+document.addEventListener('input',event=>{
+  if(!LEGAL_DRAFT_FIELDS.includes(event.target?.id))return;
+  clearTimeout(legalDraftTimer);
+  legalDraftTimer=setTimeout(saveLegalLocalDraft,500);
+});
+document.addEventListener('DOMContentLoaded',restoreLegalLocalDraft);
 async function loadLegalAdminForm(){
   const badge=document.getElementById('legalConfigBadge'),status=document.getElementById('legalConfigStatus');
   if(!badge)return;
@@ -1845,6 +1880,8 @@ async function saveLegalAdminForm(){
     const r=await fetch('/api/storefront-config',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(payload)});
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'法務情報を保存できませんでした');
+    try{localStorage.removeItem(LEGAL_DRAFT_KEY)}catch{}
+    legalDraftNotice('正式保存済み（端末内の下書きは削除しました）');
     if(status)status.textContent='保存完了：法務情報を反映し、公開直前チェックまで自動実行します。';
     await loadLegalAdminForm();
     await checkReleaseReadiness();
