@@ -33,3 +33,10 @@ test('legal preview refuses non-POST requests and absent admin key',async()=>{
     else process.env.AI_BUYER_ADMIN_KEY=previous;
   }
 });
+
+test('storefront protection is required for legal preview readiness',()=>{
+ assert.match(code,/typeof passwordProtected!=='boolean'/);
+ assert.match(code,/ready:passwordProtected===true&&complete&&readiness\.ready&&comparison\?\.changed===false/);
+ assert.match(code,/storefront_password_disabled/);
+ assert.match(code,/storefrontPasswordProtected:/);
+});
