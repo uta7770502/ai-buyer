@@ -59,3 +59,11 @@ test('market monitor blocks launch on supplier suspension price spike delay and 
   assert.match(gate,/x\.monitorRisk!=='ok'/);
   assert.match(gate,/最新CJ監視未確認/);
 });
+
+test('CJ risk gate excludes mid and high complaint risk products',()=>{
+  const risk=fs.readFileSync(new URL('../lib/routes/cj-risk.js',import.meta.url),'utf8');
+  assert.match(risk,/label:'返品・クレーム高リスク',exclude:true/);
+  assert.match(risk,/label:'返品・クレーム要注意',exclude:true/);
+  assert.match(risk,/rating<4\.0/);
+  assert.match(risk,/lowRate>=0\.05/);
+});
