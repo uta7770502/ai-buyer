@@ -18,3 +18,18 @@ test('legal preview refuses incomplete pagination and mismatched content',()=>{
   assert.match(code,/legal_content_mismatch/);
   assert.match(code,/reason:'read_only_inspection_failed'/);
 });
+
+test('legal preview refuses non-POST requests and absent admin key',async()=>{
+  const {default:handler}=await import('../lib/routes/shopify-legal-preview.js');
+  const previous=process.env.AI_BUYER_ADMIN_KEY;
+  try{
+    delete process.env.AI_BUYER_ADMIN_KEY;
+    const invoke=async(method)=>{const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;return this},status(n){this.statusCode=n;return this},json(v){this.body=v;return this}};await handler({method,headers:{},query:{}},res);return res};
+    const get=await invoke('GET');assert.equal(get.statusCode,405);
+    const post=await invoke('POST');assert.equal(post.statusCode,401);
+    assert.equal(post.body.ok,false);
+  }finally{
+    if(previous===undefined)delete process.env.AI_BUYER_ADMIN_KEY;
+    else process.env.AI_BUYER_ADMIN_KEY=previous;
+  }
+});
