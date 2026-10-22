@@ -119,3 +119,10 @@ test('sandbox opt-in without durable Redis refuses dispatch', async()=>{
     }
   }
 });
+
+test('fulfillment order on hold is skipped before CJ dispatch',async()=>{
+  const r=await request(order({fulfillment_orders:[{status:'ON_HOLD'}]}));
+  assert.equal(r.statusCode,200);
+  assert.equal(r.body.skipped,true);
+  assert.equal(r.body.needsReview,true);
+});
