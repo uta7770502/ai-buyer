@@ -126,3 +126,10 @@ test('fulfillment order on hold is skipped before CJ dispatch',async()=>{
   assert.equal(r.body.skipped,true);
   assert.equal(r.body.needsReview,true);
 });
+
+test('on-hold Shopify fulfillment status is skipped before CJ dispatch',async()=>{
+  const r=await request(order({fulfillment_status:'on_hold'}));
+  assert.equal(r.statusCode,200);
+  assert.equal(r.body.skipped,true);
+  assert.equal(r.body.needsReview,true);
+});
