@@ -387,6 +387,33 @@ test('draft owned by another vendor blocks duplicate CJ SKU creation',async()=>{
 });
 
 
+
+test('Shopify draft registration rejects mismatched returned CJ SKU',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN;
+ const previousFetch=globalThis.fetch,queries=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+ process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url,opts={})=>{
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  const request=JSON.parse(opts.body);queries.push(request.query);
+  if(request.query.includes('ExistingDraftsBySku'))return {ok:true,json:async()=>({data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}})};
+  if(request.query.includes('CreateProduct'))return {ok:true,json:async()=>({data:{productCreate:{product:{id:'gid://shopify/Product/99',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/99'}]}},userErrors:[]}}})};
+  if(request.query.includes('UpdateVariant'))return {ok:true,json:async()=>({data:{productVariantsBulkUpdate:{productVariants:[{id:'gid://shopify/ProductVariant/99',price:'1200',inventoryItem:{sku:'wrong-sku'}}],userErrors:[]}}})};
+  throw Error('Unexpected Shopify mutation after SKU mismatch');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.body.ok,false);
+  assert.match(res.body.error,/SKUの反映確認に失敗/);
+  assert.equal(queries.length,3);
+ }finally{
+  globalThis.fetch=previousFetch;
+  for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
+ }
+});
+
+
 test('unexpected active Shopify response stops before variant update',async()=>{
  const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN;
  const previousFetch=globalThis.fetch,queries=[];
