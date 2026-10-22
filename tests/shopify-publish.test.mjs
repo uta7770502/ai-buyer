@@ -89,7 +89,7 @@ test('valid CJ product creates Shopify draft but never publishes without approva
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
   await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test',publishApproved:true}},res);
-  assert.equal(res.code,200);assert.equal(res.body.status,'DRAFT');assert.equal(res.body.published,false);
+  assert.equal(res.code,200);assert.equal(res.body.status,'DRAFT');assert.equal(res.body.published,false);assert.equal(res.body.needsCopyReview,true);
   assert.ok(requests.length>=3);
   assert.equal(requests[1].variables.product.status,'DRAFT');
   assert.equal(requests[2].variables.variants[0].inventoryItem.sku,'cj-variant');
