@@ -2612,7 +2612,8 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(fx))||Number(fx)<=0)throw new Error('商品原価または為替レートが不正です');
     const cost=Math.round(unitCost*Number(fx))+Number(x.shippingJpy||0);
     if(!Number.isFinite(cost)||cost<0)throw new Error('商品原価と送料を確認できません');
-    const minPrice=Math.ceil((cost/.595)/100)*100;
+    // Target >=30% contribution after 4.5% payment fees and 10% advertising/returns reserve; freight included in cost.
+    const minPrice=Math.ceil((cost/(1-.045-.10-.30))/100)*100;
     const existingPrice=Number(x.price);
     x.price=Math.max(Number.isFinite(existingPrice)?existingPrice:0,minPrice,980);
     if(!Number.isSafeInteger(x.price)||x.price<=0||x.price>10000000)throw new Error('販売価格が安全な範囲を超えています。原価・送料・為替を確認してください');
@@ -2624,15 +2625,15 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(x.shopifyPublishState==='error')throw new Error(x.shopifyPublishError||'Shopify下書きの更新に失敗しました');
     if(x.shopifyPublishState==='publishing')throw new Error('Shopify処理が完了していません。接続と下書き状態を確認してください');
     if(x.shopifyPublishState==='published'||x.shopifyPublished)throw new Error('公開済み商品を自動準備の下書きとして扱えません。公開状態を確認してください');
-    if(x.shopifyPublishState!=='created')throw new Error('Shopify下書き作成の完了を確認できませんでした');
-    if(x.shopifyProductId&&x.shopifyPublishState==='created'){
+    if(x.shopifyPublishState!=='created'&&x.shopifyPublishState!=='needs_review')throw new Error('Shopify下書き作成の完了を確認できませんでした');
+    if(x.shopifyProductId&&(x.shopifyPublishState==='created'||x.shopifyPublishState==='needs_review')){
       const page=await optimizeGrowthPage(x);
       if(findActive(x.id)!==x)return;
       if(!page.ok)throw new Error(page.reason||'商品ページ最適化に失敗');
       if(findActive(x.id)!==x)return;
       x.status='test';
       x.autoSetupState='ready';
-      x.autoSetupMessage='Shopify試験登録完了。下書きで公開待ち';
+      x.autoSetupMessage=x.shopifyNeedsCopyReview?'Shopify下書き登録完了。日本語説明の確認が必要':'Shopify試験登録完了。下書きで公開待ち';
       x.autoPreparedAt=new Date().toISOString();
       x.autoSetupAttempts=0;
       x.autoSetupLastError='';
