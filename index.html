@@ -446,11 +446,11 @@ async function addTestCatalogProducts(){
 function renderRecommendTop(){
   const box=document.getElementById('recommendTopPicks'),stamp=document.getElementById('recommendTopStamp');
   if(!box)return;
-  const picks=Array.isArray(today?.products)?today.products.slice(0,5):[];
+  const picks=Array.isArray(today?.products)?today.products.filter(oddlyPetRelevant).slice(0,5):[];
   if(stamp)stamp.textContent=today?.at?'更新 '+new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'AIが毎日3〜5商品に絞ります';
   box.innerHTML=picks.length?picks.map((p,i)=>recommendationCard(p,i+1)).join(''):'<div class="empty">AIおすすめを準備中です。CJ接続後に自動更新します。</div>';
 }
-function renderToday(){renderRecommendTop();if(!today){todayPicks.innerHTML='<div class="empty">CJ接続確認後、自動でおすすめ商品を探索します。</div>';todayStamp.textContent='未生成';return}todayStamp.textContent=new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});if(!today.products?.length){todayPicks.innerHTML='<div class="empty">今回の条件ではおすすめ候補が0件でした。条件を調整するか再探索してください。</div>';return}todayPicks.innerHTML=today.products.map((p,i)=>recommendationCard(p,i+1)).join('')}
+function renderToday(){renderRecommendTop();if(!today){todayPicks.innerHTML='<div class="empty">CJ接続確認後、自動でおすすめ商品を探索します。</div>';todayStamp.textContent='未生成';return}todayStamp.textContent=new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});if(!today.products?.length){todayPicks.innerHTML='<div class="empty">今回の条件ではおすすめ候補が0件でした。条件を調整するか再探索してください。</div>';return}todayPicks.innerHTML=today.products.filter(oddlyPetRelevant).map((p,i)=>recommendationCard(p,i+1)).join('')}
 function renderScanSummary(){if(!today){scanSummary.innerHTML='<div class="tiny">まだスキャン結果はありません。</div>';return}const s=today.summary||{};scanSummary.innerHTML=`<div class="summary"><div><span class="tiny">取得</span><b>${s.fetched||0}</b></div><div><span class="tiny">条件通過</span><b>${s.passed||0}</b></div><div><span class="tiny">採用</span><b>${today.products?.length||0}</b></div></div><div class="explain">除外: スコア ${s.failScore||0} / 価格 ${s.failCost||0} / 売れ筋不足 ${s.failTrend||0} / 商品タイプ ${s.failType||0} / 安全性 ${s.failRisk||0} / 粗利 ${s.failMargin||0}</div><div class="tiny" style="margin-top:7px">${esc(new Date(today.at).toLocaleString('ja-JP'))}</div>`}
 const ODDLY_PET_TERMS=/\b(pet|pets|dog|dogs|puppy|puppies|cat|cats|kitten|kittens|canine|feline|paw|leash|harness|litter|grooming|aquarium|birdcage)\b|ペット|犬用|猫用|犬猫|猫砂|リード|首輪|ハーネス/i;
 function oddlyPetRelevant(p){return ODDLY_PET_TERMS.test([p.name,p.title,p.productName,p.categoryName].filter(Boolean).join(' '))}
@@ -458,7 +458,7 @@ async function runAutoScan(silent=false){if(recommendationScanRunning)return;rec
 function recommendationsNeedRefresh(){
   const picks=Array.isArray(today?.products)?today.products:[];
   const last=today?.at?new Date(today.at).getTime():0;
-  return picks.length<3||!Number.isFinite(last)||Date.now()-last>12*60*60*1000;
+  return picks.filter(oddlyPetRelevant).length<3||!Number.isFinite(last)||Date.now()-last>12*60*60*1000;
 }
 function ensureRecommendations(){
   renderRecommendTop();
