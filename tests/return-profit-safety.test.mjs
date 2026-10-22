@@ -273,8 +273,20 @@ test('legacy non-pet watch defaults migrate to pet-only discovery without overwr
 test('pet recommendation discovery fallback keeps inventory and margin guards and labels unverified items',async()=>{
  const fs=await import('node:fs/promises');
  const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
- assert.match(source,/const recommendations=safe\.length\?safe:discovery/);
+ assert.match(source,/const recommendations=safe\.length\?safe:discovery\.filter\(p=>p\._m\.score>=rules\.minScore\)/);
  assert.match(source,/discovery=pool\.filter\(p=>!catalogRisk\(p\)\.exclude/);
  assert.match(source,/調査候補・要確認/);
  assert.match(source,/if\(x\.trending!==true\)reasons\.push\('CJ Trending未確認'\)/);
+});
+
+
+test('ODDLY recommendations use 65 score and advisory CJ listing signals without weakening margin or safety',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(source,/minScore:65,maxCost:35,minListed:0,minMargin:45/);
+ assert.match(source,/rules\.minScore=65;rules\.minListed=0/);
+ assert.match(source,/\['売れ筋シグナル（参考）',true/);
+ assert.match(source,/\['安全性',!risk\.exclude/);
+ assert.match(source,/\['粗利率',m\.margin\*100>=rules\.minMargin/);
+ assert.doesNotMatch(source,/&trending=1&minListed=/);
 });
