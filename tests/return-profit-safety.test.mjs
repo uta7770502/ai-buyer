@@ -233,3 +233,11 @@ test('ODDLY research-based category boost is separate from CJ product safety fil
  assert.match(source,/CJ掲載実績あり/);
  assert.doesNotMatch(source,/売れ筋確認済<\/span>/);
 });
+
+test('Shopify draft selection uses Japanese titles and blocks duplicate client submissions',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(source,/if\(x\.shopifyProductId\)\{showCandidateToast\('Shopify登録済みです。重複登録を防止しました'\)/);
+ assert.match(source,/title:japaneseProductName\(x\),descriptionHtml:shopifyDescription\(x\)/);
+ assert.match(source,/publishApproved:false/);
+});
