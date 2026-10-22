@@ -544,6 +544,8 @@ export default async function handler(req,res){
       ce=create.productCreate;
     }
     if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
+    // Fail closed if Shopify unexpectedly returns a non-draft product; do not update variants or publish it.
+    if(ce.product.status!=='DRAFT')throw Error('Shopify商品が下書き状態ではありません。価格更新と公開を停止しました。');
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
     const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),inventoryItem:{sku:cj.vid,tracked:false}}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
