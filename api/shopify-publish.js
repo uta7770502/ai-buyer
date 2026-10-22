@@ -524,6 +524,8 @@ export default async function handler(req,res){
     if(skuMatches.products.nodes.some(v=>v.variants?.pageInfo?.hasNextPage))return res.status(409).json({ok:false,error:'商品バリエーションの照合が完了していません。出品を停止します。'});
     const matchingActive=skuMatches.products.nodes.filter(v=>v.status!=='DRAFT'&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
     if(matchingActive.length)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの商品がすでにShopifyに存在します。重複登録を停止しました。'});
+    const conflictingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&!['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
+    if(conflictingDrafts.length)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの他社・手動登録下書きがあります。重複登録を停止しました。'});
     const matchingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
     if(matchingDrafts.length>1)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの下書きが複数あります。Shopifyで重複を確認してください。'});
     const existing=matchingDrafts[0]||null;
