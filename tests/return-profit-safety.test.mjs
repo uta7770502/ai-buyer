@@ -142,3 +142,11 @@ test('reconciliation summary rejects keys outside the expected namespace',async(
   for(const [k,v] of Object.entries(prior)){if(v===undefined)delete process.env[k];else process.env[k]=v}
  }
 });
+
+test('CJ sandbox preflight uses bounded authentication and freight requests',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../api/shopify-order-webhook.js',import.meta.url),'utf8');
+ assert.match(source,/authentication\/getAccessToken[\s\S]*?signal:AbortSignal\.timeout\(10000\)/);
+ assert.match(source,/logistic\/freightCalculate[\s\S]*?signal:AbortSignal\.timeout\(10000\)/);
+ assert.ok(source.indexOf('logistic/freightCalculate')<source.indexOf('const reserved=await reserveOrder'));
+});
