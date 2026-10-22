@@ -260,3 +260,12 @@ test('Shopify draft copy review flags mixed-language supplier listings',async()=
  assert.match(source,/home office storage\|pet supplies/);
  assert.match(source,/needsCopyReview=!verifiedJapaneseCopy\|\|hasUntranslatedEnglish/);
 });
+
+test('legacy non-pet watch defaults migrate to pet-only discovery without overwriting custom watchlists',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(source,/ODDLY_DEFAULT_WATCH=\[/);
+ assert.match(source,/\['pet','kitchen','beauty'\]/);
+ assert.match(source,/preserve merchant-customized searches/);
+ assert.match(source,/watch=ODDLY_DEFAULT_WATCH\.slice\(\);saveWatch\(\)/);
+});
