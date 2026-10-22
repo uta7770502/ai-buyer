@@ -982,6 +982,7 @@ function hydrateReconciliationSummaryUI(){
 }
 function reconciliationSummaryIsFresh(){
   if(!reconciliationSummaryChecked||!reconciliationSummaryCheckedAt)return false;
+  try{if(JSON.parse(localStorage.getItem('aiBuyerReconciliationSummary')||'{}').partial===true)return false}catch{return false}
   const t=new Date(reconciliationSummaryCheckedAt).getTime();
   return Number.isFinite(t)&&(Date.now()-t)<=24*60*60*1000;
 }
