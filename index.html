@@ -2609,9 +2609,9 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     x.shippingVariant=data.variantSku||data.vid;
     x.shippingQuotedAt=new Date().toISOString();
     const unitCost=Number(x.costUsd??parsePrice(x.sellPrice));
-    if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(fx))||Number(fx)<=0)throw new Error('商品原価または為替レートが不正です');
+    if(!Number.isFinite(unitCost)||unitCost<=0||!Number.isFinite(Number(fx))||Number(fx)<=0)throw new Error('仕入原価が未確定、または為替レートが不正です。価格の自動設定を停止しました');
     const cost=Math.round(unitCost*Number(fx))+Number(x.shippingJpy||0);
-    if(!Number.isFinite(cost)||cost<0)throw new Error('商品原価と送料を確認できません');
+    if(!Number.isFinite(cost)||cost<=0)throw new Error('商品原価と送料を確認できません');
     // Target >=30% contribution after 4.5% payment fees and 10% advertising/returns reserve; freight included in cost.
     const minPrice=Math.ceil((cost/(1-.045-.10-.30))/100)*100;
     const existingPrice=Number(x.price);
