@@ -56,3 +56,26 @@ test('CJ readiness never claims live order automation is enabled',async()=>{
   assert.equal(r.body.liveIntegrationVerified,false);
  }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
 });
+
+test('reconciliation summary marks missing CJ order identifiers as critical',async()=>{
+ const reconcile=(await import('../lib/routes/automation-reconciliation.js')).default;
+ const oldKey=process.env.AI_BUYER_ADMIN_KEY,oldUrl=process.env.UPSTASH_REDIS_REST_URL,oldToken=process.env.UPSTASH_REDIS_REST_TOKEN,oldFetch=globalThis.fetch;
+ process.env.AI_BUYER_ADMIN_KEY='test-only-secret';
+ process.env.UPSTASH_REDIS_REST_URL='https://redis.test';
+ process.env.UPSTASH_REDIS_REST_TOKEN='redis-test-token';
+ globalThis.fetch=async(_url,opts)=>{
+  const cmd=JSON.parse(opts.body);
+  const result=cmd[0]==='SCAN'?['0',cmd[3].startsWith('ai-buyer:cj-sandbox:')?['ai-buyer:cj-sandbox:test']:[]]:cmd[0]==='MGET'?['needs_review:missing_cj_order_id']:null;
+  return {ok:true,json:async()=>({result})};
+ };
+ try{
+  const res={statusCode:200,setHeader(){return this},status(n){this.statusCode=n;return this},json(v){this.body=v;return this}};
+  await reconcile({method:'GET',query:{kind:'summary'},headers:{authorization:'Bearer test-only-secret'}},res);
+  assert.equal(res.statusCode,200);
+  assert.equal(res.body.summary.critical,1);
+  assert.equal(res.body.summary.byKind.cj.critical,1);
+ }finally{
+  globalThis.fetch=oldFetch;
+  for(const [k,v] of [['AI_BUYER_ADMIN_KEY',oldKey],['UPSTASH_REDIS_REST_URL',oldUrl],['UPSTASH_REDIS_REST_TOKEN',oldToken]]){if(v===undefined)delete process.env[k];else process.env[k]=v}
+ }
+});
