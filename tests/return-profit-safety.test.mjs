@@ -252,3 +252,11 @@ test('ODDLY Shopify draft descriptions do not claim unverified sales or monitori
  assert.doesNotMatch(description,/販売実績を確認して選定/);
  assert.doesNotMatch(description,/在庫・価格・配送状況を継続監視/);
 });
+
+test('Shopify draft copy review flags mixed-language supplier listings',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+ assert.match(source,/const hasUntranslatedEnglish=/);
+ assert.match(source,/home office storage\|pet supplies/);
+ assert.match(source,/needsCopyReview=!verifiedJapaneseCopy\|\|hasUntranslatedEnglish/);
+});
