@@ -185,3 +185,13 @@ test('return triage never declares an item eligible based solely on timing',asyn
   }
  }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
 });
+
+test('CJ product risk cannot be low when reviews are unavailable or insufficient',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../lib/routes/cj-risk.js',import.meta.url),'utf8');
+ assert.match(source,/reviewDataComplete=all!==null/);
+ assert.match(source,/reason:'review-data-unavailable'/);
+ assert.match(source,/if\(total<5\)return \{level:'unknown'/);
+ assert.match(source,/reason:'insufficient-review-evidence'/);
+ assert.match(source,/exclude:true,reason:'review-data-unavailable'/);
+});
