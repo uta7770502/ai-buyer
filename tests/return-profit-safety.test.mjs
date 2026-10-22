@@ -122,3 +122,23 @@ test('reconciliation summary rejects malformed Redis scan cursor',async()=>{
   for(const [k,v] of Object.entries(prior)){if(v===undefined)delete process.env[k];else process.env[k]=v}
  }
 });
+
+test('reconciliation summary rejects keys outside the expected namespace',async()=>{
+ const reconcile=(await import('../lib/routes/automation-reconciliation.js')).default;
+ const envKeys=['AI_BUYER_ADMIN_KEY','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN'];
+ const prior=Object.fromEntries(envKeys.map(k=>[k,process.env[k]]));
+ const oldFetch=globalThis.fetch;
+ process.env.AI_BUYER_ADMIN_KEY='test-only-secret';
+ process.env.UPSTASH_REDIS_REST_URL='https://redis.test';
+ process.env.UPSTASH_REDIS_REST_TOKEN='redis-test-token';
+ globalThis.fetch=async()=>({ok:true,json:async()=>({result:['0',['unrelated:order-key']]})});
+ try{
+  const res={statusCode:200,setHeader(){return this},status(n){this.statusCode=n;return this},json(v){this.body=v;return this}};
+  await reconcile({method:'GET',query:{kind:'summary'},headers:{authorization:'Bearer test-only-secret'}},res);
+  assert.equal(res.statusCode,503);
+  assert.equal(res.body.ok,false);
+ }finally{
+  globalThis.fetch=oldFetch;
+  for(const [k,v] of Object.entries(prior)){if(v===undefined)delete process.env[k];else process.env[k]=v}
+ }
+});
