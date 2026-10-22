@@ -241,3 +241,14 @@ test('Shopify draft selection uses Japanese titles and blocks duplicate client s
  assert.match(source,/title:japaneseProductName\(x\),descriptionHtml:shopifyDescription\(x\)/);
  assert.match(source,/publishApproved:false/);
 });
+
+test('ODDLY Shopify draft descriptions do not claim unverified sales or monitoring',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ const start=source.indexOf('function shopifyDescription(p){');
+ const end=source.indexOf('function storefrontJaTitle(',start);
+ const description=source.slice(start,end);
+ assert.match(description,/esc\(japaneseProductName\(p\)\)/);
+ assert.doesNotMatch(description,/販売実績を確認して選定/);
+ assert.doesNotMatch(description,/在庫・価格・配送状況を継続監視/);
+});
