@@ -974,9 +974,11 @@ function hydrateReconciliationSummaryUI(){
     el.className='tiny';el.textContent='再確認：前回の全体照合から24時間以上経過 / 確認: '+new Date(reconciliationSummaryCheckedAt).toLocaleString('ja-JP');return;
   }
   el.className=reconciliationCriticalCount>0?'tiny fail':reconciliationReviewCount>0?'tiny':'tiny pass';
-  el.textContent=reconciliationLoadedCount===0
+  const savedSummary=(()=>{try{return JSON.parse(localStorage.getItem('aiBuyerReconciliationSummary')||'{}')}catch{return {}}})();
+  const partial=Boolean(savedSummary.partial);
+  el.textContent=reconciliationLoadedCount===0&&!partial
     ?'異常なし：3種類すべて要照合0件 / 確認: '+new Date(reconciliationSummaryCheckedAt).toLocaleString('ja-JP')
-    :'全体 '+reconciliationLoadedCount+'件 / 要対応 '+reconciliationCriticalCount+' / 要確認 '+reconciliationReviewCount+' / 確認: '+new Date(reconciliationSummaryCheckedAt).toLocaleString('ja-JP');
+    :'全体 '+reconciliationLoadedCount+'件 / 要対応 '+reconciliationCriticalCount+' / 要確認 '+reconciliationReviewCount+(partial?' / 一部のみ確認・再確認が必要':'')+' / 確認: '+new Date(reconciliationSummaryCheckedAt).toLocaleString('ja-JP');
 }
 function reconciliationSummaryIsFresh(){
   if(!reconciliationSummaryChecked||!reconciliationSummaryCheckedAt)return false;
