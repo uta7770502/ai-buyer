@@ -160,3 +160,13 @@ test('invalid CJ order identifiers are quarantined and shown as critical',async(
  assert.match(reconciliation,/invalid_cj_order_id:100/);
  assert.match(html,/invalid_cj_order_id:'CJ注文IDの形式が不正'/);
 });
+
+test('CJ tracking sync validates tracking numbers before Shopify mutation',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../lib/routes/cj-tracking-sync.js',import.meta.url),'utf8');
+ assert.match(source,/\^\[A-Za-z0-9\]\[A-Za-z0-9\._-\]\{0,99\}\$/);
+ assert.ok(source.indexOf("test(tracking)")<source.indexOf("const mutation="));
+ const valid=/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+ for(const value of ['CJ123456789','YT-2026_ABC.9'])assert.equal(valid.test(value),true);
+ for(const value of ['A B','A\nB','<bad>','', 'a'.repeat(101)])assert.equal(valid.test(value),false);
+});
