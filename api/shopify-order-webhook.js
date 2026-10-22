@@ -4,7 +4,7 @@ export const config={api:{bodyParser:false}};
 let tokenCache={token:'',expiresAt:0};
 async function readRaw(req){const chunks=[];let size=0;for await(const c of req){const chunk=Buffer.isBuffer(c)?c:Buffer.from(c);size+=chunk.length;if(size>1024*1024){const e=new Error('Webhook payload too large');e.statusCode=413;throw e;}chunks.push(chunk)}return Buffer.concat(chunks)}
 function validHmac(raw,hmac,secret){if(typeof hmac!=='string'||!secret||!/^[A-Za-z0-9+/]{43}=$/.test(hmac))return false;const digest=crypto.createHmac('sha256',secret).update(raw).digest();const supplied=Buffer.from(hmac,'base64');return supplied.length===digest.length&&crypto.timingSafeEqual(digest,supplied)}
-async function cjToken(){if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;if(tokenCache.token&&Date.now()<tokenCache.expiresAt-60000)return tokenCache.token;if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');const r=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY})});const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');tokenCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return tokenCache.token}
+async function cjToken(){if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;if(tokenCache.token&&Date.now()<tokenCache.expiresAt-60000)return tokenCache.token;if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');const r=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(10000)});const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');tokenCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return tokenCache.token}
 function str(v,n=200){return String(v||'').trim().slice(0,n)}
 // Persistent, atomic order reservation. Never expire automatically: uncertain CJ outcomes
 // must be reconciled manually instead of allowing a duplicate purchase.
@@ -130,7 +130,7 @@ export default async function handler(req,res){
     }
     const products=verifiedProducts;
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
-    const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
+    const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))}),signal:AbortSignal.timeout(10000)});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
     const opts=(Array.isArray(fq.data)?fq.data:[]).map(x=>({name:str(x.logisticName,50),usd:x.totalPostageFee==null&&x.logisticPrice==null?NaN:Number(x.totalPostageFee??x.logisticPrice),days:str(x.logisticAging,50)})).filter(x=>x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
