@@ -517,11 +517,13 @@ export default async function handler(req,res){
     const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
-    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft sku:'+cj.vid});
+    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'sku:'+cj.vid});
     if(!skuMatches.products||!Array.isArray(skuMatches.products.nodes)||typeof skuMatches.products.pageInfo?.hasNextPage!=='boolean')return res.status(502).json({ok:false,error:'Shopifyの商品検索結果を検証できません。出品を停止します。'});
     if(skuMatches.products?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'既存商品の検索結果が多すぎます。重複確認が完了するまで出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>!v||typeof v!=='object'||!Array.isArray(v.variants?.nodes)||typeof v.variants?.pageInfo?.hasNextPage!=='boolean'))return res.status(502).json({ok:false,error:'Shopifyの商品バリエーション情報が不完全です。出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>v.variants?.pageInfo?.hasNextPage))return res.status(409).json({ok:false,error:'商品バリエーションの照合が完了していません。出品を停止します。'});
+    const matchingActive=skuMatches.products.nodes.filter(v=>v.status!=='DRAFT'&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
+    if(matchingActive.length)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの商品がすでにShopifyに存在します。重複登録を停止しました。'});
     const matchingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
     if(matchingDrafts.length>1)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの下書きが複数あります。Shopifyで重複を確認してください。'});
     const existing=matchingDrafts[0]||null;
