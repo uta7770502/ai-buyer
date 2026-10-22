@@ -195,3 +195,12 @@ test('CJ product risk cannot be low when reviews are unavailable or insufficient
  assert.match(source,/reason:'insufficient-review-evidence'/);
  assert.match(source,/exclude:true,reason:'review-data-unavailable'/);
 });
+
+test('CJ risk screening fails closed on inconsistent review counts',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../lib/routes/cj-risk.js',import.meta.url),'utf8');
+ assert.match(source,/score1\+score2<=Number\(all\.total\)/);
+ assert.match(source,/Number\.isSafeInteger\(Number\(all\.total\)\)/);
+ assert.match(source,/reviewDataComplete\?scoreRisk/);
+ assert.match(source,/review-data-unavailable/);
+});
