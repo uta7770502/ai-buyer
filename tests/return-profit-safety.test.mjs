@@ -222,3 +222,14 @@ test('ODDLY cached recommendations cannot resurface non-pet products',async()=>{
  assert.match(source,/today\.products\.filter\(oddlyPetRelevant\)\.map/);
  assert.match(source,/picks\.filter\(oddlyPetRelevant\)\.length<3/);
 });
+
+test('ODDLY research-based category boost is separate from CJ product safety filters',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(source,/function oddlyDemandPoints\(p\)/);
+ assert.match(source,/puzzle\|enrichment\|interactive/);
+ assert.match(source,/groom\|deshed\|pet\.hair/);
+ assert.match(source,/safe=passed\.filter\(x=>!catalogRisk\(x\)\.exclude\)\.sort/);
+ assert.match(source,/CJ掲載実績あり/);
+ assert.doesNotMatch(source,/売れ筋確認済<\/span>/);
+});
