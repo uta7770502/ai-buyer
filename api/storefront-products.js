@@ -58,7 +58,7 @@ export default async function handler(req,res){
         'Content-Type':'application/json',
         'X-Shopify-Storefront-Access-Token':token
       },
-      body:JSON.stringify({query,variables:{first:24}}),
+      body:JSON.stringify({query,variables:{first:100}}),
       cache:'no-store',
       signal:AbortSignal.timeout(10000)
     });
