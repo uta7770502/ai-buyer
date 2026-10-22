@@ -214,3 +214,11 @@ test('ODDLY pet-first recommendations use product metadata rather than keyword a
  assert.match(source,/dog accessories/);
  assert.match(source,/cat accessories/);
 });
+
+test('ODDLY cached recommendations cannot resurface non-pet products',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(source,/today\.products\.filter\(oddlyPetRelevant\)\.slice\(0,5\)/);
+ assert.match(source,/today\.products\.filter\(oddlyPetRelevant\)\.map/);
+ assert.match(source,/picks\.filter\(oddlyPetRelevant\)\.length<3/);
+});
