@@ -377,7 +377,7 @@ function retryShopifyDraft(id){
   if(!x)return showCandidateToast('販売候補が見つかりません');
   if(x.shopifyPublished||x.shopifyPublishState==='published')return showCandidateToast('公開済みの商品です');
   if(x.shopifyPublishState==='publishing'||autoPreparationInFlight.has(x))return showCandidateToast('自動登録を処理中です');
-  if(x.shopifyProductId&&x.shopifyPublishState==='created')return showCandidateToast('Shopify下書き登録済みです');
+  if(x.shopifyProductId&&['created','needs_review'].includes(x.shopifyPublishState))return showCandidateToast(x.shopifyNeedsCopyReview?'Shopify下書き登録済みです。日本語説明をご確認ください':'Shopify下書き登録済みです');
   if(catalogRisk(x).exclude)return showCandidateToast('高リスク商品のため登録停止中です');
   cancelAutoPreparationRetry(id);
   x.autoSetupAttempts=0;x.autoSetupState='queued';x.autoSetupLastError='';x.autoSetupMessage='Shopify試験登録を再開します';x.shopifyPublishState='';x.shopifyPublishError='';
