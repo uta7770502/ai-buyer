@@ -2884,9 +2884,9 @@ async function loadOddlyDraftPreview(){
   try{
     const r=await fetch('/api/shopify-publish',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({draftPreviewCatalog:true})});
     const j=await r.json();
-    if(!r.ok||!j.ok||!j.previewOnly)throw new Error(j.error||'Shopify下書きを取得できません');
+    if(!r.ok||!j.ok||!j.previewOnly){if(r.status===401||j.authRequired)throw new Error('Shopifyの管理者認証が必要です。接続を確認してから更新してください');throw new Error(j.error||'Shopify下書きを取得できません')}
     const products=Array.isArray(j.products)?j.products:[];
-    status.textContent='Shopify下書き '+products.length+'件（管理者専用・未公開）';
+    status.textContent='Shopify下書き '+products.length+'件（最大'+Number(j.limit||100)+'件・管理者専用・未公開）';
     list.replaceChildren();
     for(const p of products){
       const card=document.createElement('div');card.style.cssText='border:1px solid #eee;border-radius:13px;padding:9px;min-width:0;background:#fff';
