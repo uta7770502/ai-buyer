@@ -71,6 +71,17 @@ export default async function handler(req,res){
     const {token,shop}=auth;
     const raw=req.body||{}; const formPublish=String(raw.formPublish||'')==='1'; const p=raw;
     if(formPublish){p.images=p.image?[p.image]:[];p.descriptionHtml='';p.publishApproved=false;}
+    // Authenticated management preview only: never expose unpublished drafts via the public Storefront API.
+    if(p.draftPreviewCatalog===true){
+      const data=await gql(shop,token,'query OddlyDraftPreview($q:String!,$first:Int!){products(first:$first,query:$q,sortKey:UPDATED_AT,reverse:true){nodes{id title handle status vendor descriptionHtml featuredMedia{preview{image{url altText}}} variants(first:1){nodes{id sku price}}}}}',{q:'status:draft',first:100});
+      const products=(data.products?.nodes||[]).filter(x=>x&&x.status==='DRAFT'&&['AI BUYER','ODDLY'].includes(String(x.vendor||''))).map(x=>({
+        productId:String(x.id||''),title:String(x.title||''),handle:String(x.handle||''),status:'DRAFT',
+        image:String(x.featuredMedia?.preview?.image?.url||''),imageAlt:String(x.featuredMedia?.preview?.image?.altText||''),
+        sku:String(x.variants?.nodes?.[0]?.sku||''),price:Number(x.variants?.nodes?.[0]?.price||0),
+        needsReview:!/[ぁ-んァ-ヶ一-龠]/.test(String(x.title||'')+' '+String(x.descriptionHtml||''))
+      })).filter(x=>x.productId&&x.title&&Number.isFinite(x.price)&&x.price>0);
+      return res.status(200).json({ok:true,previewOnly:true,publiclyAvailable:false,count:products.length,products});
+    }
     if(p.legalPrefill===true){
       const d=await gql(shop,token,`query OddlyLegalPrefill { shop { name contactEmail billingAddress { address1 address2 city province provinceCode zip country countryCodeV2 phone } } }`);
       const s=d?.shop||{},a=s.billingAddress||{};
