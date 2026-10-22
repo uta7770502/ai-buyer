@@ -40,7 +40,8 @@ test('return triage requires policy review when delivery date or return window i
   assert.equal(missing.body.refundIssued,false);
   const known=await run(triage,'POST',{type:'defective',daysSinceDelivery:3,returnWindowDays:7},'Bearer test-only-secret');
   assert.equal(known.body.policyReviewRequired,false);
-  assert.equal(known.body.returnEligibilityVerified,true);
+  assert.equal(known.body.withinProvidedReturnWindow,true);
+  assert.equal(known.body.returnEligibilityVerified,false);
   assert.equal(known.body.manualApprovalRequired,true);
  }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
 });
@@ -169,4 +170,18 @@ test('CJ tracking sync validates tracking numbers before Shopify mutation',async
  const valid=/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
  for(const value of ['CJ123456789','YT-2026_ABC.9'])assert.equal(valid.test(value),true);
  for(const value of ['A B','A\nB','<bad>','', 'a'.repeat(101)])assert.equal(valid.test(value),false);
+});
+
+test('return triage never declares an item eligible based solely on timing',async()=>{
+ const old=process.env.AI_BUYER_ADMIN_KEY;process.env.AI_BUYER_ADMIN_KEY='test-only-secret';
+ try{
+  for(const type of ['damaged','defective','missing','wrong_item','late','change_of_mind','other']){
+   const res=await run(triage,'POST',{type,daysSinceDelivery:0,returnWindowDays:30},'Bearer test-only-secret');
+   assert.equal(res.statusCode,200);
+   assert.equal(res.body.withinProvidedReturnWindow,true);
+   assert.equal(res.body.returnEligibilityVerified,false);
+   assert.equal(res.body.manualApprovalRequired,true);
+   assert.equal(res.body.refundIssued,false);
+  }
+ }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
 });
