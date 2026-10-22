@@ -2648,7 +2648,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       save();renderAll();renderGrowthMode();renderDailyActions();
       addOps('商品自動準備',x.name+'：送料・売価・Shopify下書き・日本向けページの準備完了（公開・実注文は未実施）');
       queueAutomationCycle(500);
-      showCandidateToast('Shopify試験登録が完了しました（下書き）');
+      showCandidateToast('Shopify試験登録が完了しました（下書き）');if(shopifyConnected)loadOddlyDraftPreview();
     }else{
       throw new Error(x.shopifyPublishError||'Shopify下書きを作成できませんでした');
     }
@@ -2822,7 +2822,7 @@ function normalizedCategory(p){
 }
 function addDetailCandidate(p){let x=findActive(p.id);if(!x){x={...p,price:suggestedPrice(p.costUsd),qty:12,status:'candidate',shippingDestination:'JP',autoSetupState:'queued'};active.push(x);save()}closeModal();renderAll();if(results.length)applyFilters();showCandidateToast('商品を選択しました。AIが自動準備します');setTimeout(()=>autoPrepareSelectedProduct(x),120)}
 function closeModal(){modal.classList.remove('on')}
-function showPage(id,btn){const currentPage=document.querySelector('.page.on')?.id||'';if(id!==currentPage){active=active.filter(x=>x.uiSelected!==false);save()}document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('.nav button')[id==='recommend'?1:id==='profit'?2:0].classList.add('on');if(id==='recommend'){renderRecommendTop();ensureRecommendations()}renderAll();requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}))}
+function showPage(id,btn){const currentPage=document.querySelector('.page.on')?.id||'';if(id!==currentPage){active=active.filter(x=>x.uiSelected!==false);save()}document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('.nav button')[id==='recommend'?1:id==='profit'?2:0].classList.add('on');if(id==='recommend'){renderRecommendTop();ensureRecommendations();if(shopifyConnected)loadOddlyDraftPreview()}renderAll();requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}))}
 document.addEventListener('click',e=>{const btn=e.target.closest('[data-publish-id]');if(!btn)return;e.preventDefault();e.stopPropagation();const id=btn.getAttribute('data-publish-id');btn.disabled=true;btn.textContent='確認中…';publishById(id)});
 document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-live-publish-id]');if(!btn)return;
