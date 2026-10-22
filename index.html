@@ -253,9 +253,9 @@ function shopifyPreparationBadge(x){
   if(!x)return '';
   const price=Number(x.price);
   const validPrice=Number.isFinite(price)&&price>0&&Boolean(x.shippingQuotedAt)&&x.shippingDestination==='JP'&&x.shippingSource==='CJ';
-  const draft=Boolean(x.shopifyProductId)&&x.shopifyPublishState==='created';
+  const draft=Boolean(x.shopifyProductId)&&['created','needs_review'].includes(x.shopifyPublishState);
   const live=x.shopifyPublishState==='published'&&Boolean(x.shopifyProductId);
-  const label=live?'Shopify公開済み':draft?'Shopify下書き登録済み':x.autoSetupState==='needs_review'||x.shopifyPublishState==='error'?'Shopify登録を確認してください':x.autoSetupState==='shipping'?'CJ送料を確認中':x.autoSetupState==='draft'||x.shopifyPublishState==='publishing'?'Shopify下書きを作成中':'Shopify自動登録準備中';
+  const label=live?'Shopify公開済み':draft?(x.shopifyNeedsCopyReview?'Shopify下書き登録済み（日本語説明の確認が必要）':'Shopify下書き登録済み'):x.autoSetupState==='needs_review'||x.shopifyPublishState==='error'?'Shopify登録を確認してください':x.autoSetupState==='shipping'?'CJ送料を確認中':x.autoSetupState==='draft'||x.shopifyPublishState==='publishing'?'Shopify下書きを作成中':'Shopify自動登録準備中';
   const tone=live||draft?'#13733a':x.autoSetupState==='needs_review'||x.shopifyPublishState==='error'?'#a5281b':'#666';
   return '<div role="status" style="margin-top:8px;font-size:11px;line-height:1.5;color:'+tone+';font-weight:800;overflow-wrap:anywhere">'+esc(label)+(validPrice?' / 送料込み自動売価 '+yen(price):' / 売価確定待ち')+'</div>';
 }
