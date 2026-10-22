@@ -471,7 +471,7 @@ export default async function handler(req,res){
         if(!/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(variantId)||!Number.isFinite(syncPrice)||syncPrice<=0)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
         if(!(targetProduct.variants?.nodes||[]).some(v=>v.id===variantId))return res.status(403).json({ok:false,error:'商品とバリエーションIDが一致しません'});
         if(targetProduct.status!=='DRAFT'&&(!livePublishEnabled||p.priceChangeApproved!==true))return res.status(403).json({ok:false,error:'公開中商品の価格変更にはサーバー許可と明示承認が必要です'});
-        const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
+        const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price inventoryItem { sku } } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
         const errs=d.productVariantsBulkUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
         return res.status(200).json({ok:true,sync:true,action:'price',price:Math.round(syncPrice)});
       }
@@ -552,6 +552,7 @@ export default async function handler(req,res){
     const updatedVariant=update.productVariantsBulkUpdate?.productVariants?.[0];
     const confirmedPrice=Number(updatedVariant?.price);
     if(!Number.isFinite(confirmedPrice)||Math.round(confirmedPrice)!==Math.round(price))throw Error('Shopify価格の反映確認に失敗しました。下書きを保持します。');
+    if(String(updatedVariant?.inventoryItem?.sku||'')!==String(cj.vid))throw Error('Shopify SKUの反映確認に失敗しました。下書きを保持します。');
     const metafields=aioMetafields(p,ce.product.id,title,description);
     let metadataReady=true,metadataErrors=[];
     if(metafields.length){
