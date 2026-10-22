@@ -92,3 +92,13 @@ test('partial reconciliation never renders a clean bill of health after reload',
  assert.match(html,/reconciliationLoadedCount===0&&!partial/);
  assert.match(html,/一部のみ確認・再確認が必要/);
 });
+
+test('partial reconciliation cannot pass go-live readiness freshness gate',async()=>{
+ const fs=await import('node:fs/promises');
+ const html=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('function reconciliationSummaryIsFresh(){');
+ const end=html.indexOf('async function loadReconciliationSummary()',start);
+ const fn=html.slice(start,end);
+ assert.match(fn,/\.partial===true\)return false/);
+ assert.match(html,/reconciliationSummaryChecked&&reconciliationCriticalCount===0&&reconciliationReviewCount===0&&reconciliationSummaryIsFresh\(\)/);
+});
