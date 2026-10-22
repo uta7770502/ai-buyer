@@ -482,7 +482,8 @@ function recommendationsNeedRefresh(){
 }
 function ensureRecommendations(){
   renderRecommendTop();
-  if(!cjConnected||recommendationScanRunning||!recommendationsNeedRefresh())return;
+  if(recommendationScanRunning||!recommendationsNeedRefresh())return;
+  if(!cjConnected){const box=document.getElementById('recommendTopPicks');if(box)box.innerHTML='<div class="empty">CJ接続が未確認です。接続状態を確認してください。</div>';return;}
   const box=document.getElementById('recommendTopPicks');
   if(box)box.innerHTML='<div class="loading">AIが今日のおすすめを自動選定中…</div>';
   runAutoScan(true);
