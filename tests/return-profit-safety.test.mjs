@@ -44,3 +44,15 @@ test('return triage requires policy review when delivery date or return window i
   assert.equal(known.body.manualApprovalRequired,true);
  }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
 });
+
+test('CJ readiness never claims live order automation is enabled',async()=>{
+ const readiness=(await import('../lib/routes/cj-readiness.js')).default;
+ const old=process.env.AI_BUYER_ADMIN_KEY;process.env.AI_BUYER_ADMIN_KEY='test-only-secret';
+ try{
+  const r=await run(readiness,'GET',{},'Bearer test-only-secret');
+  assert.equal(r.statusCode,200);
+  assert.equal(r.body.fulfillmentMode,'sandbox_test_orders_only');
+  assert.equal(r.body.liveOrderAutomationEnabled,false);
+  assert.equal(r.body.liveIntegrationVerified,false);
+ }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
+});
