@@ -269,3 +269,12 @@ test('legacy non-pet watch defaults migrate to pet-only discovery without overwr
  assert.match(source,/preserve merchant-customized searches/);
  assert.match(source,/watch=ODDLY_DEFAULT_WATCH\.slice\(\);saveWatch\(\)/);
 });
+
+test('pet recommendation discovery fallback keeps inventory and margin guards and labels unverified items',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(source,/const recommendations=safe\.length\?safe:discovery/);
+ assert.match(source,/discovery=pool\.filter\(p=>!catalogRisk\(p\)\.exclude/);
+ assert.match(source,/調査候補・要確認/);
+ assert.match(source,/if\(x\.trending!==true\)reasons\.push\('CJ Trending未確認'\)/);
+});
