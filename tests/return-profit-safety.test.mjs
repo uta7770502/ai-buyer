@@ -204,3 +204,13 @@ test('CJ risk screening fails closed on inconsistent review counts',async()=>{
  assert.match(source,/reviewDataComplete\?scoreRisk/);
  assert.match(source,/review-data-unavailable/);
 });
+
+test('ODDLY pet-first recommendations use product metadata rather than keyword alone',async()=>{
+ const fs=await import('node:fs/promises');
+ const source=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(source,/function oddlyPetRelevant\(p\)/);
+ assert.match(source,/\[p\.name,p\.title,p\.productName,p\.categoryName\]/);
+ assert.match(source,/dedupe\(pool\)\.filter\(oddlyPetRelevant\)/);
+ assert.match(source,/dog accessories/);
+ assert.match(source,/cat accessories/);
+});
