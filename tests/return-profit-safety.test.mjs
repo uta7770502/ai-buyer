@@ -85,3 +85,10 @@ test('management reconciliation UI treats missing CJ order ID as critical',async
  const html=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/\['cj_rejected','shopify_rejected','missing_cj_order_id'\]\.includes\(x\.reason\)/);
 });
+
+test('partial reconciliation never renders a clean bill of health after reload',async()=>{
+ const fs=await import('node:fs/promises');
+ const html=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/reconciliationLoadedCount===0&&!partial/);
+ assert.match(html,/一部のみ確認・再確認が必要/);
+});
