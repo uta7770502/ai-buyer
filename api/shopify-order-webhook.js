@@ -44,7 +44,9 @@ export default async function handler(req,res){
     const order=JSON.parse(raw.toString('utf8')||'{}'),addr=order.shipping_address||{};
     // Verify the originating shop before any order processing, including disabled-mode responses.
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
-    if(order.cancelled_at||order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
+    if(order.cancelled_at)return res.status(200).json({ok:true,skipped:true,reason:'Order cancelled'});
+    if(['partially_refunded','refunded'].includes(String(order.financial_status||'')))return res.status(200).json({ok:true,skipped:true,needsReview:true,reason:'Refunded order requires manual review'});
+    if(order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
     // Shopify may mark a paid order as on hold; never dispatch it to CJ until the hold is resolved.
     if(String(order.fulfillment_status||'').toLowerCase()==='on_hold'||(Array.isArray(order.fulfillment_orders)&&order.fulfillment_orders.some(x=>String(x?.status||'').toLowerCase()==='on_hold')))return res.status(200).json({ok:true,skipped:true,needsReview:true,reason:'Fulfillment order is on hold'});
     if(!/^\d{1,30}$/.test(String(order.id??''))||typeof req.headers['x-shopify-webhook-id']!=='string'||!req.headers['x-shopify-webhook-id'].trim())return res.status(400).json({ok:false,error:'Missing or invalid order or event identifier'});
