@@ -150,3 +150,13 @@ test('CJ sandbox preflight uses bounded authentication and freight requests',asy
  assert.match(source,/logistic\/freightCalculate[\s\S]*?signal:AbortSignal\.timeout\(10000\)/);
  assert.ok(source.indexOf('logistic/freightCalculate')<source.indexOf('const reserved=await reserveOrder'));
 });
+
+test('invalid CJ order identifiers are quarantined and shown as critical',async()=>{
+ const fs=await import('node:fs/promises');
+ const webhook=await fs.readFile(new URL('../api/shopify-order-webhook.js',import.meta.url),'utf8');
+ const reconciliation=await fs.readFile(new URL('../lib/routes/automation-reconciliation.js',import.meta.url),'utf8');
+ const html=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(webhook,/needs_review:invalid_cj_order_id/);
+ assert.match(reconciliation,/invalid_cj_order_id:100/);
+ assert.match(html,/invalid_cj_order_id:'CJ注文IDの形式が不正'/);
+});
