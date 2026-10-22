@@ -80,7 +80,7 @@ export default async function handler(req,res){
         sku:String(x.variants?.nodes?.[0]?.sku||''),price:Number(x.variants?.nodes?.[0]?.price||0),
         needsReview:!/[ぁ-んァ-ヶ一-龠]/.test(String(x.title||'')+' '+String(x.descriptionHtml||''))
       })).filter(x=>x.productId&&x.title&&Number.isFinite(x.price)&&x.price>0);
-      return res.status(200).json({ok:true,previewOnly:true,publiclyAvailable:false,count:products.length,products});
+      return res.status(200).json({ok:true,previewOnly:true,publiclyAvailable:false,count:products.length,limit:100,products});
     }
     if(p.legalPrefill===true){
       const d=await gql(shop,token,`query OddlyLegalPrefill { shop { name contactEmail billingAddress { address1 address2 city province provinceCode zip country countryCodeV2 phone } } }`);
