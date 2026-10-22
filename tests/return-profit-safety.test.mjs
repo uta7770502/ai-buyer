@@ -29,3 +29,18 @@ test('return triage flags out-of-window cases and never triggers refunds',async(
   assert.equal(res.statusCode,200);assert.equal(res.body.policyReviewRequired,true);assert.equal(res.body.refundIssued,false);assert.equal(res.body.customerMessageSent,false);
  }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
 });
+
+test('return triage requires policy review when delivery date or return window is unknown',async()=>{
+ const old=process.env.AI_BUYER_ADMIN_KEY;process.env.AI_BUYER_ADMIN_KEY='test-only-secret';
+ try{
+  const missing=await run(triage,'POST',{type:'defective'},'Bearer test-only-secret');
+  assert.equal(missing.statusCode,200);
+  assert.equal(missing.body.policyReviewRequired,true);
+  assert.equal(missing.body.returnEligibilityVerified,false);
+  assert.equal(missing.body.refundIssued,false);
+  const known=await run(triage,'POST',{type:'defective',daysSinceDelivery:3,returnWindowDays:7},'Bearer test-only-secret');
+  assert.equal(known.body.policyReviewRequired,false);
+  assert.equal(known.body.returnEligibilityVerified,true);
+  assert.equal(known.body.manualApprovalRequired,true);
+ }finally{if(old===undefined)delete process.env.AI_BUYER_ADMIN_KEY;else process.env.AI_BUYER_ADMIN_KEY=old}
+});
