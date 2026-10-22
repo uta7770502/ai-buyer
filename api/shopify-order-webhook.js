@@ -179,6 +179,11 @@ export default async function handler(req,res){
       return res.status(202).json({ok:false,needsReview:true,error:'CJ rejected sandbox order; manual reconciliation required'});
     }
     const confirmedCjId=str(cj.data?.orderId||cj.data?.orderNumber,100);
+    // Never accept arbitrary CJ response text as an order identifier in durable state.
+    if(confirmedCjId&&!/^[A-Za-z0-9_-]{1,100}$/.test(confirmedCjId)){
+      await markOrder(shop,String(order.id),'needs_review:invalid_cj_order_id');
+      return res.status(202).json({ok:false,needsReview:true,error:'CJ returned an invalid order identifier; manual reconciliation required'});
+    }
     if(!confirmedCjId){
       await markOrder(shop,String(order.id),'needs_review:missing_cj_order_id');
       return res.status(202).json({ok:false,needsReview:true,error:'CJ acknowledged order without an identifier; manual reconciliation required'});
