@@ -20,8 +20,14 @@ function aioMetafields(p,ownerId,title,description){
   const shortDescriptionJa=clean(p.shortDescriptionJa||p.adpsShortDescriptionJa,240);
   if(shortTitleJa)rows.push({ownerId,namespace:'custom',key:'adps_short_title_ja',type:'single_line_text_field',value:shortTitleJa});
   if(shortDescriptionJa)rows.push({ownerId,namespace:'custom',key:'adps_short_description_ja',type:'single_line_text_field',value:shortDescriptionJa});
-  const shippingPrice=Number(p.shippingPriceJpy);
-  if(Number.isFinite(shippingPrice)&&shippingPrice>=0)rows.push({ownerId,namespace:'custom',key:'shipping_price_jpy',type:'number_decimal',value:String(shippingPrice)});
+  // Do not store a browser estimate as an actual CJ shipping charge.
+  // Missing/null/blank values must not silently become zero yen.
+  const shippingRaw=p.shippingPriceJpy;
+  const shippingPrice=typeof shippingRaw==='number'?shippingRaw:
+    (typeof shippingRaw==='string'&&shippingRaw.trim()!==''?Number(shippingRaw):NaN);
+  if(p.shippingQuoteSource==='CJ_SERVER_VERIFIED'&&p.shippingQuoteVerifiedServerSide===true&&
+     Number.isFinite(shippingPrice)&&shippingPrice>=0)
+    rows.push({ownerId,namespace:'custom',key:'shipping_price_jpy',type:'number_decimal',value:String(shippingPrice)});
   const shippingCountry=clean(p.shippingCountry,2).toUpperCase();
   if(/^[A-Z]{2}$/.test(shippingCountry))rows.push({ownerId,namespace:'custom',key:'shipping_country',type:'single_line_text_field',value:shippingCountry});
   const returnDays=Number(p.returnDays);
@@ -603,7 +609,7 @@ export default async function handler(req,res){
     // evidence is independently verified on the server and all checks pass.
     // Japan shipping must be supported by verified supplier/fulfillment data.
     // A browser-provided shipping estimate is not proof of CJ's actual cost.
-    const japanShippingVerified=false; // pending CJ shipping quote integration
+    const japanShippingVerified=false; // pending independent CJ quote verification; client flags never authorize publication
     if(!japanShippingVerified)safetyReasons.push('日本向け送料の仕入先確認が未完了');
     const safetyReady=safetyReasons.length===0;
     if(p.publishApproved===true&&!safetyReady)
