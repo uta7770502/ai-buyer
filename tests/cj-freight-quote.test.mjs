@@ -22,10 +22,10 @@ test('rejects expired FX evidence',()=>{
  assert.equal(normalizeCjFreightQuote({...base,fxVerifiedAt:new Date(now-3600000).toISOString()},{expectedVid:'v1',now}).shippingCostJpy,null);
 });
 
-test('CJ freight route explicitly disallows verified yen cost without FX',()=>{
+test('CJ freight route verifies yen cost only when server FX is ready',()=>{
  const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
- assert.match(route,/shippingJpyVerified:false/);
- assert.match(route,/shippingCostJpy:null/);
- assert.match(route,/fxVerified:false/);
+ assert.match(route,/shippingJpyVerified:fxReady/);
+ assert.match(route,/shippingCostJpy:fxReady\?pricedOptions\[0\]\.jpy:null/);
+ assert.match(route,/fxVerified:fxReady/);
  assert.match(route,/quoteExpiresInSeconds:900/);
 });
