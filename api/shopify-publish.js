@@ -47,12 +47,27 @@ async function translateDraftCopy(title,description){
   return {title:clean(obj.title,180),description:clean(obj.description,1200),verified:obj.verified===true};
  }catch{return null}
 }
+// CJ allows only one request per second. Serialize calls within this server instance.
+// Distributed instances still require a shared queue for a strict global guarantee.
+let cjNextRequestAt=0;
+let cjRequestQueue=Promise.resolve();
+function cjRateLimitedFetch(url,options){
+ const run=async()=>{
+  const wait=Math.max(0,cjNextRequestAt-Date.now());
+  if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
+  cjNextRequestAt=Date.now()+1250;
+  return fetch(url,options);
+ };
+ const request=cjRequestQueue.then(run,run);
+ cjRequestQueue=request.then(()=>undefined,()=>undefined);
+ return request;
+}
 let cjCache={token:'',expiresAt:0};
 async function cjToken(){
   if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
   if(cjCache.token&&Date.now()<cjCache.expiresAt-60000)return cjCache.token;
   if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');
-  const r=await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(8000)});
+  const r=await cjRateLimitedFetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(8000)});
   const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');
   cjCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return cjCache.token;
 }
@@ -62,7 +77,7 @@ async function cjVariant(productId){
   let r,j;
   for(let attempt=0;attempt<3;attempt++){
     if(attempt)await new Promise(resolve=>setTimeout(resolve,1200*attempt));
-    r=await fetch(u,{headers:{'CJ-Access-Token':await cjToken()},signal:AbortSignal.timeout(10000)});
+    r=await cjRateLimitedFetch(u,{headers:{'CJ-Access-Token':await cjToken()},signal:AbortSignal.timeout(10000)});
     j=await r.json();
     if(r.status!==429&&!/too many requests|qps limit|rate limit/i.test(String(j.message||'')))break;
   }
