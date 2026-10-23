@@ -570,14 +570,14 @@ export default async function handler(req,res){
     // and does not replace supplier documentation or a formal compliance review.
     const safetySource=[cj.supplierTitle,cj.supplierDescription,p.name,p.category].filter(Boolean).join(' ').toLowerCase();
     const safetyRules=[
-      {re:/\\b(pesticide|insecticide|rodenticide|poison|toxic bait|rat poison|flea medicine|dewormer|antibiotic|prescription|sedative)\\b|殺虫剤|駆虫薬|医薬品|毒餌/i,reason:'医薬品・農薬・有害物質の可能性'},
-      {re:/\\b(electric shock|shock collar|prong collar|choke collar|spiked collar)\\b|電気ショック|スパイク首輪/i,reason:'動物への危害リスク'},
-      {re:/\\b(cbd|thc|cannabis|marijuana|nicotine|vape)\\b/i,reason:'規制対象成分の可能性'},
-      {re:/\\b(laser pointer|high.power laser)\\b/i,reason:'レーザー製品の安全性未確認'}
+      {re:/\b(pesticide|insecticide|rodenticide|poison|toxic bait|rat poison|flea medicine|dewormer|antibiotic|prescription|sedative)\b|殺虫剤|駆虫薬|医薬品|毒餌/i,reason:'医薬品・農薬・有害物質の可能性'},
+      {re:/\b(electric shock|shock collar|prong collar|choke collar|spiked collar)\b|電気ショック|スパイク首輪/i,reason:'動物への危害リスク'},
+      {re:/\b(cbd|thc|cannabis|marijuana|nicotine|vape)\b/i,reason:'規制対象成分の可能性'},
+      {re:/\b(laser pointer|high.power laser)\b/i,reason:'レーザー製品の安全性未確認'}
     ];
     const blocked=safetyRules.find(rule=>rule.re.test(safetySource));
     if(blocked)return res.status(422).json({ok:false,safetyBlocked:true,error:'安全審査で保留：'+blocked.reason+'。仕入先の証明を確認するまでShopify登録を停止します。'});
-    const safetyReview=/\\b(battery|lithium|usb charger|heated|heating|electrical|electric|edible|chew|food|treat|supplement|collar|harness)\\b|電池|充電|発熱|電動|おやつ|食品|サプリ|首輪|ハーネス/i.test(safetySource);
+    const safetyReview=/\b(battery|lithium|usb charger|heated|heating|electrical|electric|edible|chew|food|treat|supplement|collar|harness)\b|電池|充電|発熱|電動|おやつ|食品|サプリ|首輪|ハーネス/i.test(safetySource);
     // Publication readiness is independent of permission to save a Shopify DRAFT.
     // Missing review evidence must never be interpreted as a positive safety score.
     // CJ review evidence must come from an independently verified server response.
