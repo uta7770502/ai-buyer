@@ -175,3 +175,10 @@ test('final launch manifest requires explicit user approval and stays non-mutati
   assert.match(html,/サーバー確認済み/);
   assert.match(html,/requiresExplicitUserApproval===true/);
 });
+
+test('Shopify draft preparation requires fresh server CJ shipping',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/x\.shippingSource!=='cj-server'/);
+ assert.match(html,/Date\.now\(\)-Date\.parse\(x\.shippingQuotedAt\)>15\*60\*1000/);
+ assert.match(html,/publishApproved:false/);
+});
