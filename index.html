@@ -2531,7 +2531,16 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     const url='/api/cj-freight?id='+encodeURIComponent(x.id)+'&destination=JP&origin=CN'+(requestedVariantAtStart?'&vid='+encodeURIComponent(requestedVariantAtStart):'');
     const response=await fetch(url);
     const data=await response.json();
-    if(!response.ok||!data.ok)throw new Error(data.error||'CJ送料を取得できません');
+    if(!response.ok||!data.ok){
+      if(response.status===422&&/バリエーション|色・サイズ/.test(String(data.error||''))){
+        x.autoSetupState='needs_review';
+        x.autoSetupMessage='色・サイズの選択が必要です。送料見積からバリエーションを選択してください';
+        x.autoSetupLastError='variant_selection_required';
+        save();renderAll();
+        return;
+      }
+      throw new Error(data.error||'CJ送料を取得できません');
+    }
     if(findActive(x.id)!==x)return; // Product was deselected while freight was loading.
     if(String(x.shippingVariantChoice||x.cjVariantId||'').trim()!==requestedVariantAtStart)throw new Error('送料取得中にバリエーションが変更されました。再見積してください');
     if(data.quoteSource!=='cj-server'||data.destination!=='JP'||data.currency!=='USD'||data.shippingJpyVerified!==true||data.fxVerified!==true)throw new Error('CJ送料・為替のサーバー確認が未完了です');
