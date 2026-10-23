@@ -39,3 +39,9 @@ test('Shopify SKU dedupe checks all statuses and blocks live/archived matches',(
  assert.match(source,/matchingProducts\.some\(v=>v\.status==='ACTIVE'\|\|v\.status==='ARCHIVED'\)/);
  assert.match(source,/status:'DRAFT'/);
 });
+
+test('multivariant CJ products require an explicit exact variant ID',()=>{
+ assert.match(source,/validVariants\.length>1&&!selected/);
+ assert.match(source,/validVariants\.find\(x=>String\(x\.vid\|\|x\.id\|\|x\.variantId\)===selected\)/);
+ assert.match(source,/cjVariant\(p\.cjProductId\|\|p\.id,p\.cjVariantId\|\|p\.vid\)/);
+});
