@@ -327,7 +327,7 @@ function openShopifyProductPreview(id){
  const x=findActive(id);
  if(!x?.shopifyProductId)return showCandidateToast('Shopifyへの登録完了後に確認できます');
  const raw=String(x.shopifyProductId);
- const productId=raw.match(/(\\d+)$/)?.[1];
+ const productId=raw.match(/(\d+)$/)?.[1];
  if(!productId)return showCandidateToast('商品IDを確認できません');
  window.open('https://admin.shopify.com/store/jhw0b5-1k/products/'+encodeURIComponent(productId),'_blank','noopener,noreferrer');
 }
