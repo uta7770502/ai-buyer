@@ -279,3 +279,9 @@ test('market monitor holds sales when CJ variant stock is not verified',()=>{
  assert.match(html,/kind:'バリエーション在庫未確認'/);
  assert.match(html,/販売判定を保留します/);
 });
+
+test('CJ monitor failure holds candidate and clears last verified monitoring timestamp',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/x\.monitorRisk='unknown';x\.monitorStopCandidate=true;x\.stopCandidate=true;x\.status='candidate';x\.lastMonitorAt=''/);
+ assert.match(html,/level:'critical',kind:'取得失敗'/);
+});
