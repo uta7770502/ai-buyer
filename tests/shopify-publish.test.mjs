@@ -93,6 +93,7 @@ test('valid CJ product creates Shopify draft but never publishes without approva
   assert.ok(requests.length>=3);
   assert.equal(requests[1].variables.product.status,'DRAFT');
   assert.equal(requests[2].variables.variants[0].inventoryItem.sku,'cj-variant');
+  assert.equal(requests[2].variables.variants[0].inventoryItem.tracked,true);
   assert.ok(requests.every(x=>!x.query.includes('publishablePublish')));
  }finally{
   globalThis.fetch=previousFetch;
