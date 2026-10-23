@@ -291,3 +291,10 @@ test('batch CJ monitoring failure invalidates all cached safety states',()=>{
  assert.match(html,/for\(const x of active\)\{x\.monitorRisk='unknown';x\.monitorStopCandidate=true;x\.stopCandidate=true;x\.status='candidate';x\.lastMonitorAt='';\}/);
  assert.match(html,/kind:'監視全体の取得失敗'/);
 });
+
+test('CJ monitor reconciles only requested product IDs',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/const requestedIds=new Set\(ids\)/);
+ assert.match(html,/const validResults=all\.filter\(p=>p&&requestedIds\.has\(String\(p\.id\)\)\)/);
+ assert.match(html,/for\(const current of validResults\)/);
+});
