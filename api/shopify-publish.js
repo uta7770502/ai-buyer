@@ -578,7 +578,32 @@ export default async function handler(req,res){
     const blocked=safetyRules.find(rule=>rule.re.test(safetySource));
     if(blocked)return res.status(422).json({ok:false,safetyBlocked:true,error:'安全審査で保留：'+blocked.reason+'。仕入先の証明を確認するまでShopify登録を停止します。'});
     const safetyReview=/\\b(battery|lithium|usb charger|heated|heating|electrical|electric|edible|chew|food|treat|supplement|collar|harness)\\b|電池|充電|発熱|電動|おやつ|食品|サプリ|首輪|ハーネス/i.test(safetySource);
-    const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[]),...(safetyReview?['要安全確認']:[])];
+    // Publication readiness is independent of permission to save a Shopify DRAFT.
+    // Missing review evidence must never be interpreted as a positive safety score.
+    const reviewCount=Number(p.reviewCount ?? p.cjReviewCount);
+    const averageRating=Number(p.averageRating ?? p.cjAverageRating);
+    const lowRatingShare=Number(p.lowRatingShare ?? p.oneTwoStarRatio);
+    const reviewsVerified=p.reviewEvidenceVerified===true &&
+      Number.isInteger(reviewCount)&&reviewCount>=0 &&
+      Number.isFinite(averageRating)&&averageRating>=0&&averageRating<=5 &&
+      Number.isFinite(lowRatingShare)&&lowRatingShare>=0&&lowRatingShare<=1;
+    const safetyReasons=[];
+    if(!reviewsVerified)safetyReasons.push('レビュー根拠が未確認');
+    else {
+      if(reviewCount<10)safetyReasons.push('レビュー件数が不足');
+      if(averageRating<4)safetyReasons.push('平均評価が4.0未満');
+      if(lowRatingShare>0.2)safetyReasons.push('低評価レビュー率が高い');
+    }
+    if(safetyReview)safetyReasons.push('ペット用品の安全資料・使用上の注意を要確認');
+    if(!cj.supplierDescription)safetyReasons.push('仕入先の商品説明が不足');
+    if(!cj.supplierImages.length)safetyReasons.push('仕入先の商品画像が不足');
+    if(needsCopyReview)safetyReasons.push('日本語の商品情報が未確認');
+    // Never trust a client-supplied readiness flag to bypass these checks.
+    const safetyReady=safetyReasons.length===0;
+    if(p.publishApproved===true&&!safetyReady)
+      return res.status(409).json({ok:false,status:'DRAFT',publicationBlocked:true,
+        safetyReady:false,safetyReasons,error:'安全・商品情報の確認が完了していないため公開できません。'});
+    const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[]),...(!safetyReady?['要安全確認']:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
     const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft sku:'+cj.vid});
