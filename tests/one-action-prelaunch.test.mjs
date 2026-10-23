@@ -224,3 +224,10 @@ test('shipping destination change clears stale quote and UI reflects server sour
  assert.match(html,/x\.shippingSource==='cj-server'\?'CJ見積保存済み/);
  assert.doesNotMatch(html,/中国発送・最初のバリエーションで見積/);
 });
+
+test('automatic preparation explains when CJ variant selection is required',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/response\.status===422&&\/バリエーション\|色・サイズ\/\.test/);
+ assert.match(html,/x\.autoSetupLastError='variant_selection_required'/);
+ assert.match(html,/送料見積からバリエーションを選択してください/);
+});
