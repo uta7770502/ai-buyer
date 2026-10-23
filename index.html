@@ -2689,9 +2689,18 @@ async function openDetail(id){
   modal.classList.add('on');
   detail.innerHTML='<div class="loading">商品詳細を読み込み中…</div>';
   try{
-    const r=await fetch(`/api/cj-detail?id=${encodeURIComponent(id)}`);
-    const j=await r.json();
-    if(!r.ok||!j.ok)throw new Error(j.error||'詳細取得に失敗しました');
+    let j=null;
+    for(let attempt=0;attempt<4;attempt++){
+      const since=Date.now()-lastCjProductSearchAt;
+      if(since<1250)await waitMs(1250-since);
+      lastCjProductSearchAt=Date.now();
+      const r=await fetch(`/api/cj-detail?id=${encodeURIComponent(id)}`);
+      j=await r.json();
+      if(r.ok&&j.ok)break;
+      if(!isCjRateLimitMessage(j.error)||attempt===3)throw new Error(j.error||'詳細取得に失敗しました');
+      detail.innerHTML='<div class="loading">CJのアクセス制限を避けて再試行しています…</div>';
+      await waitMs(1600*(attempt+1));
+    }
     const p=j.product;
     const m=metrics(p);
     const desc=cleanProductDescription(p.description);
