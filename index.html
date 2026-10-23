@@ -2527,11 +2527,13 @@ async function autoPrepareSelectedProduct(x,attempt=0){
   x.autoSetupMessage=attempt>0?'AIが自動再試行中（'+attempt+'/2）':'CJ送料を自動確認中';
   save();renderAll();
   try{
-    const url='/api/cj-freight?id='+encodeURIComponent(x.id)+'&destination=JP&origin=CN'+(x.shippingVariantChoice?'&vid='+encodeURIComponent(x.shippingVariantChoice):'');
+    const requestedVariantAtStart=String(x.shippingVariantChoice||x.cjVariantId||'').trim();
+    const url='/api/cj-freight?id='+encodeURIComponent(x.id)+'&destination=JP&origin=CN'+(requestedVariantAtStart?'&vid='+encodeURIComponent(requestedVariantAtStart):'');
     const response=await fetch(url);
     const data=await response.json();
     if(!response.ok||!data.ok)throw new Error(data.error||'CJ送料を取得できません');
     if(findActive(x.id)!==x)return; // Product was deselected while freight was loading.
+    if(String(x.shippingVariantChoice||x.cjVariantId||'').trim()!==requestedVariantAtStart)throw new Error('送料取得中にバリエーションが変更されました。再見積してください');
     if(data.quoteSource!=='cj-server'||data.destination!=='JP'||data.currency!=='USD'||data.shippingJpyVerified!==true||data.fxVerified!==true)throw new Error('CJ送料・為替のサーバー確認が未完了です');
     const verifiedAt=Date.parse(data.fetchedAt||'');
     if(!Number.isFinite(verifiedAt)||verifiedAt>Date.now()||Date.now()-verifiedAt>15*60*1000)throw new Error('CJ送料の確認期限が切れています');
@@ -2541,7 +2543,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(!options.length||!Number.isSafeInteger(data.shippingCostJpy)||data.shippingCostJpy!==options[0].jpy)throw new Error('日本向け送料の円換算が確認できません');
     const quotedVid=String(data.vid||'').trim();
     const requestedVid=String(x.shippingVariantChoice||x.cjVariantId||'').trim();
-    if(!quotedVid||requestedVid&&quotedVid!==requestedVid)throw new Error('選択したCJバリエーションと送料見積の対象が一致しません');
+    if(!quotedVid||(requestedVid&&quotedVid!==requestedVid))throw new Error('選択したCJバリエーションと送料見積の対象が一致しません');
     if(Array.isArray(data.variants)&&data.variants.length>1&&!requestedVid)throw new Error('バリエーションを選択してから送料を見積もってください');
     x.shippingVariantChoice=quotedVid;
     const option=options[0];
