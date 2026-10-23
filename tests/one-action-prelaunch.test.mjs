@@ -255,3 +255,9 @@ test('changing variant invalidates previously ready auto preparation',()=>{
  assert.match(html,/x\.autoSetupLastError='variant_changed'/);
  assert.match(html,/送料とShopify下書きの再確認が必要です/);
 });
+
+test('registered Shopify products cannot silently change CJ variant in either picker',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/if\(x\.shopifyProductId\)\{showCandidateToast\('Shopify登録済みの商品はバリエーションを変更できません/);
+ assert.match(html,/if\(x\.shopifyProductId\)\{showCandidateToast\('Shopify登録済み商品のバリエーション変更はできません/);
+});
