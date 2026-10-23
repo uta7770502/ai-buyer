@@ -321,11 +321,32 @@ async function searchProducts(p=1){
 function applyFilters(){const min=Number(minScore.value||0),sort=sortBy.value;filtered=results.filter(p=>metrics(p).score>=min&&!catalogRisk(p).exclude);filtered.sort((a,b)=>{const A=metrics(a),B=metrics(b);if(sort==='listed')return Number(b.listedNum||0)-Number(a.listedNum||0);if(sort==='priceLow')return A.cost-B.cost;if(sort==='margin')return B.margin-A.margin;return B.score-A.score});products.innerHTML=filtered.length?filtered.map((p,i)=>productCard(p,i+1)).join(''):'<div class="empty">条件に合う商品がありません。</div>'}
 function quick(qv){q.value=qv;searchProducts(1)}
 function renderPager(){pager.innerHTML=`<button ${page<=1?'disabled':''} onclick="searchProducts(${page-1})">← 前</button><span class="muted" style="padding:10px">${page} / ${totalPages}</span><button ${page>=totalPages?'disabled':''} onclick="searchProducts(${page+1})">次 →</button>`}
+const ODDLY_RECENTLY_REMOVED_DAYS=7;
+function recentlyRemovedCandidates(){
+ try{
+  const now=Date.now(),rows=JSON.parse(localStorage.getItem('oddlyRecentlyRemovedCandidates')||'[]');
+  return (Array.isArray(rows)?rows:[]).filter(x=>x&&x.product&&Number(x.removedAt)>now-ODDLY_RECENTLY_REMOVED_DAYS*86400000&&Number(x.removedAt)<=now);
+ }catch{return []}
+}
+function setRecentlyRemovedCandidate(product,removed){
+ const id=String(product.id),rows=recentlyRemovedCandidates().filter(x=>String(x.product.id)!==id);
+ if(removed)rows.unshift({product:{...product},removedAt:Date.now()});
+ try{localStorage.setItem('oddlyRecentlyRemovedCandidates',JSON.stringify(rows.slice(0,50)))}catch{}
+}
+function orderedRecommendedProducts(){
+ const fresh=Array.isArray(today?.products)?today.products:[];
+ const removed=recentlyRemovedCandidates();
+ const removedIds=new Set(removed.map(x=>String(x.product.id)));
+ const main=fresh.filter(p=>!removedIds.has(String(p.id)));
+ const tail=removed.map(x=>({...x.product,oddlyRecentlyRemoved:true})).filter(p=>!findActive(p.id)||findActive(p.id).uiSelected===false);
+ return [...main,...tail];
+}
 function toggleCandidate(id){
  const p=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id))||active.find(x=>String(x.id)===String(id));
  if(!p)return showCandidateToast('商品情報がありません');
  const x=findActive(id);
- if(x){x.uiSelected=x.uiSelected===false; if(!x.uiSelected)cancelAutoPreparationRetry(id);save();if(results.length)applyFilters();renderAll();renderToday();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
+ if(x){x.uiSelected=x.uiSelected===false; if(!x.uiSelected)cancelAutoPreparationRetry(id);setRecentlyRemovedCandidate(x,!x.uiSelected);save();if(results.length)applyFilters();renderAll();renderToday();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
+ setRecentlyRemovedCandidate(p,false);
  const m=metrics(p);
  active.push({...p,costUsd:m.cost,price:m.sell,qty:0,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'',autoSetupMessage:'Shopify未登録',autoSetupAttempts:0,uiSelected:true});
  save();if(results.length)applyFilters();renderAll();renderToday();showCandidateToast('販売候補に追加しました');
@@ -416,11 +437,11 @@ async function addTestCatalogProducts(){
 function renderRecommendTop(){
   const box=document.getElementById('recommendTopPicks'),stamp=document.getElementById('recommendTopStamp');
   if(!box)return;
-  const picks=Array.isArray(today?.products)?today.products.slice(0,5):[];
+  const picks=orderedRecommendedProducts();
   if(stamp)stamp.textContent=today?.at?'更新 '+new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'AIが毎日3〜5商品に絞ります';
   box.innerHTML=picks.length?picks.map((p,i)=>recommendationCard(p,i+1)).join(''):'<div class="empty">AIおすすめを準備中です。CJ接続後に自動更新します。</div>';
 }
-function renderToday(){renderRecommendTop();if(!today){todayPicks.innerHTML='<div class="empty">CJ接続確認後、自動でおすすめ商品を探索します。</div>';todayStamp.textContent='未生成';return}todayStamp.textContent=new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});if(!today.products?.length){todayPicks.innerHTML='<div class="empty">今回の条件ではおすすめ候補が0件でした。条件を調整するか再探索してください。</div>';return}todayPicks.innerHTML=today.products.map((p,i)=>recommendationCard(p,i+1)).join('')}
+function renderToday(){renderRecommendTop();if(!today){todayPicks.innerHTML='<div class="empty">CJ接続確認後、自動でおすすめ商品を探索します。</div>';todayStamp.textContent='未生成';return}todayStamp.textContent=new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});if(!today.products?.length){todayPicks.innerHTML='<div class="empty">今回の条件ではおすすめ候補が0件でした。条件を調整するか再探索してください。</div>';return}todayPicks.innerHTML=orderedRecommendedProducts().map((p,i)=>recommendationCard(p,i+1)).join('')}
 function renderScanSummary(){if(!today){scanSummary.innerHTML='<div class="tiny">まだスキャン結果はありません。</div>';return}const s=today.summary||{};scanSummary.innerHTML=`<div class="summary"><div><span class="tiny">取得</span><b>${s.fetched||0}</b></div><div><span class="tiny">条件通過</span><b>${s.passed||0}</b></div><div><span class="tiny">採用</span><b>${today.products?.length||0}</b></div></div><div class="explain">除外: スコア ${s.failScore||0} / 価格 ${s.failCost||0} / 売れ筋不足 ${s.failTrend||0} / 商品タイプ ${s.failType||0} / 安全性 ${s.failRisk||0} / 粗利 ${s.failMargin||0}</div><div class="tiny" style="margin-top:7px">${esc(new Date(today.at).toLocaleString('ja-JP'))}</div>`}
 function oddlyPetRelevant(p){const name=String(p.name||'').toLowerCase();const category=String(p.categoryName||p.category||'').toLowerCase();const pet=/\b(pet|pets|dog|dogs|puppy|puppies|cat|cats|kitten|kittens|feline|canine|aquarium|hamster|rabbit|bird cage|litter|leash|collar|harness|grooming|paw|pet feeder|pet bowl)\b|ペット|犬|猫|小動物/.test(name+' '+category);const unrelated=/sewer|drain|dredg|juicer|blender|kitchen mixer|hair cleaner|plumbing|sink unclog/.test(name);return pet&&!unrelated}
 async function runAutoScan(silent=false){if(recommendationScanRunning)return;recommendationScanRunning=true;if(!watch.length){watch=['pet','dog','cat'];saveWatch()}rules=readRules();localStorage.setItem('aiBuyerRules',JSON.stringify(rules));try{if(!silent)autoStatus.textContent='自動探索中…';let pool=[];for(const kw of ['pet dog','pet cat','dog toy','cat toy','pet grooming','dog leash','cat bed','cat mug','dog print home decor','cat themed gift']){try{if(pool.length||kw!==watch[0])await waitMs(1150);const r=await fetch(`/api/cj-search?q=${encodeURIComponent(kw)}&page=1&size=20&trending=1&minListed=${Math.max(SAFE_TREND_MIN_LISTINGS,rules.minListed)}`);const j=await r.json();if(!r.ok||!j.ok)continue;const arr=(j.products||[]).map(x=>({...x,_kw:kw,_m:metrics(x)}));const passed=arr.filter(x=>evaluateRule(x).pass&&!catalogRisk(x).exclude).length;pool.push(...arr);const top=arr.length?Math.max(...arr.map(x=>x._m.score)):0;addHistory(kw,arr.length,top,passed)}catch(e){}}pool=dedupe(pool).sort((a,b)=>b._m.score-a._m.score);const evaluated=pool.map(p=>({...p,_rule:evaluateRule(p)}));const passed=evaluated.filter(x=>oddlyPetRelevant(x)&&x._rule.pass&&!catalogRisk(x).exclude);await enrichRiskList(passed,10);const safe=passed.filter(x=>!catalogRisk(x).exclude);const chosen=safe.slice(0,rules.count).map(({_rule,...x})=>x);const summary={fetched:pool.length,passed:safe.length,failScore:evaluated.filter(x=>!x._rule.checks[0][1]).length,failCost:evaluated.filter(x=>!x._rule.checks[1][1]).length,failTrend:evaluated.filter(x=>!x._rule.checks[2][1]).length,failType:evaluated.filter(x=>!x._rule.checks[3][1]).length,failRisk:evaluated.filter(x=>!x._rule.checks[4][1]).length,failMargin:evaluated.filter(x=>!x._rule.checks[5][1]).length};today={at:new Date().toISOString(),products:chosen,summary};localStorage.setItem('aiBuyerToday',JSON.stringify(today));results=safe.slice(0,40);filtered=results;countLabel.textContent=`条件通過 ${safe.length}件`;renderToday();renderScanSummary();if(!silent){showPage('recommend');applyFilters();autoStatus.textContent=`${pool.length}件確認 → ${safe.length}件通過 → 今日のおすすめ${chosen.length}件（安全性＋CJ Trending必須）`;}}finally{recommendationScanRunning=false}}
