@@ -566,7 +566,19 @@ export default async function handler(req,res){
     const originalEnglish=String(p.name||'');
     const unresolvedEnglish=/\\b(creative|professional|without|version|office|tumbler|personality|breakfast|milk|porcelain|electric jumping|sisal cat|bite.proof|molar|amazon hot)\\b/i.test(title+' '+description.replace(/<[^>]*>/g,''));
     const needsCopyReview=!verifiedJapaneseCopy||unresolvedEnglish||p.translationVerified!==true;
-    const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[])];
+    // Fail closed on higher-risk product classes. Keyword screening is conservative
+    // and does not replace supplier documentation or a formal compliance review.
+    const safetySource=[cj.supplierTitle,cj.supplierDescription,p.name,p.category].filter(Boolean).join(' ').toLowerCase();
+    const safetyRules=[
+      {re:/\\b(pesticide|insecticide|rodenticide|poison|toxic bait|rat poison|flea medicine|dewormer|antibiotic|prescription|sedative)\\b|殺虫剤|駆虫薬|医薬品|毒餌/i,reason:'医薬品・農薬・有害物質の可能性'},
+      {re:/\\b(electric shock|shock collar|prong collar|choke collar|spiked collar)\\b|電気ショック|スパイク首輪/i,reason:'動物への危害リスク'},
+      {re:/\\b(cbd|thc|cannabis|marijuana|nicotine|vape)\\b/i,reason:'規制対象成分の可能性'},
+      {re:/\\b(laser pointer|high.power laser)\\b/i,reason:'レーザー製品の安全性未確認'}
+    ];
+    const blocked=safetyRules.find(rule=>rule.re.test(safetySource));
+    if(blocked)return res.status(422).json({ok:false,safetyBlocked:true,error:'安全審査で保留：'+blocked.reason+'。仕入先の証明を確認するまでShopify登録を停止します。'});
+    const safetyReview=/\\b(battery|lithium|usb charger|heated|heating|electrical|electric|edible|chew|food|treat|supplement|collar|harness)\\b|電池|充電|発熱|電動|おやつ|食品|サプリ|首輪|ハーネス/i.test(safetySource);
+    const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[]),...(safetyReview?['要安全確認']:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
     const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft sku:'+cj.vid});
