@@ -2250,7 +2250,7 @@ async function syncShopifyFromMonitor(x,ev,monitorStop){
     if(monitorStop&&actuallyPublished&&x.shopifySyncState!=='stopped'){
       const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'stop',productId:x.shopifyProductId})});
       const j=await r.json();
-      if(!r.ok||!j.ok)throw new Error(j.error||'Shopify販売停止に失敗しました');
+      if(!r.ok||!j.ok||j.status!=='DRAFT')throw new Error(j.error||'Shopify販売停止の反映を確認できません');
       x.shopifySyncState='stopped';
       x.shopifyPublishState='created';
       x.shopifyPublished=false;
