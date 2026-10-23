@@ -28,6 +28,7 @@ test('CJ monitor rejects duplicate warehouse inventory rows',()=>{
 
 test('CJ monitor refuses missing, ambiguous, or non-positive supplier prices',()=>{
  assert.match(source,/supplierPrice === null/);
+ assert.match(source,/String\(supplierPrice\)\.trim\(\) === ''/);
  assert.match(source,/!Number\.isFinite\(Number\(supplierPrice\)\)/);
  assert.match(source,/Number\(supplierPrice\) <= 0/);
  assert.match(source,/sellPrice: Number\(supplierPrice\)/);
