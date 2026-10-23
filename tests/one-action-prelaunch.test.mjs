@@ -182,3 +182,9 @@ test('Shopify draft preparation requires fresh server CJ shipping',()=>{
  assert.match(html,/Date\.now\(\)-Date\.parse\(x\.shippingQuotedAt\)>15\*60\*1000/);
  assert.match(html,/publishApproved:false/);
 });
+
+test('selected CJ variant is sent to Shopify and changing it clears server freight',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/cjVariantId:String\(x\.shippingVariantChoice\|\|x\.cjVariantId\|\|''\)/);
+ assert.match(html,/if\(x\.shippingSource\)\{delete x\.shippingJpy/);
+});
