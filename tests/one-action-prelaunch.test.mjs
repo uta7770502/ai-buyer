@@ -188,3 +188,10 @@ test('selected CJ variant is sent to Shopify and changing it clears server freig
  assert.match(html,/cjVariantId:String\(x\.shippingVariantChoice\|\|x\.cjVariantId\|\|''\)/);
  assert.match(html,/if\(x\.shippingSource\)\{delete x\.shippingJpy/);
 });
+
+test('automatic freight preparation binds quote to exact CJ variant',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/quotedVid!==requestedVid/);
+ assert.match(html,/data\.variants\.length>1&&!requestedVid/);
+ assert.match(html,/x\.shippingVariantChoice=quotedVid/);
+});
