@@ -266,3 +266,9 @@ test('automatic Shopify draft submission skips already registered products',()=>
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/async function autoPublishCandidate\(x\).*?x\.shopifyProductId\|\|x\.shopifyPublishState==='publishing'/s);
 });
+
+test('Shopify response after deselection records reconciliation notice',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/if\(findActive\(x\.id\)!==x\)\{addOps\('Shopify下書き作成結果'/);
+ assert.match(html,/選択解除後にShopifyから応答/);
+});
