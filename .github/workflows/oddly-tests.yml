@@ -22,4 +22,4 @@ jobs:
       - name: Check profit calculator syntax
         run: node --check lib/profit-estimate.js
       - name: Run safety and profit tests
-        run: node --test tests/safety-gate.test.mjs tests/profit-estimate.test.mjs tests/cj-freight-quote.test.mjs
+        run: node --test tests/safety-gate.test.mjs tests/profit-estimate.test.mjs tests/cj-freight-quote.test.mjs tests/cj-profit-preview.test.mjs
