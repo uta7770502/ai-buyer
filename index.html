@@ -2707,10 +2707,22 @@ async function quoteShipping(id){
    variantSelect.appendChild(item);
   });
   variantSelect.onchange=()=>{
-   x.shippingVariantChoice=variantSelect.value;
-   if(x.shippingSource){delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt;delete x.shippingDestination;}
+   const nextVid=String(variantSelect.value||'').trim();
+   if(!nextVid)return;
+   const changed=String(x.shippingVariantChoice||'')!==nextVid;
+   x.shippingVariantChoice=nextVid;
+   if(changed&&x.shippingSource){delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt;delete x.shippingDestination;}
+   if(changed&&x.autoSetupState==='needs_review'&&x.autoSetupLastError==='variant_selection_required'){
+    x.autoSetupState='pending';
+    x.autoSetupMessage='バリエーション選択済み。送料を再確認して下書き準備を再開します';
+    x.autoSetupLastError='';
+    x.autoSetupAttempts=0;
+    save();renderAll();
+    autoPrepareSelectedProduct(x).catch(e=>{x.autoSetupState='needs_review';x.autoSetupLastError=String(e?.message||e);save();renderAll()});
+    return;
+   }
    save();renderAll();
-   alert('バリエーションを変更しました。新しい送料を見積もってください。');
+   showCandidateToast('バリエーションを変更しました。送料を再見積してください');
   };
   result.append(variantLabel,variantSelect,title,select,saveButton);
  }catch(error){if(result&&result.isConnected&&findActive(id)===x&&document.getElementById('shipDest-'+id)?.value===destination&&String(x.shippingVariantChoice||'')===String(selectedVariant))result.textContent='送料を取得できません: '+error.message+'。手入力もできます。'}
