@@ -186,7 +186,7 @@ test('Shopify draft preparation requires fresh server CJ shipping',()=>{
 test('selected CJ variant is sent to Shopify and changing it clears server freight',()=>{
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/cjVariantId:String\(x\.shippingVariantChoice\|\|x\.cjVariantId\|\|''\)/);
- assert.match(html,/if\(x\.shippingSource\)\{delete x\.shippingJpy/);
+ assert.match(html,/if\(changed&&x\.shippingSource\)\{delete x\.shippingJpy/);
 });
 
 test('automatic freight preparation binds quote to exact CJ variant',()=>{
