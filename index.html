@@ -2666,6 +2666,7 @@ async function quoteShipping(id){
    button.onclick=()=>{
     const vid=String(picker.value||'').trim();
     if(!vid){showCandidateToast('色・サイズを選択してください');return}
+    if(x.shopifyProductId){showCandidateToast('Shopify登録済み商品のバリエーション変更はできません');renderAll();return}
     if(findActive(id)!==x||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant))return;
     x.shippingVariantChoice=vid;
     delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt;
@@ -2730,6 +2731,7 @@ async function quoteShipping(id){
   variantSelect.onchange=()=>{
    const nextVid=String(variantSelect.value||'').trim();
    if(!nextVid)return;
+   if(x.shopifyProductId){showCandidateToast('Shopify登録済みの商品はバリエーションを変更できません。別商品として登録する前に確認してください');renderAll();return;}
    const changed=String(x.shippingVariantChoice||'')!==nextVid;
    x.shippingVariantChoice=nextVid;
    if(changed&&x.shippingSource){delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt;delete x.shippingDestination;}
