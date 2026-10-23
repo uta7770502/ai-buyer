@@ -71,7 +71,7 @@ async function cjToken(){
   const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');
   cjCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return cjCache.token;
 }
-async function cjVariant(productId){
+async function cjVariant(productId,selectedVariantId){
   if(!productId)throw Error('CJ商品IDが不足しています');
   const u=new URL('https://developers.cjdropshipping.com/api2.0/v1/product/query');u.searchParams.set('pid',String(productId));
   let r,j;
@@ -83,8 +83,11 @@ async function cjVariant(productId){
   }
   if(!r.ok||j.result!==true)throw Error(j.message||'CJ商品情報を取得できません');
   const p=j.data||{},vs=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
-  const v=vs.find(x=>x&&(x.vid||x.id||x.variantId));
-  if(!v)throw Error('CJバリエーションIDを取得できません');
+  const validVariants=vs.filter(x=>x&&(x.vid||x.id||x.variantId));
+  const selected=String(selectedVariantId||'').trim();
+  if(validVariants.length>1&&!selected)throw Error('CJ商品に複数バリエーションがあります。販売する色・サイズを選択してください');
+  const v=selected?validVariants.find(x=>String(x.vid||x.id||x.variantId)===selected):validVariants[0];
+  if(!v)throw Error('選択したCJバリエーションIDが商品に存在しません');
   // Supplier data is authoritative only for fields actually returned by CJ.
   const rawImages=[p.productImage,p.productImageUrl,p.bigImage,p.image,...(Array.isArray(p.productImages)?p.productImages:[]),...(Array.isArray(p.images)?p.images:[])];
   const extractImages=rawImages.flatMap(x=>{
@@ -530,7 +533,7 @@ export default async function handler(req,res){
     let title=clean(p.title||p.name,255);
     const vendor=clean('ODDLY',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
-    const cj=await cjVariant(p.cjProductId||p.id);
+    const cj=await cjVariant(p.cjProductId||p.id,p.cjVariantId||p.vid);
     // Translate supplier facts, not only the generic frontend placeholder description.
     // Preserve a Japanese description deliberately written by the merchant.
     const hasJapanese=s=>/[ぁ-んァ-ヶ一-龠]/.test(String(s||''));
