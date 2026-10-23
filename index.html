@@ -324,10 +324,10 @@ function toggleCandidate(id){
  const p=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id))||active.find(x=>String(x.id)===String(id));
  if(!p)return showCandidateToast('商品情報がありません');
  const x=findActive(id);
- if(x){x.uiSelected=x.uiSelected===false; if(!x.uiSelected)cancelAutoPreparationRetry(id);save();if(results.length)applyFilters();renderAll();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
+ if(x){x.uiSelected=x.uiSelected===false; if(!x.uiSelected)cancelAutoPreparationRetry(id);save();if(results.length)applyFilters();renderAll();renderToday();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
  const m=metrics(p);
  active.push({...p,costUsd:m.cost,price:m.sell,qty:0,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'',autoSetupMessage:'Shopify未登録',autoSetupAttempts:0,uiSelected:true});
- save();if(results.length)applyFilters();renderAll();showCandidateToast('販売候補に追加しました');
+ save();if(results.length)applyFilters();renderAll();renderToday();showCandidateToast('販売候補に追加しました');
 }
 function openShopifyProductPreview(id){
  const x=findActive(id);
