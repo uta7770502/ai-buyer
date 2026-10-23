@@ -2539,6 +2539,11 @@ async function autoPrepareSelectedProduct(x,attempt=0){
       .filter(o=>o&&Number.isFinite(Number(o.usd))&&Number.isSafeInteger(o.jpy)&&o.jpy>=0)
       .sort((a,b)=>a.jpy-b.jpy);
     if(!options.length||!Number.isSafeInteger(data.shippingCostJpy)||data.shippingCostJpy!==options[0].jpy)throw new Error('日本向け送料の円換算が確認できません');
+    const quotedVid=String(data.vid||'').trim();
+    const requestedVid=String(x.shippingVariantChoice||x.cjVariantId||'').trim();
+    if(!quotedVid||requestedVid&&quotedVid!==requestedVid)throw new Error('選択したCJバリエーションと送料見積の対象が一致しません');
+    if(Array.isArray(data.variants)&&data.variants.length>1&&!requestedVid)throw new Error('バリエーションを選択してから送料を見積もってください');
+    x.shippingVariantChoice=quotedVid;
     const option=options[0];
     x.shippingJpy=option.jpy;
     x.shippingSource='cj-server';
