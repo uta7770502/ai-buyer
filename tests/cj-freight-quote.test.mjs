@@ -35,3 +35,9 @@ test('freight endpoint refuses ambiguous multivariant product',()=>{
  assert.match(source,/!variantId&&validVariants\.length>1/);
  assert.match(source,/validVariants\.find\(v=>String\(v\.vid\|\|v\.id\|\|v\.variantId\)===variantId\)/);
 });
+
+test('freight endpoint refuses duplicated CJ variant IDs',()=>{
+ const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.match(route,/new Set\(variantIds\)\.size!==variantIds\.length/);
+ assert.match(route,/CJの商品バリエーションIDに重複があります/);
+});
