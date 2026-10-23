@@ -2532,21 +2532,23 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     const data=await response.json();
     if(!response.ok||!data.ok)throw new Error(data.error||'CJ送料を取得できません');
     if(findActive(x.id)!==x)return; // Product was deselected while freight was loading.
+    if(data.quoteSource!=='cj-server'||data.destination!=='JP'||data.currency!=='USD'||data.shippingJpyVerified!==true||data.fxVerified!==true)throw new Error('CJ送料・為替のサーバー確認が未完了です');
+    const verifiedAt=Date.parse(data.fetchedAt||'');
+    if(!Number.isFinite(verifiedAt)||verifiedAt>Date.now()||Date.now()-verifiedAt>15*60*1000)throw new Error('CJ送料の確認期限が切れています');
     const options=(Array.isArray(data.options)?data.options:[])
-      .filter(o=>o&&Number.isFinite(Number(o.usd))&&Number(o.usd)>=0&&Number(o.usd)*fx<=10000000)
-      .map(o=>({...o,usd:Number(o.usd)}))
-      .sort((a,b)=>a.usd-b.usd);
-    if(!options.length)throw new Error('日本向けの有効な送料がありません');
+      .filter(o=>o&&Number.isFinite(Number(o.usd))&&Number.isSafeInteger(o.jpy)&&o.jpy>=0)
+      .sort((a,b)=>a.jpy-b.jpy);
+    if(!options.length||!Number.isSafeInteger(data.shippingCostJpy)||data.shippingCostJpy!==options[0].jpy)throw new Error('日本向け送料の円換算が確認できません');
     const option=options[0];
-    x.shippingJpy=Math.round(option.usd*fx);
-    x.shippingSource='CJ';
+    x.shippingJpy=option.jpy;
+    x.shippingSource='cj-server';
     x.shippingMethod=option.name;
     x.shippingDestination='JP';
     x.shippingVariant=data.variantSku||data.vid;
-    x.shippingQuotedAt=new Date().toISOString();
+    x.shippingQuotedAt=data.fetchedAt;
     const unitCost=Number(x.costUsd??parsePrice(x.sellPrice));
-    if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(fx))||Number(fx)<=0)throw new Error('商品原価または為替レートが不正です');
-    const cost=Math.round(unitCost*Number(fx))+Number(x.shippingJpy||0);
+    if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(data.usdJpyRate))||Number(data.usdJpyRate)<=0)throw new Error('商品原価または為替レートが不正です');
+    const cost=Math.ceil(unitCost*Number(data.usdJpyRate))+Number(x.shippingJpy||0);
     if(!Number.isFinite(cost)||cost<0)throw new Error('商品原価と送料を確認できません');
     const minPrice=Math.ceil((cost/.595)/100)*100;
     const existingPrice=Number(x.price);
