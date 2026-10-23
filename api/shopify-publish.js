@@ -599,6 +599,12 @@ export default async function handler(req,res){
     if(!cj.supplierImages.length)safetyReasons.push('仕入先の商品画像が不足');
     if(needsCopyReview)safetyReasons.push('日本語の商品情報が未確認');
     // Never trust a client-supplied readiness flag to bypass these checks.
+    // Drafts are allowed for inspection; publication is denied unless review
+    // evidence is independently verified on the server and all checks pass.
+    // Client-provided review counts/ratings never authorize publication.
+    if(p.publishApproved===true && !reviewsVerified &&
+       !safetyReasons.includes('レビュー根拠が未確認'))
+      safetyReasons.push('レビュー根拠が未確認');
     const safetyReady=safetyReasons.length===0;
     if(p.publishApproved===true&&!safetyReady)
       return res.status(409).json({ok:false,status:'DRAFT',publicationBlocked:true,
