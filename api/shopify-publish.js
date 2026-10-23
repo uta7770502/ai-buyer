@@ -529,10 +529,23 @@ export default async function handler(req,res){
     }
     let title=clean(p.title||p.name,255);
     const vendor=clean('ODDLY',255),price=Number(p.price);
-    const translated=await translateDraftCopy(p.name||title,p.descriptionHtml||p.description||title);
-    if(translated){title=translated.title;p.descriptionHtml='<p>'+translated.description+'</p>';p.translationVerified=translated.verified;}
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
+    // Translate supplier facts, not only the generic frontend placeholder description.
+    // Preserve a Japanese description deliberately written by the merchant.
+    const hasJapanese=s=>/[ぁ-んァ-ヶ一-龠]/.test(String(s||''));
+    const sourceTitle=cj.supplierTitle||p.name||title;
+    const sourceDescription=cj.supplierDescription||p.descriptionHtml||p.description||sourceTitle;
+    const merchantJapaneseCopy=hasJapanese(p.descriptionHtml||p.description)&&p.merchantCopyApproved===true;
+    const translated=await translateDraftCopy(sourceTitle,sourceDescription);
+    if(translated){
+      if(!hasJapanese(title)||p.translationVerified!==true)title=translated.title;
+      if(!merchantJapaneseCopy)p.descriptionHtml='<p>'+translated.description+'</p>';
+      p.translationVerified=translated.verified;
+    }else{
+      // Never treat partial keyword substitutions as a verified translation.
+      p.translationVerified=false;
+    }
     // Enrich draft listings with supplier facts and imagery, without inventing specifications.
     // Existing merchant-authored copy takes precedence; CJ source text is included as supplied.
     const merchantImages=(Array.isArray(p.images)?p.images:[]).filter(x=>/^https:\/\//i.test(String(x||'')));
