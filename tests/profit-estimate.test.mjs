@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../lib/profit-estimate.js',import.meta.url),'utf8');
 const {estimateProfit}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(source));
 
-const base={salePriceJpy:3000,productCostJpy:900,shippingCostJpy:500,shippingVerified:true,paymentFeeRatePercent:3.6,paymentFixedFeeJpy:0,adCostPerOrderJpy:400,returnReservePerOrderJpy:100};
+const base={salePriceJpy:3000,productCostJpy:900,shippingCostJpy:500,shippingVerified:true,shippingSource:'cj-server',shippingVerifiedAt:'2026-10-24T00:00:00.000Z',paymentFeeRatePercent:3.6,paymentFixedFeeJpy:0,adCostPerOrderJpy:400,returnReservePerOrderJpy:100};
 
 test('calculates profit only with all cost components',()=>{
   const result=estimateProfit(base);
@@ -40,4 +40,13 @@ test('zero fixed fee is allowed when explicitly specified',()=>{
 test('negative or invalid fixed fee is rejected',()=>{
   assert.equal(estimateProfit({...base,paymentFixedFeeJpy:-100}).ready,false);
   assert.equal(estimateProfit({...base,paymentFixedFeeJpy:'abc'}).ready,false);
+});
+
+test('client-supplied shipping without server evidence cannot finalize profit',()=>{
+ const r=estimateProfit({...base,shippingSource:'browser'});
+ assert.equal(r.ready,false);
+ assert.ok(r.missing.includes('送料のサーバー検証記録'));
+});
+test('shipping verification timestamp is mandatory',()=>{
+ assert.equal(estimateProfit({...base,shippingVerifiedAt:null}).ready,false);
 });
