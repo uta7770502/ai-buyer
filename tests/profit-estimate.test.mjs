@@ -26,3 +26,16 @@ test('negative margin is reported rather than concealed',()=>{
   assert.equal(result.ready,true);
   assert.ok(result.profitJpy<0);
 });
+
+test('missing fixed payment fee prevents final profit',()=>{
+  const result=estimateProfit({...base,paymentFixedFeeJpy:undefined});
+  assert.equal(result.ready,false);
+  assert.ok(result.missing.includes('決済固定手数料'));
+});
+test('zero fixed fee is allowed when explicitly specified',()=>{
+  assert.equal(estimateProfit({...base,paymentFixedFeeJpy:0}).ready,true);
+});
+test('negative or invalid fixed fee is rejected',()=>{
+  assert.equal(estimateProfit({...base,paymentFixedFeeJpy:-100}).ready,false);
+  assert.equal(estimateProfit({...base,paymentFixedFeeJpy:'abc'}).ready,false);
+});
