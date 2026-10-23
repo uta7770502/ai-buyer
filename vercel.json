@@ -91,6 +91,10 @@
     {
       "source": "/api/prelaunch-one-action",
       "destination": "/api/diagnostics?action=prelaunch-one-action"
+    },
+    {
+      "source": "/api/deployment-info",
+      "destination": "/api/diagnostics?action=deployment-info"
     }
   ]
 }
