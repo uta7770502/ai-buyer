@@ -231,3 +231,10 @@ test('automatic preparation explains when CJ variant selection is required',()=>
  assert.match(html,/x\.autoSetupLastError='variant_selection_required'/);
  assert.match(html,/送料見積からバリエーションを選択してください/);
 });
+
+test('selecting required CJ variant resumes automatic draft preparation',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/changed&&x\.autoSetupState==='needs_review'&&x\.autoSetupLastError==='variant_selection_required'/);
+ assert.match(html,/x\.autoSetupAttempts=0/);
+ assert.match(html,/autoPrepareSelectedProduct\(x\)\.catch/);
+});
