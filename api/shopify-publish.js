@@ -583,7 +583,7 @@ export default async function handler(req,res){
     const reviewCount=Number(p.reviewCount ?? p.cjReviewCount);
     const averageRating=Number(p.averageRating ?? p.cjAverageRating);
     const lowRatingShare=Number(p.lowRatingShare ?? p.oneTwoStarRatio);
-    const reviewsVerified=p.reviewEvidenceVerified===true &&
+    const reviewsVerified=false /* TODO: replace with server-verified CJ review evidence */ &&
       Number.isInteger(reviewCount)&&reviewCount>=0 &&
       Number.isFinite(averageRating)&&averageRating>=0&&averageRating<=5 &&
       Number.isFinite(lowRatingShare)&&lowRatingShare>=0&&lowRatingShare<=1;
