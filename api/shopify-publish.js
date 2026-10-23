@@ -31,7 +31,7 @@ function aioMetafields(p,ownerId,title,description){
 async function translateDraftCopy(title,description){
  const key=process.env.OPENAI_API_KEY;
  if(!key)return null;
- const source=String(description||'').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').slice(0,2500);
+ const source=String(description||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(0,2500);
  try{
   const response=await fetch('https://api.openai.com/v1/chat/completions',{
    method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},
