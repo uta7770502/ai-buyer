@@ -298,3 +298,10 @@ test('CJ monitor reconciles only requested product IDs',()=>{
  assert.match(html,/const validResults=all\.filter\(p=>p&&requestedIds\.has\(String\(p\.id\)\)\)/);
  assert.match(html,/for\(const current of validResults\)/);
 });
+
+test('duplicate CJ monitor product results are rejected as ambiguous',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/const duplicateIds=new Set\(\)/);
+ assert.match(html,/for\(const id of duplicateIds\)failed\.set/);
+ assert.match(html,/validResults\.filter\(p=>!failed\.has\(String\(p\.id\)\)\)/);
+});
