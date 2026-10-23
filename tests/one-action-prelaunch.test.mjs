@@ -195,3 +195,9 @@ test('automatic freight preparation binds quote to exact CJ variant',()=>{
  assert.match(html,/data\.variants\.length>1&&!requestedVid/);
  assert.match(html,/x\.shippingVariantChoice=quotedVid/);
 });
+
+test('stale freight response is rejected when CJ variant changes in flight',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/const requestedVariantAtStart=String\(x\.shippingVariantChoice\|\|x\.cjVariantId\|\|''\)\.trim\(\)/);
+ assert.match(html,/!==requestedVariantAtStart\)throw new Error\('送料取得中にバリエーションが変更されました/);
+});
