@@ -29,3 +29,9 @@ test('CJ freight route verifies yen cost only when server FX is ready',()=>{
  assert.match(route,/fxVerified:fxReady/);
  assert.match(route,/quoteExpiresInSeconds:900/);
 });
+
+test('freight endpoint refuses ambiguous multivariant product',()=>{
+ const source=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.match(source,/!variantId&&validVariants\.length>1/);
+ assert.match(source,/validVariants\.find\(v=>String\(v\.vid\|\|v\.id\|\|v\.variantId\)===variantId\)/);
+});
