@@ -311,3 +311,8 @@ test('CJ monitor operation log excludes failed and duplicate products from succe
  assert.match(html,/validResults\.filter\(p=>!failed\.has\(String\(p\.id\)\)\)\.length/);
  assert.match(html,/対象外応答 \$\{invalidResponseIds\}件/);
 });
+
+test('rejected CJ responses cannot remain in verified result set',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/for\(const id of failed\.keys\(\)\)returned\.delete\(id\)/);
+});
