@@ -53,6 +53,14 @@
       "destination": "/api/cj?action=search"
     },
     {
+      "source": "/api/dsers-health",
+      "destination": "/api/dsers?action=health"
+    },
+    {
+      "source": "/api/dsers-search",
+      "destination": "/api/dsers?action=search"
+    },
+    {
       "source": "/api/shopify-fulfillment-sync",
       "destination": "/api/diagnostics?action=shopify-fulfillment-sync"
     },
