@@ -2656,6 +2656,27 @@ async function quoteShipping(id){
   const url='/api/cj-freight?id='+encodeURIComponent(id)+'&destination='+encodeURIComponent(destination)+'&origin=CN'+(selectedVariant?'&vid='+encodeURIComponent(selectedVariant):'');
   const response=await fetch(url);
   const data=await response.json();
+  if(response.status===422&&data.code==='VARIANT_SELECTION_REQUIRED'&&Array.isArray(data.variants)&&data.variants.length>1){
+   if(!result||!result.isConnected||findActive(id)!==x||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant))return;
+   const label=document.createElement('div');label.textContent='色・サイズを選択してください';
+   const picker=document.createElement('select');picker.style.width='100%';
+   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='バリエーションを選択';picker.appendChild(placeholder);
+   data.variants.forEach(v=>{if(!v?.vid)return;const option=document.createElement('option');option.value=String(v.vid);option.textContent=String(v.name||v.vid);picker.appendChild(option)});
+   const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent='このバリエーションで送料を見積';
+   button.onclick=()=>{
+    const vid=String(picker.value||'').trim();
+    if(!vid){showCandidateToast('色・サイズを選択してください');return}
+    if(findActive(id)!==x||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant))return;
+    x.shippingVariantChoice=vid;
+    delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt;
+    save();renderAll();
+    if(x.autoSetupState==='needs_review'&&x.autoSetupLastError==='variant_selection_required'){
+     x.autoSetupAttempts=0;x.autoSetupState='pending';x.autoSetupLastError='';save();autoPrepareSelectedProduct(x).catch(e=>{x.autoSetupState='needs_review';x.autoSetupLastError=String(e?.message||e);save();renderAll()});
+    }else{quoteShipping(id)}
+   };
+   result.replaceChildren(label,picker,button);
+   return;
+  }
   if(!response.ok||!data.ok)throw new Error(data.error||'送料を取得できません');
   const quotedVid=String(data.vid||'').trim();
   if(!quotedVid||(selectedVariant&&quotedVid!==String(selectedVariant)))throw new Error('送料見積と選択バリエーションが一致しません');
