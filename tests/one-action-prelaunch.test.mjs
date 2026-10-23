@@ -316,3 +316,9 @@ test('rejected CJ responses cannot remain in verified result set',()=>{
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/for\(const id of failed\.keys\(\)\)returned\.delete\(id\)/);
 });
+
+test('Shopify auto-stop requires confirmed draft response before local success state',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/j\.status!=='DRAFT'/);
+ assert.match(html,/Shopify販売停止の反映を確認できません/);
+});
