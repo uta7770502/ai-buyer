@@ -261,3 +261,8 @@ test('registered Shopify products cannot silently change CJ variant in either pi
  assert.match(html,/if\(x\.shopifyProductId\)\{showCandidateToast\('Shopify登録済みの商品はバリエーションを変更できません/);
  assert.match(html,/if\(x\.shopifyProductId\)\{showCandidateToast\('Shopify登録済み商品のバリエーション変更はできません/);
 });
+
+test('automatic Shopify draft submission skips already registered products',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/async function autoPublishCandidate\(x\).*?x\.shopifyProductId\|\|x\.shopifyPublishState==='publishing'/s);
+});
