@@ -20,3 +20,8 @@ test('CJ monitor validates product identifiers before supplier requests',()=>{
  assert.match(source,/ids\.some\(id => !\/\^\[a-zA-Z0-9:-\]\{1,100\}\$\/\.test\(id\)\)/);
  assert.match(source,/Invalid CJ product ID/);
 });
+
+test('CJ monitor rejects duplicate warehouse inventory rows',()=>{
+ assert.match(source,/warehouseKeys\.has\(warehouseKey\)/);
+ assert.match(source,/CJ倉庫データに重複があります/);
+});
