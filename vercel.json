@@ -54,11 +54,11 @@
     },
     {
       "source": "/api/dsers-health",
-      "destination": "/api/dsers?action=health"
+      "destination": "/api/diagnostics?action=dsers&dsersAction=health"
     },
     {
       "source": "/api/dsers-search",
-      "destination": "/api/dsers?action=search"
+      "destination": "/api/diagnostics?action=dsers&dsersAction=search"
     },
     {
       "source": "/api/shopify-fulfillment-sync",
