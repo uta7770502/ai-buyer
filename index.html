@@ -2733,6 +2733,9 @@ async function quoteShipping(id){
    const changed=String(x.shippingVariantChoice||'')!==nextVid;
    x.shippingVariantChoice=nextVid;
    if(changed&&x.shippingSource){delete x.shippingJpy;delete x.shippingSource;delete x.shippingMethod;delete x.shippingVariant;delete x.shippingQuotedAt;delete x.shippingDestination;}
+   if(changed&&x.autoSetupState==='ready'&&!x.shopifyPublished&&x.shopifyPublishState!=='published'){
+    x.autoSetupState='needs_review';x.autoSetupLastError='variant_changed';x.autoSetupMessage='バリエーションが変わりました。送料とShopify下書きの再確認が必要です';
+   }
    if(changed&&x.autoSetupState==='needs_review'&&x.autoSetupLastError==='variant_selection_required'){
     x.autoSetupState='pending';
     x.autoSetupMessage='バリエーション選択済み。送料を再確認して下書き準備を再開します';
