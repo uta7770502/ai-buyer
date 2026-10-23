@@ -580,13 +580,13 @@ export default async function handler(req,res){
     const safetyReview=/\\b(battery|lithium|usb charger|heated|heating|electrical|electric|edible|chew|food|treat|supplement|collar|harness)\\b|電池|充電|発熱|電動|おやつ|食品|サプリ|首輪|ハーネス/i.test(safetySource);
     // Publication readiness is independent of permission to save a Shopify DRAFT.
     // Missing review evidence must never be interpreted as a positive safety score.
-    const reviewCount=Number(p.reviewCount ?? p.cjReviewCount);
-    const averageRating=Number(p.averageRating ?? p.cjAverageRating);
-    const lowRatingShare=Number(p.lowRatingShare ?? p.oneTwoStarRatio);
-    const reviewsVerified=false /* TODO: replace with server-verified CJ review evidence */ &&
-      Number.isInteger(reviewCount)&&reviewCount>=0 &&
-      Number.isFinite(averageRating)&&averageRating>=0&&averageRating<=5 &&
-      Number.isFinite(lowRatingShare)&&lowRatingShare>=0&&lowRatingShare<=1;
+    // CJ review evidence must come from an independently verified server response.
+    // Until that integration exists, treat all ratings as unknown rather than
+    // trusting values sent by the browser.
+    const reviewsVerified=false;
+    const reviewCount=null;
+    const averageRating=null;
+    const lowRatingShare=null;
     const safetyReasons=[];
     if(!reviewsVerified)safetyReasons.push('レビュー根拠が未確認');
     else {
@@ -601,10 +601,6 @@ export default async function handler(req,res){
     // Never trust a client-supplied readiness flag to bypass these checks.
     // Drafts are allowed for inspection; publication is denied unless review
     // evidence is independently verified on the server and all checks pass.
-    // Client-provided review counts/ratings never authorize publication.
-    if(p.publishApproved===true && !reviewsVerified &&
-       !safetyReasons.includes('レビュー根拠が未確認'))
-      safetyReasons.push('レビュー根拠が未確認');
     const safetyReady=safetyReasons.length===0;
     if(p.publishApproved===true&&!safetyReady)
       return res.status(409).json({ok:false,status:'DRAFT',publicationBlocked:true,
