@@ -33,3 +33,9 @@ test('review data cannot be verified from browser input',()=>{
 test('new Shopify products are drafts by default',()=>{
   assert.match(source,/vendor,status:'DRAFT',tags:productTags/);
 });
+
+test('Shopify SKU dedupe checks all statuses and blocks live/archived matches',()=>{
+ assert.match(source,/\{q:'sku:'\+cj\.vid\}/);
+ assert.match(source,/matchingProducts\.some\(v=>v\.status==='ACTIVE'\|\|v\.status==='ARCHIVED'\)/);
+ assert.match(source,/status:'DRAFT'/);
+});
