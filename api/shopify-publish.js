@@ -504,6 +504,7 @@ export default async function handler(req,res){
       const targetProduct=verified.product;
       if(!targetProduct||!['ODDLY','AI BUYER'].includes(String(targetProduct.vendor||'')))return res.status(403).json({ok:false,error:'ODDLY管理対象の商品ではありません'});
       if(targetProduct.variants?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'バリエーション照合が不完全なため同期を停止します'});
+      if(syncAction==='stop'&&targetProduct.status==='DRAFT')return res.status(200).json({ok:true,sync:true,action:'stop',status:'DRAFT',alreadyStopped:true});
       if(syncAction==='price'){
         if(!/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(variantId)||!Number.isFinite(syncPrice)||syncPrice<=0)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
         if(!(targetProduct.variants?.nodes||[]).some(v=>v.id===variantId))return res.status(403).json({ok:false,error:'商品とバリエーションIDが一致しません'});
