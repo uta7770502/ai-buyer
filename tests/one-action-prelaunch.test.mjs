@@ -201,3 +201,12 @@ test('stale freight response is rejected when CJ variant changes in flight',()=>
  assert.match(html,/const requestedVariantAtStart=String\(x\.shippingVariantChoice\|\|x\.cjVariantId\|\|''\)\.trim\(\)/);
  assert.match(html,/!==requestedVariantAtStart\)throw new Error\('送料取得中にバリエーションが変更されました/);
 });
+
+test('manual shipping save uses server verified JPY instead of browser FX',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const section=html.slice(html.indexOf('async function quoteShipping(id){'),html.indexOf('function changeShippingDestination(',html.indexOf('async function quoteShipping(id){')));
+ assert.match(section,/x\.shippingJpy=option\.jpy/);
+ assert.match(section,/x\.shippingSource='cj-server'/);
+ assert.match(section,/x\.shippingQuotedAt=data\.fetchedAt/);
+ assert.doesNotMatch(section,/x\.shippingJpy=Math\.round\(option\.usd\*fx\)/);
+});
