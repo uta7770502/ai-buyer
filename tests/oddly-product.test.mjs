@@ -39,3 +39,19 @@ test('ODDLY never fabricates free shipping or returns when metafields are absent
   assert.doesNotMatch(res.body,/merchantReturnDays/);
   assert.equal(headers['X-Robots-Tag'],'noindex, follow');
 });
+
+test('ODDLY Shopify draft preview stays private and never publishes products',()=>{
+  const publishSource=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  const begin=publishSource.indexOf('if(p.draftPreviewCatalog===true){');
+  const end=publishSource.indexOf('if(p.legalPrefill===true)',begin);
+  assert.ok(begin>=0&&end>begin,'authenticated draft preview route must exist');
+  const preview=publishSource.slice(begin,end);
+  assert.match(preview,/query OddlyDraftPreview/);
+  assert.match(preview,/status:draft/);
+  assert.match(preview,/x\.status==='DRAFT'/);
+  assert.match(preview,/previewOnly:true,publiclyAvailable:false/);
+  assert.doesNotMatch(preview,/productCreate|productUpdate|publishablePublish|publicationCreate/);
+  assert.match(publishSource.slice(0,begin),/getShopifyAuthContext\(req\)/);
+  assert.match(html,/async function loadOddlyDraftPreview\(\)/);
+  assert.match(html,/if\(shopifyConnected\)loadOddlyDraftPreview\(\)/);
+});

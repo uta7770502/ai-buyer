@@ -4,7 +4,7 @@ export const config={api:{bodyParser:false}};
 let tokenCache={token:'',expiresAt:0};
 async function readRaw(req){const chunks=[];let size=0;for await(const c of req){const chunk=Buffer.isBuffer(c)?c:Buffer.from(c);size+=chunk.length;if(size>1024*1024){const e=new Error('Webhook payload too large');e.statusCode=413;throw e;}chunks.push(chunk)}return Buffer.concat(chunks)}
 function validHmac(raw,hmac,secret){if(typeof hmac!=='string'||!secret||!/^[A-Za-z0-9+/]{43}=$/.test(hmac))return false;const digest=crypto.createHmac('sha256',secret).update(raw).digest();const supplied=Buffer.from(hmac,'base64');return supplied.length===digest.length&&crypto.timingSafeEqual(digest,supplied)}
-async function cjToken(){if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;if(tokenCache.token&&Date.now()<tokenCache.expiresAt-60000)return tokenCache.token;if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');const r=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY})});const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');tokenCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return tokenCache.token}
+async function cjToken(){if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;if(tokenCache.token&&Date.now()<tokenCache.expiresAt-60000)return tokenCache.token;if(!process.env.CJ_API_KEY)throw Error('CJ_API_KEY is not configured');const r=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(10000)});const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');tokenCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return tokenCache.token}
 function str(v,n=200){return String(v||'').trim().slice(0,n)}
 // Persistent, atomic order reservation. Never expire automatically: uncertain CJ outcomes
 // must be reconciled manually instead of allowing a duplicate purchase.
@@ -44,7 +44,11 @@ export default async function handler(req,res){
     const order=JSON.parse(raw.toString('utf8')||'{}'),addr=order.shipping_address||{};
     // Verify the originating shop before any order processing, including disabled-mode responses.
     if(String(req.headers['x-shopify-topic']||'')!=='orders/paid')return res.status(200).json({ok:true,skipped:true,reason:'Only paid orders are eligible'});
-    if(order.cancelled_at||order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
+    if(order.cancelled_at)return res.status(200).json({ok:true,skipped:true,reason:'Order cancelled'});
+    if(['partially_refunded','refunded'].includes(String(order.financial_status||'')))return res.status(200).json({ok:true,skipped:true,needsReview:true,reason:'Refunded order requires manual review'});
+    if(order.financial_status!=='paid')return res.status(200).json({ok:true,skipped:true,reason:'Order not eligible for fulfillment'});
+    // Shopify may mark a paid order as on hold; never dispatch it to CJ until the hold is resolved.
+    if(String(order.fulfillment_status||'').toLowerCase()==='on_hold'||(Array.isArray(order.fulfillment_orders)&&order.fulfillment_orders.some(x=>String(x?.status||'').toLowerCase()==='on_hold')))return res.status(200).json({ok:true,skipped:true,needsReview:true,reason:'Fulfillment order is on hold'});
     if(!/^\d{1,30}$/.test(String(order.id??''))||typeof req.headers['x-shopify-webhook-id']!=='string'||!req.headers['x-shopify-webhook-id'].trim())return res.status(400).json({ok:false,error:'Missing or invalid order or event identifier'});
     // Require explicit positive payment evidence: never fulfill test orders with a zero-value total.
     const paidTotal=Number(order.current_total_price??order.total_price);
@@ -126,7 +130,7 @@ export default async function handler(req,res){
     }
     const products=verifiedProducts;
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
-    const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
+    const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))}),signal:AbortSignal.timeout(10000)});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
     const opts=(Array.isArray(fq.data)?fq.data:[]).map(x=>({name:str(x.logisticName,50),usd:x.totalPostageFee==null&&x.logisticPrice==null?NaN:Number(x.totalPostageFee??x.logisticPrice),days:str(x.logisticAging,50)})).filter(x=>x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
@@ -175,6 +179,11 @@ export default async function handler(req,res){
       return res.status(202).json({ok:false,needsReview:true,error:'CJ rejected sandbox order; manual reconciliation required'});
     }
     const confirmedCjId=str(cj.data?.orderId||cj.data?.orderNumber,100);
+    // Never accept arbitrary CJ response text as an order identifier in durable state.
+    if(confirmedCjId&&!/^[A-Za-z0-9_-]{1,100}$/.test(confirmedCjId)){
+      await markOrder(shop,String(order.id),'needs_review:invalid_cj_order_id');
+      return res.status(202).json({ok:false,needsReview:true,error:'CJ returned an invalid order identifier; manual reconciliation required'});
+    }
     if(!confirmedCjId){
       await markOrder(shop,String(order.id),'needs_review:missing_cj_order_id');
       return res.status(202).json({ok:false,needsReview:true,error:'CJ acknowledged order without an identifier; manual reconciliation required'});

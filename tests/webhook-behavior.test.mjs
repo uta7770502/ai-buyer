@@ -239,3 +239,19 @@ test('CJ rejection is recorded for review and never automatically retried',async
   assert.equal(attempts,1);
   assert.ok([...redis.values()].some(v=>v==='needs_review:cj_rejected'));
 });
+
+test('on-hold order cannot reach Shopify catalog or CJ even with sandbox enabled',async()=>{
+  const x=await invoke({enabled:'true',validLine:true,order:{...validOrder,fulfillment_status:'on_hold'}});
+  assert.equal(x.statusCode,200);
+  assert.equal(x.body.needsReview,true);
+  assert.equal(x.body.skipped,true);
+  assert.equal(x.calls,0);
+});
+test('refund or partial fulfillment cannot reach CJ even with sandbox enabled',async()=>{
+  for(const update of [{refunds:[{id:1}]},{fulfillment_status:'partial'},{financial_status:'partially_refunded'}]){
+    const x=await invoke({enabled:'true',validLine:true,order:{...validOrder,...update}});
+    assert.equal(x.statusCode,200);
+    assert.equal(x.body.needsReview,true);
+    assert.equal(x.calls,0);
+  }
+});

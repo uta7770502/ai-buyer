@@ -1,0 +1,47 @@
+{% comment %}ODDLY storefront draft. Add this section to an unpublished Shopify theme only.{% endcomment %}
+<section class="oddly-home" aria-label="ODDLY">
+  <div class="oddly-hero">
+    <p class="oddly-kicker">CURATED EVERY DAY</p>
+    <h1>ODDLY</h1>
+    <p>ちょっと意外で、ちゃんと欲しい。</p>
+    <a class="oddly-cta" href="{{ routes.all_products_collection_url }}">商品を見る <span aria-hidden="true">→</span></a>
+  </div>
+  <div class="oddly-container">
+    <h2>今日のおすすめ</h2>
+    <p class="oddly-subtitle">気になるアイテムを、毎日の暮らしに。</p>
+    {% assign featured = collections[section.settings.featured_collection] %}
+    {% if featured != blank and featured.products_count > 0 %}
+      <div class="oddly-products">
+        {% for product in featured.products limit: 8 %}
+          <a class="oddly-product" href="{{ product.url }}">
+            {% if product.featured_image != blank %}
+              {{ product.featured_image | image_url: width: 700 | image_tag: loading: 'lazy', widths: '180, 360, 540, 700', alt: product.title }}
+            {% else %}<div class="oddly-placeholder" aria-hidden="true"></div>{% endif %}
+            <h3>{{ product.title | escape }}</h3>
+            <p>{{ product.price | money }}</p>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="oddly-empty">商品は準備中です。公開前にコレクションを設定してください。</p>
+    {% endif %}
+  </div>
+</section>
+<style>
+.oddly-home{font-family:inherit;color:#18253b;background:#fff}.oddly-home *{box-sizing:border-box}
+.oddly-hero{padding:88px 22px 90px;text-align:center;background:linear-gradient(145deg,#edf5ff 0%,#fff 75%)}
+.oddly-kicker{font-size:11px;font-weight:700;letter-spacing:.24em;color:#477bb5}
+.oddly-hero h1{font-size:clamp(56px,12vw,112px);line-height:1;letter-spacing:-.075em;margin:18px 0 14px;font-weight:800}
+.oddly-hero>p:not(.oddly-kicker){font-size:16px;letter-spacing:.08em}
+.oddly-cta{display:inline-flex;gap:28px;margin-top:30px;background:#1b304f;color:white!important;text-decoration:none;padding:17px 27px;border-radius:100px;font-size:14px}
+.oddly-container{max-width:1220px;margin:auto;padding:62px 20px 90px}
+.oddly-container h2{font-size:clamp(26px,5vw,38px);margin:0 0 6px}.oddly-subtitle{color:#69778b;margin:0 0 30px}
+.oddly-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
+.oddly-product{text-decoration:none;color:inherit;min-width:0}.oddly-product img,.oddly-placeholder{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px;background:#f2f5f8}
+.oddly-product h3{font-size:14px;line-height:1.5;margin:10px 0 4px}.oddly-product p{font-size:14px;font-weight:700;margin:0}
+.oddly-empty{background:#f3f6fa;border-radius:14px;padding:25px}
+@media(min-width:750px){.oddly-products{grid-template-columns:repeat(4,minmax(0,1fr));gap:28px}.oddly-hero{padding:120px 30px}}
+</style>
+{% schema %}
+{"name":"ODDLY トップ（下書き）","settings":[{"type":"collection","id":"featured_collection","label":"今日のおすすめコレクション"}],"presets":[{"name":"ODDLY トップ（下書き）"}]}
+{% endschema %}

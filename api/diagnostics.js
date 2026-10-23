@@ -1,3 +1,7 @@
+import legalDraft from '../lib/routes/legal-draft.js';
+import returnTriage from '../lib/routes/return-triage.js';
+import profitEstimate from '../lib/routes/profit-estimate.js';
+import shopifyLegalPreview from '../lib/routes/shopify-legal-preview.js';
 import automationHealth from '../lib/routes/automation-health.js';
 import automationOrderStatus from '../lib/routes/automation-order-status.js';
 import automationReconciliation from '../lib/routes/automation-reconciliation.js';
@@ -23,7 +27,20 @@ function shopifyEnvCheck(req,res){
   return res.status(200).json({ok:true,shopConfigured:Boolean(rawShop),allowedConfigured:Boolean(rawAllowed),normalizedShop:shop,expectedAllowedDomain:expected,normalizedAllowedDomain:rawAllowed,validShop,validAllowed,matches:Boolean(validShop&&validAllowed&&expected===rawAllowed)});
 }
 
+function dsersGateway(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const action=String(req.query?.dsersAction||'health');
+  if(action==='health')return res.status(200).json({ok:true,provider:'dsers',transport:'mcp',auth:'oauth2.1-pkce',connected:false,status:'authorization_required',endpoint:'https://ai.dsers.com/mcp',message:'DSers MCP OAuth connection is not yet configured for AI BUYER.'});
+  if(action==='search')return res.status(428).json({ok:false,provider:'dsers',code:'DSERS_AUTH_REQUIRED',status:'authorization_required',products:[],message:'Authorize AI BUYER with DSers OAuth before supplier search can run.'});
+  return res.status(400).json({ok:false,error:'unsupported_action'});
+}
+
 const handlers={
+  'legal-draft':legalDraft,
+  'return-triage':returnTriage,
+  'profit-estimate':profitEstimate,
+  'shopify-legal-preview':shopifyLegalPreview,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,
@@ -35,7 +52,8 @@ const handlers={
   'storefront-checkout':storefrontCheckout,
   'storefront-config':storefrontConfig,
   'prelaunch-product-audit':prelaunchProductAudit,
-  'prelaunch-one-action':prelaunchOneAction
+  'prelaunch-one-action':prelaunchOneAction,
+  'dsers':dsersGateway
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');

@@ -53,6 +53,14 @@
       "destination": "/api/cj?action=search"
     },
     {
+      "source": "/api/dsers-health",
+      "destination": "/api/diagnostics?action=dsers&dsersAction=health"
+    },
+    {
+      "source": "/api/dsers-search",
+      "destination": "/api/diagnostics?action=dsers&dsersAction=search"
+    },
+    {
       "source": "/api/shopify-fulfillment-sync",
       "destination": "/api/diagnostics?action=shopify-fulfillment-sync"
     },
@@ -91,6 +99,10 @@
     {
       "source": "/api/prelaunch-one-action",
       "destination": "/api/diagnostics?action=prelaunch-one-action"
+    },
+    {
+      "source": "/api/shopify-legal-preview",
+      "destination": "/api/diagnostics?action=shopify-legal-preview"
     }
   ]
 }

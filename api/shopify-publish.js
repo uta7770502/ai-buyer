@@ -71,6 +71,17 @@ export default async function handler(req,res){
     const {token,shop}=auth;
     const raw=req.body||{}; const formPublish=String(raw.formPublish||'')==='1'; const p=raw;
     if(formPublish){p.images=p.image?[p.image]:[];p.descriptionHtml='';p.publishApproved=false;}
+    // Authenticated management preview only: never expose unpublished drafts via the public Storefront API.
+    if(p.draftPreviewCatalog===true){
+      const data=await gql(shop,token,'query OddlyDraftPreview($q:String!,$first:Int!){products(first:$first,query:$q,sortKey:UPDATED_AT,reverse:true){nodes{id title handle status vendor descriptionHtml featuredMedia{preview{image{url altText}}} variants(first:1){nodes{id sku price}}}}}',{q:'status:draft',first:100});
+      const products=(data.products?.nodes||[]).filter(x=>x&&x.status==='DRAFT'&&['AI BUYER','ODDLY'].includes(String(x.vendor||''))).map(x=>({
+        productId:String(x.id||''),title:String(x.title||''),handle:String(x.handle||''),status:'DRAFT',
+        image:String(x.featuredMedia?.preview?.image?.url||''),imageAlt:String(x.featuredMedia?.preview?.image?.altText||''),
+        sku:String(x.variants?.nodes?.[0]?.sku||''),price:Number(x.variants?.nodes?.[0]?.price||0),
+        needsReview:!/[ぁ-んァ-ヶ一-龠]/.test(String(x.title||'')+' '+String(x.descriptionHtml||''))
+      })).filter(x=>x.productId&&x.title&&Number.isFinite(x.price)&&x.price>0);
+      return res.status(200).json({ok:true,previewOnly:true,publiclyAvailable:false,count:products.length,limit:100,products});
+    }
     if(p.legalPrefill===true){
       const d=await gql(shop,token,`query OddlyLegalPrefill { shop { name contactEmail billingAddress { address1 address2 city province provinceCode zip country countryCodeV2 phone } } }`);
       const s=d?.shop||{},a=s.billingAddress||{};
@@ -471,7 +482,7 @@ export default async function handler(req,res){
         if(!/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(variantId)||!Number.isFinite(syncPrice)||syncPrice<=0)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
         if(!(targetProduct.variants?.nodes||[]).some(v=>v.id===variantId))return res.status(403).json({ok:false,error:'商品とバリエーションIDが一致しません'});
         if(targetProduct.status!=='DRAFT'&&(!livePublishEnabled||p.priceChangeApproved!==true))return res.status(403).json({ok:false,error:'公開中商品の価格変更にはサーバー許可と明示承認が必要です'});
-        const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
+        const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price inventoryItem { sku } } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
         const errs=d.productVariantsBulkUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
         return res.status(200).json({ok:true,sync:true,action:'price',price:Math.round(syncPrice)});
       }
@@ -513,15 +524,20 @@ export default async function handler(req,res){
     const category=clean(p.productType||p.category||'',120);
     const verifiedJapaneseCopy=/[\u3040-\u30ff\u3400-\u9fff]/.test(title)&&/[\u3040-\u30ff\u3400-\u9fff]/.test(description.replace(/<[^>]*>/g,''));
     // A draft may be saved with untranslated copy, but it must not be treated as publication-ready.
-    const needsCopyReview=!verifiedJapaneseCopy;
+    const hasUntranslatedEnglish=/\b(?:home office storage|pet supplies|category|products|portable|leakproof|breathable|outdoor walking supplies|golden retriever)\b/i.test(title+' '+description.replace(/<[^>]*>/g,' '));
+    const needsCopyReview=!verifiedJapaneseCopy||hasUntranslatedEnglish;
     const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
-    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft sku:'+cj.vid});
+    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'sku:'+cj.vid});
     if(!skuMatches.products||!Array.isArray(skuMatches.products.nodes)||typeof skuMatches.products.pageInfo?.hasNextPage!=='boolean')return res.status(502).json({ok:false,error:'Shopifyの商品検索結果を検証できません。出品を停止します。'});
     if(skuMatches.products?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'既存商品の検索結果が多すぎます。重複確認が完了するまで出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>!v||typeof v!=='object'||!Array.isArray(v.variants?.nodes)||typeof v.variants?.pageInfo?.hasNextPage!=='boolean'))return res.status(502).json({ok:false,error:'Shopifyの商品バリエーション情報が不完全です。出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>v.variants?.pageInfo?.hasNextPage))return res.status(409).json({ok:false,error:'商品バリエーションの照合が完了していません。出品を停止します。'});
+    const matchingActive=skuMatches.products.nodes.filter(v=>v.status!=='DRAFT'&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
+    if(matchingActive.length)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの商品がすでにShopifyに存在します。重複登録を停止しました。'});
+    const conflictingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&!['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
+    if(conflictingDrafts.length)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの他社・手動登録下書きがあります。重複登録を停止しました。'});
     const matchingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
     if(matchingDrafts.length>1)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの下書きが複数あります。Shopifyで重複を確認してください。'});
     const existing=matchingDrafts[0]||null;
@@ -540,12 +556,15 @@ export default async function handler(req,res){
       ce=create.productCreate;
     }
     if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
+    // Fail closed if Shopify unexpectedly returns a non-draft product; do not update variants or publish it.
+    if(ce.product.status!=='DRAFT')throw Error('Shopify商品が下書き状態ではありません。価格更新と公開を停止しました。');
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
     const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),inventoryItem:{sku:cj.vid,tracked:false}}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
     const updatedVariant=update.productVariantsBulkUpdate?.productVariants?.[0];
     const confirmedPrice=Number(updatedVariant?.price);
     if(!Number.isFinite(confirmedPrice)||Math.round(confirmedPrice)!==Math.round(price))throw Error('Shopify価格の反映確認に失敗しました。下書きを保持します。');
+    if(String(updatedVariant?.inventoryItem?.sku||'')!==String(cj.vid))throw Error('Shopify SKUの反映確認に失敗しました。下書きを保持します。');
     const metafields=aioMetafields(p,ce.product.id,title,description);
     let metadataReady=true,metadataErrors=[];
     if(metafields.length){
@@ -558,7 +577,7 @@ export default async function handler(req,res){
     if(!metadataReady){if(formPublish)return res.redirect(303,'/?publish=error&reason=metadata');return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});}
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
-    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});}
+    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',needsCopyReview,metadataReady:true,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});}
     // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
