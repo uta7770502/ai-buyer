@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {estimateProfit} from '../lib/profit-estimate.js';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../lib/profit-estimate.js',import.meta.url),'utf8');
+const {estimateProfit}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(source));
 
 const base={salePriceJpy:3000,productCostJpy:900,shippingCostJpy:500,shippingVerified:true,paymentFeeRatePercent:3.6,paymentFixedFeeJpy:0,adCostPerOrderJpy:400,returnReservePerOrderJpy:100};
 
