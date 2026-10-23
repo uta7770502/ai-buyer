@@ -238,3 +238,13 @@ test('selecting required CJ variant resumes automatic draft preparation',()=>{
  assert.match(html,/x\.autoSetupAttempts=0/);
  assert.match(html,/autoPrepareSelectedProduct\(x\)\.catch/);
 });
+
+test('CJ multivariant freight returns choices before quoting and frontend offers picker',()=>{
+ const server=fs.readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(server,/code:'VARIANT_SELECTION_REQUIRED'/);
+ assert.match(server,/variants:validVariants\.map/);
+ assert.match(html,/response\.status===422&&data\.code==='VARIANT_SELECTION_REQUIRED'/);
+ assert.match(html,/button\.textContent='このバリエーションで送料を見積'/);
+ assert.match(html,/x\.shippingVariantChoice=vid/);
+});
