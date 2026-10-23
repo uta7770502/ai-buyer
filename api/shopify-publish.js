@@ -513,7 +513,9 @@ export default async function handler(req,res){
     const category=clean(p.productType||p.category||'',120);
     const verifiedJapaneseCopy=/[\u3040-\u30ff\u3400-\u9fff]/.test(title)&&/[\u3040-\u30ff\u3400-\u9fff]/.test(description.replace(/<[^>]*>/g,''));
     // A draft may be saved with untranslated copy, but it must not be treated as publication-ready.
-    const needsCopyReview=!verifiedJapaneseCopy;
+    const originalEnglish=String(p.name||'');
+    const unresolvedEnglish=/\\b(creative|professional|without|version|office|tumbler|personality|breakfast|milk|porcelain|electric jumping|sisal cat|bite.proof|molar|amazon hot)\\b/i.test(title+' '+description.replace(/<[^>]*>/g,''));
+    const needsCopyReview=!verifiedJapaneseCopy||unresolvedEnglish||p.translationVerified!==true;
     const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
