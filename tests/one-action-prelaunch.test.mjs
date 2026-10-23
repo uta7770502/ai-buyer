@@ -217,3 +217,10 @@ test('manual shipping quote validation never depends on browser FX',()=>{
  assert.match(section,/option\.jpy<=10000000/);
  assert.doesNotMatch(section,/option\.usd\*fx/);
 });
+
+test('shipping destination change clears stale quote and UI reflects server source',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/hasValidShipping\(x\)\|\|Boolean\(x\.shippingSource\)/);
+ assert.match(html,/x\.shippingSource==='cj-server'\?'CJ見積保存済み/);
+ assert.doesNotMatch(html,/中国発送・最初のバリエーションで見積/);
+});
