@@ -601,6 +601,10 @@ export default async function handler(req,res){
     // Never trust a client-supplied readiness flag to bypass these checks.
     // Drafts are allowed for inspection; publication is denied unless review
     // evidence is independently verified on the server and all checks pass.
+    // Japan shipping must be supported by verified supplier/fulfillment data.
+    // A browser-provided shipping estimate is not proof of CJ's actual cost.
+    const japanShippingVerified=false; // pending CJ shipping quote integration
+    if(!japanShippingVerified)safetyReasons.push('日本向け送料の仕入先確認が未完了');
     const safetyReady=safetyReasons.length===0;
     if(p.publishApproved===true&&!safetyReady)
       return res.status(409).json({ok:false,status:'DRAFT',publicationBlocked:true,
@@ -649,7 +653,7 @@ export default async function handler(req,res){
     if(!metadataReady){if(formPublish)return res.redirect(303,'/?publish=error&reason=metadata');return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});}
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
-    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,safetyReady,safetyReasons,reviewEvidenceVerified:reviewsVerified,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});}
+    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,safetyReady,safetyReasons,reviewEvidenceVerified:reviewsVerified,japanShippingVerified,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});}
     // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
