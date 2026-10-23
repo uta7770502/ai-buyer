@@ -248,3 +248,10 @@ test('CJ multivariant freight returns choices before quoting and frontend offers
  assert.match(html,/button\.textContent='このバリエーションで送料を見積'/);
  assert.match(html,/x\.shippingVariantChoice=vid/);
 });
+
+test('changing variant invalidates previously ready auto preparation',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/changed&&x\.autoSetupState==='ready'/);
+ assert.match(html,/x\.autoSetupLastError='variant_changed'/);
+ assert.match(html,/送料とShopify下書きの再確認が必要です/);
+});
