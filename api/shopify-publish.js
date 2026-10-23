@@ -28,6 +28,25 @@ function aioMetafields(p,ownerId,title,description){
   if(Number.isInteger(returnDays)&&returnDays>0&&returnDays<=365)rows.push({ownerId,namespace:'custom',key:'return_days',type:'number_integer',value:String(returnDays)});
   return rows;
 }
+async function translateDraftCopy(title,description){
+ const key=process.env.OPENAI_API_KEY;
+ if(!key)return null;
+ const source=String(description||'').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').slice(0,2500);
+ try{
+  const response=await fetch('https://api.openai.com/v1/chat/completions',{
+   method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},
+   body:JSON.stringify({model:process.env.ODDLY_TRANSLATION_MODEL||'gpt-4o-mini',temperature:0,
+    response_format:{type:'json_object'},
+    messages:[{role:'system',content:'Translate ecommerce product copy into natural Japanese. Output JSON with title, description, verified. Do not invent specifications, materials, safety claims, certifications, delivery times or features. Keep unverified source claims out. Description is plain text, 1-3 short sentences. verified is true only when translation is reliable and source meaning is clear.'},{role:'user',content:JSON.stringify({title,description:source})}]}),
+   signal:AbortSignal.timeout(12000)});
+  if(!response.ok)return null;
+  const data=await response.json();
+  const obj=JSON.parse(data.choices?.[0]?.message?.content||'{}');
+  const ja=/[ぁ-んァ-ヶ一-龠]/;
+  if(!ja.test(obj.title||'')||!ja.test(obj.description||''))return null;
+  return {title:clean(obj.title,180),description:clean(obj.description,1200),verified:obj.verified===true};
+ }catch{return null}
+}
 let cjCache={token:'',expiresAt:0};
 async function cjToken(){
   if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
@@ -493,7 +512,10 @@ export default async function handler(req,res){
       }
       return res.status(200).json({ok:true,sync:true,action:syncAction,status});
     }
-    const title=clean(p.title||p.name,255),vendor=clean('ODDLY',255),price=Number(p.price);
+    let title=clean(p.title||p.name,255);
+    const vendor=clean('ODDLY',255),price=Number(p.price);
+    const translated=await translateDraftCopy(p.name||title,p.descriptionHtml||p.description||title);
+    if(translated){title=translated.title;p.descriptionHtml='<p>'+translated.description+'</p>';p.translationVerified=translated.verified;}
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id);
     // Enrich draft listings with supplier facts and imagery, without inventing specifications.
