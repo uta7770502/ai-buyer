@@ -2651,9 +2651,9 @@ async function quoteShipping(id){
   const quotedVid=String(data.vid||'').trim();
   if(!quotedVid||(selectedVariant&&quotedVid!==String(selectedVariant)))throw new Error('送料見積と選択バリエーションが一致しません');
   if(Array.isArray(data.variants)&&data.variants.length>1&&!selectedVariant)throw new Error('複数バリエーションの商品は選択してから送料を見積もってください');
-  if(!Array.isArray(data.options)||!data.options.some(option=>option&&Number.isFinite(Number(option.usd))&&Number(option.usd)>=0&&Number(option.usd)*fx<=10000000))throw new Error('利用可能な配送方法がありません。配送先・商品バリエーションを確認してください');
-  data.options=data.options.filter(option=>option&&Number.isFinite(Number(option.usd))&&Number(option.usd)>=0&&Number(option.usd)*fx<=10000000).map(option=>({...option,usd:Number(option.usd)}));
-  if(!data.options.length)throw new Error('有効な送料がありません。配送先・商品バリエーションを確認してください');
+  if(data.quoteSource!=='cj-server'||data.destination!==destination||data.shippingJpyVerified!==true||data.fxVerified!==true)throw new Error('サーバー確認済み送料を取得できません');
+  data.options=(Array.isArray(data.options)?data.options:[]).filter(option=>option&&Number.isSafeInteger(option.jpy)&&option.jpy>=0&&option.jpy<=10000000&&Number.isFinite(Number(option.usd))&&Number(option.usd)>=0).map(option=>({...option,usd:Number(option.usd)}));
+  if(!data.options.length)throw new Error('有効なサーバー確認済み送料がありません');
   if(!result||!result.isConnected||findActive(id)!==x||document.getElementById('shipDest-'+id)?.value!==destination||String(x.shippingVariantChoice||'')!==String(selectedVariant)){return;}
   result.replaceChildren();
   const title=document.createElement('div');
