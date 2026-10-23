@@ -305,3 +305,9 @@ test('duplicate CJ monitor product results are rejected as ambiguous',()=>{
  assert.match(html,/for\(const id of duplicateIds\)failed\.set/);
  assert.match(html,/validResults\.filter\(p=>!failed\.has\(String\(p\.id\)\)\)/);
 });
+
+test('CJ monitor operation log excludes failed and duplicate products from success count',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/validResults\.filter\(p=>!failed\.has\(String\(p\.id\)\)\)\.length/);
+ assert.match(html,/対象外応答 \$\{invalidResponseIds\}件/);
+});
