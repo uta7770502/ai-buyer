@@ -285,3 +285,9 @@ test('CJ monitor failure holds candidate and clears last verified monitoring tim
  assert.match(html,/x\.monitorRisk='unknown';x\.monitorStopCandidate=true;x\.stopCandidate=true;x\.status='candidate';x\.lastMonitorAt=''/);
  assert.match(html,/level:'critical',kind:'取得失敗'/);
 });
+
+test('batch CJ monitoring failure invalidates all cached safety states',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/for\(const x of active\)\{x\.monitorRisk='unknown';x\.monitorStopCandidate=true;x\.stopCandidate=true;x\.status='candidate';x\.lastMonitorAt='';\}/);
+ assert.match(html,/kind:'監視全体の取得失敗'/);
+});
