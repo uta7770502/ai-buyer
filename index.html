@@ -450,7 +450,7 @@ async function runAutoScan(silent=false){if(recommendationScanRunning)return;rec
 function recommendationsNeedRefresh(){
   const picks=Array.isArray(today?.products)?today.products:[];
   const last=today?.at?new Date(today.at).getTime():0;
-  return picks.length<3||!Number.isFinite(last)||Date.now()-last>12*60*60*1000;
+  return picks.length<3||picks.some(p=>!oddlyPetRelevant(p))||!Number.isFinite(last)||Date.now()-last>12*60*60*1000;
 }
 function ensureRecommendations(){
   renderRecommendTop();
