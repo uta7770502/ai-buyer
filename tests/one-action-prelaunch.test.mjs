@@ -322,3 +322,9 @@ test('Shopify auto-stop requires confirmed draft response before local success s
  assert.match(html,/j\.status!=='DRAFT'/);
  assert.match(html,/Shopify販売停止の反映を確認できません/);
 });
+
+test('CJ monitor treats missing supplier sale status as critical',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/if\(!saleStatus\)alerts\.push/);
+ assert.match(html,/販売状態未確認/);
+});
