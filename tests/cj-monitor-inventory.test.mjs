@@ -10,3 +10,8 @@ test('CJ monitor rejects missing and invalid inventory instead of treating it as
  assert.match(source,/cj \+ factory > total/);
  assert.match(source,/Number\.isSafeInteger/);
 });
+
+test('CJ aggregate inventory is never represented as verified variant inventory',()=>{
+ assert.match(source,/variantInventoryVerified:\s*false/);
+ assert.match(source,/variantInventoryReason:/);
+});
