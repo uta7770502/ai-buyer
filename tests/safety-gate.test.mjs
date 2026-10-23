@@ -7,11 +7,15 @@ const source=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'
 function extractRegex(variable){
   const match=source.match(new RegExp('const '+variable+'=(\\/.*?\\/[a-z]*)\\.test\\(safetySource\\)'));
   assert.ok(match,'Missing '+variable+' expression');
-  return Function('return '+match[1])();
+  const literal=match[1];
+  const lastSlash=literal.lastIndexOf('/');
+  return new RegExp(literal.slice(1,lastSlash),literal.slice(lastSlash+1));
 }
 test('blocked products include pesticide and electric shock collars',()=>{
-  assert.match(source,/pesticide/);
-  assert.match(source,/shock collar/);
+  const rules=[...source.matchAll(/\{re:\/(.*?)\/i,reason:/g)].map(m=>new RegExp(m[1],'i'));
+  assert.ok(rules.some(rule=>rule.test('pesticide spray')));
+  assert.ok(rules.some(rule=>rule.test('electric shock collar')));
+  assert.ok(rules.every(rule=>!rule.test('ceramic feeding bowl')));
   assert.match(source,/safetyBlocked:true/);
 });
 test('battery and pet food are flagged for review',()=>{
