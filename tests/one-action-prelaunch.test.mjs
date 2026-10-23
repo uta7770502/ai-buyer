@@ -162,7 +162,7 @@ test('orphan draft shipping requires verified server-side recovery',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(freight,/product\/variant\/queryByVid/);
   assert.match(freight,/variantData\.data\?\.pid/);
-  assert.doesNotMatch(html,/payload\\.shippingPriceJpy=Math\\.round\\(Number\\(opts\\[0\\]\\.usd\\)\\*fx\\)/);
+  assert.doesNotMatch(html,/payload\.shippingPriceJpy=Math\.round/);
   assert.match(html,/Shipping must be verified by the server/);
 });
 
