@@ -6,6 +6,7 @@ import cjSearch from '../lib/routes/cj-search.js';
 import cjOrderTracking from '../lib/routes/cj-order-tracking.js';
 import cjTrackingSync from '../lib/routes/cj-tracking-sync.js';
 import cjReadiness from '../lib/routes/cj-readiness.js';
+import cjHealth from '../lib/routes/cj-health.js';
 
 import cjSandboxSimulate from '../lib/routes/cj-sandbox-simulate.js';
 import cjSandboxReconcile from '../lib/routes/cj-sandbox-reconcile.js';
@@ -20,7 +21,13 @@ const handlers={
   'search':cjSearch,
   'order-tracking':cjOrderTracking,
   'tracking-sync':cjTrackingSync,
-  'readiness':cjReadiness
+  'readiness':cjReadiness,
+  'health':async(req,res)=>{
+    const key=process.env.AI_BUYER_ADMIN_KEY;
+    const supplied=String(req.headers?.authorization||'');
+    if(!key||supplied!==`Bearer ${key}`)return res.status(401).json({ok:false,error:'Unauthorized'});
+    return cjHealth(req,res);
+  }
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');
