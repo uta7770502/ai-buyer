@@ -71,3 +71,11 @@ test('stock sync never reports applied when Shopify mutation response is missing
   assert.match(source,/shopify-inventory-result-unverified/);
   assert.doesNotMatch(source,/const errors=out\?\.inventorySetQuantities\?\.userErrors\|\|\[\]/);
 });
+
+test('stock sync requires complete Shopify connection metadata before mutation',()=>{
+  assert.match(source,/!Array\.isArray\(data\?\.products\?\.nodes\)/);
+  assert.match(source,/typeof data\?\.products\?\.pageInfo\?\.hasNextPage!=='boolean'/);
+  assert.match(source,/!Array\.isArray\(p\.variants\?\.nodes\)/);
+  assert.match(source,/!Array\.isArray\(v\.inventoryItem\?\.inventoryLevels\?\.nodes\)/);
+  assert.match(source,/typeof v\.inventoryItem\.inventoryLevels\.pageInfo\?\.hasNextPage!=='boolean'/);
+});
