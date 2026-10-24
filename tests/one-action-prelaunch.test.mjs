@@ -374,3 +374,10 @@ test('prelaunch reconciliation must explicitly verify all counts and completion'
   assert.match(source,/reconciliation\.body\?\.summary\?\.partial===false/);
   assert.doesNotMatch(source,/Number\(reconciliation\.body\?\.summary\?\.total\|\|0\)===0/);
 });
+
+test('prelaunch audit blocks incomplete shipping and active products',()=>{
+  const audit=fs.readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+  assert.match(audit,/nonDraftRows.length===0/);
+  assert.match(audit,/byKey.shipping_country!=='JP'/);
+  assert.match(audit,/Number.isFinite/);
+});
