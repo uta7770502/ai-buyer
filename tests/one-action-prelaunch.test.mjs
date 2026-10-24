@@ -381,3 +381,10 @@ test('prelaunch audit blocks incomplete shipping and active products',()=>{
   assert.match(audit,/byKey.shipping_country!=='JP'/);
   assert.match(audit,/Number.isFinite/);
 });
+
+test('one-action prelaunch reports non-draft product blockers explicitly',()=>{
+  const source=fs.readFileSync(new URL('../lib/routes/prelaunch-one-action.js',import.meta.url),'utf8');
+  assert.match(source,/audit\.body\.nonDraftCount>0/);
+  assert.match(source,/管理対象の商品が下書き以外になっています/);
+  assert.match(source,/nonDraftCount:Number\(audit\.body\?\.nonDraftCount\|\|0\)/);
+});
