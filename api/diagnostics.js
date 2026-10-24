@@ -106,7 +106,6 @@ async function previewCjStockAudit(req,res){
       const rr=await fetch(u,{headers:{'CJ-Access-Token':t},signal:AbortSignal.timeout(10000)});
       const jj=await rr.json().catch(()=>({}));
       const valid=rr.ok?validateCJStockResponse(jj):{ok:false,reason:'cj-http-error'};
-      const verified=Array.isArray(jj.data)?jj.data.filter(x=>x&&Number(x.verifiedWarehouse)===1):[];
       const total=valid.ok?valid.total:null;
       const available=valid.ok&&total>0;
       const dataShape=Array.isArray(jj.data)?'array':jj.data===null?'null':typeof jj.data;
@@ -116,7 +115,7 @@ async function previewCjStockAudit(req,res){
       rows.push({
         vid,ok:valid.ok,reason:valid.ok?null:valid.reason,
         status:!valid.ok?'unverified':available?'available':'out-of-stock',
-        verifiedWarehouseCount:verified.length,totalInventory:total,
+        warehouseRowCount:Array.isArray(jj.data)?jj.data.length:0,totalInventory:total,
         diagnostic:valid.ok?null:{
           httpStatus:rr.status,
           cjResult:jj.result===true?'true':jj.result===false?'false':'missing',
@@ -136,7 +135,7 @@ async function previewCjStockAudit(req,res){
       // Do not continue hitting CJ after a rate-limit response. Remaining SKUs stay unverified.
       if(rr.status===429){
         for(const remaining of vids.slice(rows.length)){
-          rows.push({vid:remaining,ok:false,reason:'cj-rate-limit-skipped',status:'unverified',verifiedWarehouseCount:0,totalInventory:null,diagnostic:{httpStatus:null,cjResult:'not-requested',cjCode:null,dataShape:'not-requested',warehouseRows:null,warehouseFlagValues:[]},available:false});
+          rows.push({vid:remaining,ok:false,reason:'cj-rate-limit-skipped',status:'unverified',warehouseRowCount:0,totalInventory:null,diagnostic:{httpStatus:null,cjResult:'not-requested',cjCode:null,dataShape:'not-requested',warehouseRows:null,warehouseFlagValues:[]},available:false});
         }
         break;
       }
