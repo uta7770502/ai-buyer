@@ -54,3 +54,12 @@ jobs:
           BODY="$(curl -fsS --max-time 180 "$URL")"
           printf '%s\\n' "$BODY"
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+
+      - name: Read CJ stock audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-stock-audit"
+          BODY="$(curl -fsS --max-time 180 "$URL")"
+          printf '%s\\n' "$BODY"
+          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
