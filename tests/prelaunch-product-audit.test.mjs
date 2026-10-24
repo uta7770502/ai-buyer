@@ -41,8 +41,10 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
   assert.equal(r.body.readyDrafts,1);
   assert.equal(r.body.blockedDrafts,1);
   assert.equal(r.body.allDraftsReady,false);
-  assert.ok(r.body.products[1].reasons.includes('SKU未設定'));
-  assert.ok(r.body.products[1].reasons.includes('商品画像なし'));
+  const blocked=r.body.products.find(p=>p.id==='gid://shopify/Product/2');
+  assert.ok(blocked?.reasons.includes('SKU未設定'));
+  assert.ok(blocked?.reasons.includes('商品画像なし'));
+  assert.equal(r.body.products[0].id,'gid://shopify/Product/2');
 });
 
 test('prelaunch product audit is admin protected',async()=>{
