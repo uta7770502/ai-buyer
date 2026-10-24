@@ -2,6 +2,7 @@ import automationHealth from '../lib/routes/automation-health.js';
 import automationOrderStatus from '../lib/routes/automation-order-status.js';
 import automationReconciliation from '../lib/routes/automation-reconciliation.js';
 import cjHealth from '../lib/routes/cj-health.js';
+import cjFreight from '../lib/routes/cj-freight.js';
 import shopifyFulfillmentSync from '../lib/routes/shopify-fulfillment-sync.js';
 import releaseReadiness from '../lib/routes/release-readiness.js';
 import shopifySandboxOrder from '../lib/routes/shopify-sandbox-order.js';
@@ -49,6 +50,37 @@ async function previewPrelaunchSummary(req,res){
   });
 }
 
+async function previewCjDraftAudit(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  if(!allowed)return res.status(404).json({ok:false});
+  const vids=[
+    '1421057421656330240','1657322876615274496','1641339380621119488',
+    '1637037130838978560','1380443011925807104','1443515898471256064',
+    '2408310600381614000','1416372414316679168','1763801727867822080'
+  ];
+  const rows=[];
+  for(const vid of vids){
+    const cap={code:200,headers:{},setHeader(k,v){this.headers[k]=v;return this},status(n){this.code=n;return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}};
+    await cjFreight({method:'GET',headers:{},query:{vid,destination:'JP'}},cap);
+    const b=cap.body||{};
+    rows.push({
+      vid,
+      ok:cap.code===200&&b.ok===true,
+      shippingJpy:Number.isFinite(Number(b.shippingCostJpy))?Number(b.shippingCostJpy):null,
+      shippingVerified:b.shippingJpyVerified===true,
+      optionCount:Array.isArray(b.options)?b.options.length:0,
+      error:cap.code===200&&b.ok===true?null:String(b.code||b.error||'CJ lookup failed').slice(0,120)
+    });
+  }
+  return res.status(200).json({
+    ok:true,readOnly:true,checkedAt:new Date().toISOString(),
+    total:rows.length,passed:rows.filter(x=>x.ok).length,failed:rows.filter(x=>!x.ok).length,
+    rows
+  });
+}
+
 function deploymentInfo(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -58,6 +90,7 @@ function deploymentInfo(req,res){
 const handlers={
   'deployment-info':deploymentInfo,
   'preview-prelaunch-summary':previewPrelaunchSummary,
+  'preview-cj-draft-audit':previewCjDraftAudit,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,
