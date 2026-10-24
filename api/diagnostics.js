@@ -3,6 +3,7 @@ import automationOrderStatus from '../lib/routes/automation-order-status.js';
 import automationReconciliation from '../lib/routes/automation-reconciliation.js';
 import cjHealth from '../lib/routes/cj-health.js';
 import cjFreight from '../lib/routes/cj-freight.js';
+import cjShopifyStockSync from '../lib/routes/cj-shopify-stock-sync.js';
 import shopifyFulfillmentSync from '../lib/routes/shopify-fulfillment-sync.js';
 import releaseReadiness from '../lib/routes/release-readiness.js';
 import shopifySandboxOrder from '../lib/routes/shopify-sandbox-order.js';
@@ -126,6 +127,7 @@ const handlers={
   'preview-prelaunch-summary':previewPrelaunchSummary,
   'preview-cj-draft-audit':previewCjDraftAudit,
   'preview-cj-stock-audit':previewCjStockAudit,
+  'cj-shopify-stock-sync':cjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,
