@@ -151,3 +151,10 @@ test('apply mode preflights every variant SKU and inventory policy before suppli
   assert.match(source,/blockedVariants:invalidVariants\.length/);
   assert.ok(source.indexOf('const invalidVariants=')<source.indexOf('const token=await cjToken();'));
 });
+
+test('apply mode validates every inventory target before requesting supplier stock',()=>{
+  assert.match(source,/const invalidTargets=products\.flatMap\(p=>p\.variants\.nodes\)/);
+  assert.match(source,/Inventory audit contains unverified inventory targets/);
+  assert.match(source,/blockedVariants:invalidTargets\.length/);
+  assert.ok(source.indexOf('const invalidTargets=')<source.indexOf('const token=await cjToken();'));
+});
