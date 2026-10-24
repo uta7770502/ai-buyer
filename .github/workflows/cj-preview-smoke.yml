@@ -55,7 +55,10 @@ jobs:
           printf '%s\\n' "$BODY"
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
 
+      # CJ stock requests are rate-limited. Run this audit only on explicit manual dispatch,
+      # not on every development push. This avoids exhausting the CJ quota during iteration.
       - name: Read CJ stock audit
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
