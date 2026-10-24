@@ -1,0 +1,25 @@
+name: ODDLY safety and profit tests
+on:
+  push:
+    branches: [safety-gate-20261024]
+  pull_request:
+    paths:
+      - 'api/shopify-publish.js'
+      - 'lib/profit-estimate.js'
+      - 'tests/**'
+      - '.github/workflows/oddly-tests.yml'
+permissions:
+  contents: read
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check profit calculator syntax
+        run: node --check lib/profit-estimate.js
+      - name: Run safety and profit tests
+        run: node --test tests/safety-gate.test.mjs tests/profit-estimate.test.mjs tests/cj-freight-quote.test.mjs tests/cj-profit-preview.test.mjs tests/server-fx.test.mjs tests/server-profit-from-freight.test.mjs tests/cj-monitor-inventory.test.mjs tests/cj-shopify-stock-sync-safety.test.mjs tests/cj-stock-validation.test.mjs tests/release-readiness-progress.test.mjs tests/sandbox-fulfillment-safety.test.mjs

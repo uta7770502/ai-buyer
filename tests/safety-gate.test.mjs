@@ -1,0 +1,53 @@
+// Run with: node --test tests/safety-gate.test.mjs
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+
+const source=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+function extractRegex(variable){
+  const match=source.match(new RegExp('const '+variable+'=(\\/.*?\\/[a-z]*)\\.test\\(safetySource\\)'));
+  assert.ok(match,'Missing '+variable+' expression');
+  const literal=match[1];
+  const lastSlash=literal.lastIndexOf('/');
+  return new RegExp(literal.slice(1,lastSlash),literal.slice(lastSlash+1));
+}
+test('blocked products include pesticide and electric shock collars',()=>{
+  const rules=[...source.matchAll(/\{re:\/(.*?)\/i,reason:/g)].map(m=>new RegExp(m[1],'i'));
+  assert.ok(rules.some(rule=>rule.test('pesticide spray')));
+  assert.ok(rules.some(rule=>rule.test('electric shock collar')));
+  assert.ok(rules.every(rule=>!rule.test('ceramic feeding bowl')));
+  assert.match(source,/safetyBlocked:true/);
+});
+test('battery and pet food are flagged for review',()=>{
+  const rule=extractRegex('safetyReview');
+  assert.equal(rule.test('electric battery toy'),true);
+  assert.equal(rule.test('pet food'),true);
+  assert.equal(rule.test('電動おもちゃ'),true);
+  assert.equal(rule.test('ordinary ceramic bowl'),false);
+});
+test('review data cannot be verified from browser input',()=>{
+  assert.match(source,/const reviewsVerified=false;/);
+  assert.match(source,/if\(!reviewsVerified\)safetyReasons\.push\('レビュー根拠が未確認'\)/);
+  assert.match(source,/if\(p\.publishApproved===true&&!safetyReady\)/);
+});
+test('new Shopify products are drafts by default',()=>{
+  assert.match(source,/vendor,status:'DRAFT',tags:productTags/);
+});
+
+test('Shopify SKU dedupe checks all statuses and blocks live/archived matches',()=>{
+ assert.match(source,/\{q:'sku:'\+cj\.vid\}/);
+ assert.match(source,/matchingProducts\.some\(v=>v\.status==='ACTIVE'\|\|v\.status==='ARCHIVED'\)/);
+ assert.match(source,/status:'DRAFT'/);
+});
+
+test('multivariant CJ products require an explicit exact variant ID',()=>{
+ assert.match(source,/validVariants\.length>1&&!selected/);
+ assert.match(source,/validVariants\.find\(x=>String\(x\.vid\|\|x\.id\|\|x\.variantId\)===selected\)/);
+ assert.match(source,/cjVariant\(p\.cjProductId\|\|p\.id,p\.cjVariantId\|\|p\.vid\)/);
+});
+
+test('Shopify stop and resume verify returned product status',()=>{
+ const source=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+ assert.match(source,/d\.productUpdate\?\.product\?\.status!==status/);
+ assert.match(source,/Shopify商品ステータスの反映確認に失敗しました/);
+});

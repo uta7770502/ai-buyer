@@ -20,8 +20,8 @@ function aioMetafields(p,ownerId,title,description){
   const shortDescriptionJa=clean(p.shortDescriptionJa||p.adpsShortDescriptionJa,240);
   if(shortTitleJa)rows.push({ownerId,namespace:'custom',key:'adps_short_title_ja',type:'single_line_text_field',value:shortTitleJa});
   if(shortDescriptionJa)rows.push({ownerId,namespace:'custom',key:'adps_short_description_ja',type:'single_line_text_field',value:shortDescriptionJa});
-  const shippingPrice=Number(p.shippingPriceJpy);
-  if(Number.isFinite(shippingPrice)&&shippingPrice>=0)rows.push({ownerId,namespace:'custom',key:'shipping_price_jpy',type:'number_decimal',value:String(shippingPrice)});
+  // CJ shipping quote integration is not yet server-verified.
+  // Do not persist a client-supplied estimate as a confirmed shipping cost.
   const shippingCountry=clean(p.shippingCountry,2).toUpperCase();
   if(/^[A-Z]{2}$/.test(shippingCountry))rows.push({ownerId,namespace:'custom',key:'shipping_country',type:'single_line_text_field',value:shippingCountry});
   const returnDays=Number(p.returnDays);
@@ -71,7 +71,7 @@ async function cjToken(){
   const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');
   cjCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return cjCache.token;
 }
-async function cjVariant(productId){
+async function cjVariant(productId,selectedVariantId){
   if(!productId)throw Error('CJ商品IDが不足しています');
   const u=new URL('https://developers.cjdropshipping.com/api2.0/v1/product/query');u.searchParams.set('pid',String(productId));
   let r,j;
@@ -83,8 +83,14 @@ async function cjVariant(productId){
   }
   if(!r.ok||j.result!==true)throw Error(j.message||'CJ商品情報を取得できません');
   const p=j.data||{},vs=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
-  const v=vs.find(x=>x&&(x.vid||x.id||x.variantId));
-  if(!v)throw Error('CJバリエーションIDを取得できません');
+  const validVariants=vs.filter(x=>x&&(x.vid||x.id||x.variantId));
+  if(!vs.length||validVariants.length!==vs.length)throw Error('CJの商品バリエーション情報が不足しています。Shopify登録を保留します');
+  const variantIds=validVariants.map(x=>String(x.vid||x.id||x.variantId));
+  if(new Set(variantIds).size!==variantIds.length)throw Error('CJの商品バリエーションIDが重複しています。Shopify登録を保留します');
+  const selected=String(selectedVariantId||'').trim();
+  if(validVariants.length>1&&!selected)throw Error('CJ商品に複数バリエーションがあります。販売する色・サイズを選択してください');
+  const v=selected?validVariants.find(x=>String(x.vid||x.id||x.variantId)===selected):validVariants[0];
+  if(!v)throw Error('選択したCJバリエーションIDが商品に存在しません');
   // Supplier data is authoritative only for fields actually returned by CJ.
   const rawImages=[p.productImage,p.productImageUrl,p.bigImage,p.image,...(Array.isArray(p.productImages)?p.productImages:[]),...(Array.isArray(p.images)?p.images:[])];
   const extractImages=rawImages.flatMap(x=>{
@@ -501,6 +507,7 @@ export default async function handler(req,res){
       const targetProduct=verified.product;
       if(!targetProduct||!['ODDLY','AI BUYER'].includes(String(targetProduct.vendor||'')))return res.status(403).json({ok:false,error:'ODDLY管理対象の商品ではありません'});
       if(targetProduct.variants?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'バリエーション照合が不完全なため同期を停止します'});
+      if(syncAction==='stop'&&targetProduct.status==='DRAFT')return res.status(200).json({ok:true,sync:true,action:'stop',status:'DRAFT',alreadyStopped:true});
       if(syncAction==='price'){
         if(!/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(variantId)||!Number.isFinite(syncPrice)||syncPrice<=0)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
         if(!(targetProduct.variants?.nodes||[]).some(v=>v.id===variantId))return res.status(403).json({ok:false,error:'商品とバリエーションIDが一致しません'});
@@ -515,6 +522,7 @@ export default async function handler(req,res){
       const status=syncAction==='stop'?'DRAFT':'ACTIVE';
       const d=await gql(shop,token,'mutation UpdateProduct($product: ProductUpdateInput!) { productUpdate(product:$product) { product { id status } userErrors { field message } } }',{product:{id:productId,status}});
       const errs=d.productUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
+      if(d.productUpdate?.product?.status!==status)throw Error('Shopify商品ステータスの反映確認に失敗しました');
       if(syncAction==='resume'){
         const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
         const nodes=pubs.publications?.nodes||[];
@@ -530,7 +538,7 @@ export default async function handler(req,res){
     let title=clean(p.title||p.name,255);
     const vendor=clean('ODDLY',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
-    const cj=await cjVariant(p.cjProductId||p.id);
+    const cj=await cjVariant(p.cjProductId||p.id,p.cjVariantId||p.vid);
     // Translate supplier facts, not only the generic frontend placeholder description.
     // Preserve a Japanese description deliberately written by the merchant.
     const hasJapanese=s=>/[ぁ-んァ-ヶ一-龠]/.test(String(s||''));
@@ -570,22 +578,55 @@ export default async function handler(req,res){
     // and does not replace supplier documentation or a formal compliance review.
     const safetySource=[cj.supplierTitle,cj.supplierDescription,p.name,p.category].filter(Boolean).join(' ').toLowerCase();
     const safetyRules=[
-      {re:/\\b(pesticide|insecticide|rodenticide|poison|toxic bait|rat poison|flea medicine|dewormer|antibiotic|prescription|sedative)\\b|殺虫剤|駆虫薬|医薬品|毒餌/i,reason:'医薬品・農薬・有害物質の可能性'},
-      {re:/\\b(electric shock|shock collar|prong collar|choke collar|spiked collar)\\b|電気ショック|スパイク首輪/i,reason:'動物への危害リスク'},
-      {re:/\\b(cbd|thc|cannabis|marijuana|nicotine|vape)\\b/i,reason:'規制対象成分の可能性'},
-      {re:/\\b(laser pointer|high.power laser)\\b/i,reason:'レーザー製品の安全性未確認'}
+      {re:/\b(pesticide|insecticide|rodenticide|poison|toxic bait|rat poison|flea medicine|dewormer|antibiotic|prescription|sedative)\b|殺虫剤|駆虫薬|医薬品|毒餌/i,reason:'医薬品・農薬・有害物質の可能性'},
+      {re:/\b(electric shock|shock collar|prong collar|choke collar|spiked collar)\b|電気ショック|スパイク首輪/i,reason:'動物への危害リスク'},
+      {re:/\b(cbd|thc|cannabis|marijuana|nicotine|vape)\b/i,reason:'規制対象成分の可能性'},
+      {re:/\b(laser pointer|high.power laser)\b/i,reason:'レーザー製品の安全性未確認'}
     ];
     const blocked=safetyRules.find(rule=>rule.re.test(safetySource));
     if(blocked)return res.status(422).json({ok:false,safetyBlocked:true,error:'安全審査で保留：'+blocked.reason+'。仕入先の証明を確認するまでShopify登録を停止します。'});
-    const safetyReview=/\\b(battery|lithium|usb charger|heated|heating|electrical|electric|edible|chew|food|treat|supplement|collar|harness)\\b|電池|充電|発熱|電動|おやつ|食品|サプリ|首輪|ハーネス/i.test(safetySource);
-    const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[]),...(safetyReview?['要安全確認']:[])];
+    const safetyReview=/\b(battery|lithium|usb charger|heated|heating|electrical|electric|edible|chew|food|treat|supplement|collar|harness)\b|電池|充電|発熱|電動|おやつ|食品|サプリ|首輪|ハーネス/i.test(safetySource);
+    // Publication readiness is independent of permission to save a Shopify DRAFT.
+    // Missing review evidence must never be interpreted as a positive safety score.
+    // CJ review evidence must come from an independently verified server response.
+    // Until that integration exists, treat all ratings as unknown rather than
+    // trusting values sent by the browser.
+    const reviewsVerified=false;
+    const reviewCount=null;
+    const averageRating=null;
+    const lowRatingShare=null;
+    const safetyReasons=[];
+    if(!reviewsVerified)safetyReasons.push('レビュー根拠が未確認');
+    else {
+      if(reviewCount<10)safetyReasons.push('レビュー件数が不足');
+      if(averageRating<4)safetyReasons.push('平均評価が4.0未満');
+      if(lowRatingShare>0.2)safetyReasons.push('低評価レビュー率が高い');
+    }
+    if(safetyReview)safetyReasons.push('ペット用品の安全資料・使用上の注意を要確認');
+    if(!cj.supplierDescription)safetyReasons.push('仕入先の商品説明が不足');
+    if(!cj.supplierImages.length)safetyReasons.push('仕入先の商品画像が不足');
+    if(needsCopyReview)safetyReasons.push('日本語の商品情報が未確認');
+    // Never trust a client-supplied readiness flag to bypass these checks.
+    // Drafts are allowed for inspection; publication is denied unless review
+    // evidence is independently verified on the server and all checks pass.
+    // Japan shipping must be supported by verified supplier/fulfillment data.
+    // A browser-provided shipping estimate is not proof of CJ's actual cost.
+    const japanShippingVerified=false; // pending independent CJ quote verification; client flags never authorize publication
+    if(!japanShippingVerified)safetyReasons.push('日本向け送料の仕入先確認が未完了');
+    const safetyReady=safetyReasons.length===0;
+    if(p.publishApproved===true&&!safetyReady)
+      return res.status(409).json({ok:false,status:'DRAFT',publicationBlocked:true,
+        safetyReady:false,safetyReasons,error:'安全・商品情報の確認が完了していないため公開できません。'});
+    const productTags=['ODDLY',...(category?[category]:[]),...(needsCopyReview?['要日本語確認']:[]),...(!safetyReady?['要安全確認']:[])];
     // Reuse an existing AI BUYER draft to avoid duplicates after partial failures.
     // Prefer the CJ variant ID stored as the Shopify SKU; fall back to title only for older drafts.
-    const skuMatches=await gql(shop,token,'query ExistingDraftsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'status:draft sku:'+cj.vid});
+    const skuMatches=await gql(shop,token,'query ExistingProductsBySku($q:String!){ products(first:30,query:$q){nodes{id title handle status vendor variants(first:100){nodes{id sku}pageInfo{hasNextPage}}}pageInfo{hasNextPage}} }',{q:'sku:'+cj.vid});
     if(!skuMatches.products||!Array.isArray(skuMatches.products.nodes)||typeof skuMatches.products.pageInfo?.hasNextPage!=='boolean')return res.status(502).json({ok:false,error:'Shopifyの商品検索結果を検証できません。出品を停止します。'});
     if(skuMatches.products?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'既存商品の検索結果が多すぎます。重複確認が完了するまで出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>!v||typeof v!=='object'||!Array.isArray(v.variants?.nodes)||typeof v.variants?.pageInfo?.hasNextPage!=='boolean'))return res.status(502).json({ok:false,error:'Shopifyの商品バリエーション情報が不完全です。出品を停止します。'});
     if(skuMatches.products.nodes.some(v=>v.variants?.pageInfo?.hasNextPage))return res.status(409).json({ok:false,error:'商品バリエーションの照合が完了していません。出品を停止します。'});
+    const matchingProducts=skuMatches.products.nodes.filter(v=>['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
+    if(matchingProducts.some(v=>v.status==='ACTIVE'||v.status==='ARCHIVED'))return res.status(409).json({ok:false,error:'同じCJバリエーションIDの商品が公開中またはアーカイブに存在します。重複登録を停止し、Shopifyで確認してください。'});
     const matchingDrafts=skuMatches.products.nodes.filter(v=>v.status==='DRAFT'&&['AI BUYER','ODDLY'].includes(v.vendor)&&(v.variants?.nodes||[]).some(n=>String(n.sku||'')===String(cj.vid)));
     if(matchingDrafts.length>1)return res.status(409).json({ok:false,error:'同じCJバリエーションIDの下書きが複数あります。Shopifyで重複を確認してください。'});
     const existing=matchingDrafts[0]||null;
@@ -605,7 +646,7 @@ export default async function handler(req,res){
     }
     if(ce.userErrors?.length||!ce.product)throw Error(ce.userErrors?.map(x=>x.message).join(' / ')||'商品作成に失敗しました');
     const variantId=ce.product.variants?.nodes?.[0]?.id;if(!variantId)throw Error('Shopify variant IDを取得できませんでした');
-    const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),inventoryItem:{sku:cj.vid,tracked:false}}]});
+    const update=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId:ce.product.id,variants:[{id:variantId,price:String(Math.round(price)),inventoryItem:{sku:cj.vid,tracked:true}}]});
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
     const updatedVariant=update.productVariantsBulkUpdate?.productVariants?.[0];
     const confirmedPrice=Number(updatedVariant?.price);
@@ -622,7 +663,7 @@ export default async function handler(req,res){
     if(!metadataReady){if(formPublish)return res.redirect(303,'/?publish=error&reason=metadata');return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});}
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
-    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});}
+    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,safetyReady,safetyReasons,reviewEvidenceVerified:reviewsVerified,japanShippingVerified,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId});}
     // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];

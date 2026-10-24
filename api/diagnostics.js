@@ -2,6 +2,8 @@ import automationHealth from '../lib/routes/automation-health.js';
 import automationOrderStatus from '../lib/routes/automation-order-status.js';
 import automationReconciliation from '../lib/routes/automation-reconciliation.js';
 import cjHealth from '../lib/routes/cj-health.js';
+import cjFreight from '../lib/routes/cj-freight.js';
+import cjShopifyStockSync from '../lib/routes/cj-shopify-stock-sync.js';
 import shopifyFulfillmentSync from '../lib/routes/shopify-fulfillment-sync.js';
 import releaseReadiness from '../lib/routes/release-readiness.js';
 import shopifySandboxOrder from '../lib/routes/shopify-sandbox-order.js';
@@ -23,7 +25,109 @@ function shopifyEnvCheck(req,res){
   return res.status(200).json({ok:true,shopConfigured:Boolean(rawShop),allowedConfigured:Boolean(rawAllowed),normalizedShop:shop,expectedAllowedDomain:expected,normalizedAllowedDomain:rawAllowed,validShop,validAllowed,matches:Boolean(validShop&&validAllowed&&expected===rawAllowed)});
 }
 
+async function previewPrelaunchSummary(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  if(!allowed)return res.status(404).json({ok:false});
+  const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
+  if(!admin)return res.status(503).json({ok:false,error:'Preview admin key missing'});
+  const capture={code:200,status(n){this.code=n;return this},setHeader(){return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}};
+  await prelaunchOneAction({method:'POST',headers:{authorization:'Bearer '+admin},query:{},body:{}},capture);
+  const b=capture.body||{};
+  return res.status(capture.code===200?200:503).json({
+    ok:capture.code===200&&b.ok===true,
+    readyToFinalManualStep:Boolean(b.readyToFinalManualStep),
+    checkedAt:b.checkedAt||new Date().toISOString(),
+    checks:b.checks||{},
+    blockers:Array.isArray(b.blockers)?b.blockers.slice(0,20):[],
+    warnings:Array.isArray(b.warnings)?b.warnings.slice(0,20):[],
+    productAudit:{
+      draftCount:Number(b.productAudit?.draftCount||0),
+      readyDrafts:Number(b.productAudit?.readyDrafts||0),
+      blockedDrafts:Number(b.productAudit?.blockedDrafts||0)
+    },
+    reconciliation:b.reconciliation?{total:Number(b.reconciliation.total||0),partial:Boolean(b.reconciliation.partial)}:null
+  });
+}
+
+async function previewCjDraftAudit(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  if(!allowed)return res.status(404).json({ok:false});
+  const vids=[
+    '1421057421656330240','1657322876615274496','1641339380621119488',
+    '1637037130838978560','1380443011925807104','1443515898471256064',
+    '2408310600381614000','1416372414316679168','1763801727867822080'
+  ];
+  const rows=[];
+  for(const vid of vids){
+    const cap={code:200,headers:{},setHeader(k,v){this.headers[k]=v;return this},status(n){this.code=n;return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}};
+    await cjFreight({method:'GET',headers:{},query:{vid,destination:'JP'}},cap);
+    const b=cap.body||{};
+    rows.push({
+      vid,
+      ok:cap.code===200&&b.ok===true,
+      shippingJpy:Number.isFinite(Number(b.shippingCostJpy))?Number(b.shippingCostJpy):null,
+      shippingVerified:b.shippingJpyVerified===true,
+      optionCount:Array.isArray(b.options)?b.options.length:0,
+      error:cap.code===200&&b.ok===true?null:String(b.code||b.error||'CJ lookup failed').slice(0,120)
+    });
+  }
+  return res.status(200).json({
+    ok:true,readOnly:true,checkedAt:new Date().toISOString(),
+    total:rows.length,passed:rows.filter(x=>x.ok).length,failed:rows.filter(x=>!x.ok).length,
+    rows
+  });
+}
+
+async function previewCjStockAudit(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  if(!allowed)return res.status(404).json({ok:false});
+  const vids=[
+    '1421057421656330240','1657322876615274496','1641339380621119488',
+    '1637037130838978560','1380443011925807104','1443515898471256064',
+    '2408310600381614000','1416372414316679168','1763801727867822080'
+  ];
+  const BASE='https://developers.cjdropshipping.com/api2.0/v1';
+  async function token(){
+    if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
+    const rr=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(10000)});
+    const jj=await rr.json();if(!rr.ok||jj.result!==true||!jj.data?.accessToken)throw Error('CJ auth failed');return jj.data.accessToken;
+  }
+  try{
+    const t=await token(),rows=[];
+    for(const vid of vids){
+      const u=new URL(BASE+'/product/stock/queryByVid');u.searchParams.set('vid',vid);
+      const rr=await fetch(u,{headers:{'CJ-Access-Token':t},signal:AbortSignal.timeout(10000)});
+      const jj=await rr.json().catch(()=>({}));
+      const items=Array.isArray(jj.data)?jj.data:[];
+      const verified=items.filter(x=>Number(x.verifiedWarehouse)===1);
+      const total=verified.reduce((n,x)=>n+Math.max(0,Number(x.totalInventoryNum??x.totalInventory??0)||0),0);
+      const cj=verified.reduce((n,x)=>n+Math.max(0,Number(x.cjInventoryNum??x.cjInventory??0)||0),0);
+      const factory=verified.reduce((n,x)=>n+Math.max(0,Number(x.factoryInventoryNum??x.factoryInventory??0)||0),0);
+      rows.push({vid,ok:rr.ok&&jj.result===true,verifiedWarehouseCount:verified.length,totalInventory:total,cjInventory:cj,factoryInventory:factory,available:total>0});
+      await new Promise(r=>setTimeout(r,650));
+    }
+    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.available).length,unavailable:rows.filter(x=>!x.available).length,rows});
+  }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
+}
+
+function deploymentInfo(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const sha=String(process.env.VERCEL_GIT_COMMIT_SHA||'');
+  return res.status(200).json({ok:true,deployedAt:null,commitSha:/^[a-f0-9]{40}$/.test(sha)?sha.slice(0,7):null,deploymentTimeAvailable:false});
+}
 const handlers={
+  'deployment-info':deploymentInfo,
+  'preview-prelaunch-summary':previewPrelaunchSummary,
+  'preview-cj-draft-audit':previewCjDraftAudit,
+  'preview-cj-stock-audit':previewCjStockAudit,
+  'cj-shopify-stock-sync':cjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,

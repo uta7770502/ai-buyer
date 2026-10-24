@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import audit from '../lib/routes/prelaunch-product-audit.js';
@@ -48,4 +49,10 @@ test('prelaunch product audit is admin protected',async()=>{
   const r=res();
   await audit({method:'GET',headers:{},query:{}},r);
   assert.equal(r.code,401);
+});
+
+test('prelaunch audit never approves partial scans or multiple variants without individual checks',()=>{
+ const source=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+ assert.match(source,/allDraftsReady:!more&&draftRows\.length>0&&notReady\.length===0/);
+ assert.match(source,/p\.variants\?\.nodes\|\|\[\]\)\.length!==1/);
 });
