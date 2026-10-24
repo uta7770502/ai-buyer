@@ -59,7 +59,7 @@ test('stock sync stops before writes if product, variant or location pagination 
   assert.match(source,/pageInfo\{hasNextPage\}/);
   assert.match(source,/data\?\.products\?\.pageInfo\?\.hasNextPage/);
   assert.match(source,/p\.variants\?\.pageInfo\?\.hasNextPage/);
-  assert.match(source,/v\.inventoryItem\?\.inventoryLevels\?\.pageInfo\?\.hasNextPage/);
+  assert.match(source,/v\.inventoryItem\.inventoryLevels\.pageInfo\.hasNextPage/);
   assert.match(source,/Inventory audit incomplete: pagination required before stock sync/);
   assert.ok(source.indexOf('const incomplete=')<source.indexOf('for(const p of products)'));
 });
