@@ -28,3 +28,9 @@ test('tracking sync only accepts verified paid uncancelled test orders and refus
   assert.match(tracking,/automaticRetry:false/);
   assert.match(tracking,/notifyCustomer:false/);
 });
+
+test('fulfillment sync never creates fulfillment for non-test Shopify orders',()=>{
+  assert.match(fulfillment,/data\.order\.test!==true/);
+  assert.doesNotMatch(fulfillment,/data\.order\.test!==true\s*&&\s*!localSandboxValidation/);
+  assert.match(fulfillment,/Only paid, uncancelled Shopify test orders may be synchronized/);
+});
