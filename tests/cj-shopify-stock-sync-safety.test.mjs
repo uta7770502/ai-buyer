@@ -79,3 +79,10 @@ test('stock sync requires complete Shopify connection metadata before mutation',
   assert.match(source,/!Array\.isArray\(v\.inventoryItem\?\.inventoryLevels\?\.nodes\)/);
   assert.match(source,/typeof v\.inventoryItem\.inventoryLevels\.pageInfo\?\.hasNextPage!=='boolean'/);
 });
+
+test('stock sync summary counts confirmed applied stock as synchronized',()=>{
+  assert.match(source,/effectiveShopifyStock:applied\?stock\.total:current/);
+  assert.match(source,/x\.cjStock===x\.effectiveShopifyStock/);
+  assert.match(source,/x\.cjStock!==x\.effectiveShopifyStock/);
+  assert.doesNotMatch(source,/x\.cjStock!==x\.shopifyStock/);
+});
