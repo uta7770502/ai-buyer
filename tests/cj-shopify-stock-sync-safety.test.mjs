@@ -46,3 +46,11 @@ test('only draft ODDLY or AI BUYER products are targeted',()=>{
   assert.match(source,/vendor:ODDLY/);
   assert.match(source,/AI BUYER/);
 });
+
+test('stock sync refuses unsafe inventory policy and unverified current quantities',()=>{
+  assert.match(source,/v\.inventoryPolicy!=='DENY'/);
+  assert.match(source,/inventory-policy-not-deny/);
+  assert.match(source,/Number\.isSafeInteger\(rawCurrent\)/);
+  assert.match(source,/shopify-stock-unverified/);
+  assert.doesNotMatch(source,/quantity\|\|0/);
+});
