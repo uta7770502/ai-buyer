@@ -17,8 +17,8 @@ test('stock sync requires admin authorization',()=>{
 });
 
 test('stock sync uses verified CJ warehouse inventory only',()=>{
-  assert.match(source,/verifiedWarehouse\)===1/);
-  assert.match(source,/totalInventoryNum\?\?x\.totalInventory/);
+  assert.match(source,/validateCJStockResponse\(j\)/);
+  assert.match(source,/cj-stock-validation\.js/);
 });
 
 test('stock sync refuses ambiguous or missing Shopify inventory locations',()=>{
