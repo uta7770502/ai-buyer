@@ -122,3 +122,9 @@ test('stock sync refuses missing or duplicate available inventory quantities',()
   assert.match(source,/available\.length!==1/);
   assert.match(source,/const rawCurrent=available\[0\]\.quantity/);
 });
+
+test('stock sync exposes incomplete row audits explicitly',()=>{
+  assert.match(source,/partial:rows\.some\(x=>!x\.ok\)/);
+  assert.match(source,/allVerified:rows\.every\(x=>x\.ok\)/);
+  assert.match(source,/blocked:rows\.filter\(x=>!x\.ok\)\.length/);
+});
