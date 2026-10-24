@@ -45,3 +45,12 @@ jobs:
             exit 1
           fi
           printf '%s\\n' "$BODY"
+
+      - name: Read CJ draft audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-draft-audit"
+          BODY="$(curl -fsS --max-time 180 "$URL")"
+          printf '%s\\n' "$BODY"
+          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
