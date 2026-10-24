@@ -81,6 +81,40 @@ async function previewCjDraftAudit(req,res){
   });
 }
 
+async function previewCjStockAudit(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  if(!allowed)return res.status(404).json({ok:false});
+  const vids=[
+    '1421057421656330240','1657322876615274496','1641339380621119488',
+    '1637037130838978560','1380443011925807104','1443515898471256064',
+    '2408310600381614000','1416372414316679168','1763801727867822080'
+  ];
+  const BASE='https://developers.cjdropshipping.com/api2.0/v1';
+  async function token(){
+    if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
+    const rr=await fetch(BASE+'/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(10000)});
+    const jj=await rr.json();if(!rr.ok||jj.result!==true||!jj.data?.accessToken)throw Error('CJ auth failed');return jj.data.accessToken;
+  }
+  try{
+    const t=await token(),rows=[];
+    for(const vid of vids){
+      const u=new URL(BASE+'/product/stock/queryByVid');u.searchParams.set('vid',vid);
+      const rr=await fetch(u,{headers:{'CJ-Access-Token':t},signal:AbortSignal.timeout(10000)});
+      const jj=await rr.json().catch(()=>({}));
+      const items=Array.isArray(jj.data)?jj.data:[];
+      const verified=items.filter(x=>Number(x.verifiedWarehouse)===1);
+      const total=verified.reduce((n,x)=>n+Math.max(0,Number(x.totalInventoryNum??x.totalInventory??0)||0),0);
+      const cj=verified.reduce((n,x)=>n+Math.max(0,Number(x.cjInventoryNum??x.cjInventory??0)||0),0);
+      const factory=verified.reduce((n,x)=>n+Math.max(0,Number(x.factoryInventoryNum??x.factoryInventory??0)||0),0);
+      rows.push({vid,ok:rr.ok&&jj.result===true,verifiedWarehouseCount:verified.length,totalInventory:total,cjInventory:cj,factoryInventory:factory,available:total>0});
+      await new Promise(r=>setTimeout(r,650));
+    }
+    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.available).length,unavailable:rows.filter(x=>!x.available).length,rows});
+  }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
+}
+
 function deploymentInfo(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -91,6 +125,7 @@ const handlers={
   'deployment-info':deploymentInfo,
   'preview-prelaunch-summary':previewPrelaunchSummary,
   'preview-cj-draft-audit':previewCjDraftAudit,
+  'preview-cj-stock-audit':previewCjStockAudit,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,
