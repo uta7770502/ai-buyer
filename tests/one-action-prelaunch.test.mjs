@@ -397,3 +397,12 @@ test('product audit fails closed if Shopify connection data is incomplete',()=>{
   assert.match(source,/Array\.isArray\(p\.metafields\?\.nodes\)/);
   assert.match(source,/監査データが不足しています/);
 });
+
+
+test('draft audit fails closed on GraphQL error envelopes and unapproved vendors',()=>{
+ const audit=fs.readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+ assert.match(audit,/Object\.hasOwn\(j,'errors'\)/);
+ assert.match(audit,/!j\.data\|\|typeof j\.data!=='object'/);
+ assert.match(audit,/!\['ODDLY','AI BUYER'\]\.includes\(p\.vendor\)/);
+ assert.match(audit,/管理対象外の販売元です/);
+});
