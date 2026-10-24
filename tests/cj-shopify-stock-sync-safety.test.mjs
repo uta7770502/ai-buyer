@@ -131,3 +131,9 @@ test('stock sync exposes incomplete row audits explicitly',()=>{
   assert.match(summarySource,/noAuditableVariants:rows\.length===0/);
   assert.match(summarySource,/allVerified:rows\.length>0&&blocked===0/);
 });
+
+test('empty Shopify stock audit returns without requesting a CJ token',()=>{
+  assert.match(source,/if\(products\.length===0\)/);
+  assert.match(source,/\.\.\.summarizeStockAudit\(\[\]\),rows:\[\]/);
+  assert.ok(source.indexOf('if(products.length===0)')<source.indexOf('const token=await cjToken();'));
+});
