@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/cj-status",
+      "destination": "/cj-status.html"
+    },
+    {
       "source": "/policies",
       "destination": "/policies.html"
     },
