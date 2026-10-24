@@ -59,3 +59,10 @@ test('stale CJ shipping verification cannot finalize profit',()=>{
 test('future-dated shipping verification cannot finalize profit',()=>{
  assert.equal(estimateProfit({...base,shippingVerifiedAt:new Date(Date.now()+60*60*1000).toISOString()}).ready,false);
 });
+
+test('extreme numeric overflow never produces a finalized profit',()=>{
+  const r=estimateProfit({...base,salePriceJpy:1e308,productCostJpy:1e308,shippingCostJpy:1e308});
+  assert.equal(r.ready,false);
+  assert.equal(r.profitJpy,null);
+  assert.equal(r.marginPercent,null);
+});
