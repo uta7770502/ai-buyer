@@ -37,7 +37,9 @@ test('inventory writes use compare-and-swap protection and stay on available qua
 });
 
 test('supplier stock failures never write a zero to Shopify',()=>{
-  assert.match(source,/if\(!stock\.ok\).*cj-stock-unavailable/);
+  assert.match(source,/if\(!stock\.ok\)\s*\{[\s\S]*?cj-stock-unavailable/);
+  assert.match(source,/if\(stock\.reason==='cj-rate-limited'\)cjRateLimited=true/);
+  assert.match(source,/if\(cjRateLimited\)/);
   const failureIndex=source.indexOf("cj-stock-unavailable");
   const mutationIndex=source.indexOf("inventorySetQuantities(input:$input)");
   assert.ok(failureIndex>-1&&mutationIndex>-1);
