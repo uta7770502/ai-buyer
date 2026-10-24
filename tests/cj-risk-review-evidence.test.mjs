@@ -22,3 +22,8 @@ test('risk scorer rejects internally inconsistent rating counts',()=>{
  assert.match(source,/reason:'review-counts-invalid'/);
  assert.match(source,/low\+mid>total/);
 });
+
+test('average CJ rating below 4.0 is excluded explicitly',()=>{
+ assert.match(source,/rating<4\.0/);
+ assert.match(source,/reason:'rating-below-four'/);
+});
