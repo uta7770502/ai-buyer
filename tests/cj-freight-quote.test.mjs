@@ -47,3 +47,8 @@ test('freight endpoint refuses CJ variants with missing IDs',()=>{
  assert.match(route,/validVariants\.length!==variants\.length/);
  assert.match(route,/CJの商品バリエーションIDが欠落しています/);
 });
+
+test('CJ freight endpoint rejects empty supplier variant lists',()=>{
+ const endpoint=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.match(endpoint,/if\(!variants\.length\)return res\.status\(422\)/);
+});
