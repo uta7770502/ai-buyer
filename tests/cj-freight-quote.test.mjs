@@ -41,3 +41,9 @@ test('freight endpoint refuses duplicated CJ variant IDs',()=>{
  assert.match(route,/new Set\(variantIds\)\.size!==variantIds\.length/);
  assert.match(route,/CJの商品バリエーションIDに重複があります/);
 });
+
+test('freight endpoint refuses CJ variants with missing IDs',()=>{
+ const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.match(route,/validVariants\.length!==variants\.length/);
+ assert.match(route,/CJの商品バリエーションIDが欠落しています/);
+});
