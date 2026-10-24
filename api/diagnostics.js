@@ -109,10 +109,21 @@ async function previewCjStockAudit(req,res){
       const verified=Array.isArray(jj.data)?jj.data.filter(x=>x&&Number(x.verifiedWarehouse)===1):[];
       const total=valid.ok?valid.total:null;
       const available=valid.ok&&total>0;
+      const dataShape=Array.isArray(jj.data)?'array':jj.data===null?'null':typeof jj.data;
+      const warehouseFlagValues=Array.isArray(jj.data)
+        ?[...new Set(jj.data.map(x=>x?.verifiedWarehouse===undefined?'missing':String(x.verifiedWarehouse)))].slice(0,5)
+        :[];
       rows.push({
         vid,ok:valid.ok,reason:valid.ok?null:valid.reason,
         status:!valid.ok?'unverified':available?'available':'out-of-stock',
         verifiedWarehouseCount:verified.length,totalInventory:total,
+        diagnostic:valid.ok?null:{
+          httpStatus:rr.status,
+          cjResult:jj.result===true?'true':jj.result===false?'false':'missing',
+          cjCode:typeof jj.code==='number'||typeof jj.code==='string'?String(jj.code).slice(0,32):null,
+          dataShape,warehouseRows:Array.isArray(jj.data)?jj.data.length:null,
+          warehouseFlagValues
+        },
         available
       });
       await new Promise(r=>setTimeout(r,650));
