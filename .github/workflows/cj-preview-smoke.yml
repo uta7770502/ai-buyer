@@ -44,5 +44,4 @@ jobs:
             echo "Prelaunch summary unavailable"
             exit 1
           fi
-          printf '%s
-' "$BODY"
+          printf '%s\\n' "$BODY"
