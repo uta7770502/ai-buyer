@@ -100,3 +100,11 @@ test('stock mutation prioritizes Shopify user errors over missing success metada
   assert.ok(errorBranch>=0&&missingBranch>errorBranch);
   assert.match(source,/errors\.map\(x=>x\?\.message\)\.filter\(Boolean\)/);
 });
+
+test('stock sync verifies returned draft status and approved vendor before any supplier lookup',()=>{
+  assert.match(source,/id title status vendor/);
+  assert.match(source,/p\.status!=='DRAFT'/);
+  assert.match(source,/\['ODDLY','AI BUYER'\]\.includes\(p\.vendor\)/);
+  assert.match(source,/product-not-approved-draft/);
+  assert.ok(source.indexOf("p.status!=='DRAFT'")<source.indexOf('const stock=await cjStock'));
+});
