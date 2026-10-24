@@ -122,7 +122,14 @@ async function previewCjStockAudit(req,res){
           cjResult:jj.result===true?'true':jj.result===false?'false':'missing',
           cjCode:typeof jj.code==='number'||typeof jj.code==='string'?String(jj.code).slice(0,32):null,
           dataShape,warehouseRows:Array.isArray(jj.data)?jj.data.length:null,
-          warehouseFlagValues
+          warehouseFlagValues,
+          // queryByVid stock rows do not expose verifiedWarehouse. Report quantities
+          // separately without treating them as publication-approved inventory.
+          cjManagedInventory:Array.isArray(jj.data)&&jj.data.every(x=>Number.isSafeInteger(x?.cjInventoryNum)&&x.cjInventoryNum>=0)
+            ?jj.data.reduce((sum,x)=>sum+x.cjInventoryNum,0):null,
+          factoryInventory:Array.isArray(jj.data)&&jj.data.every(x=>Number.isSafeInteger(x?.factoryInventoryNum)&&x.factoryInventoryNum>=0)
+            ?jj.data.reduce((sum,x)=>sum+x.factoryInventoryNum,0):null,
+          inventorySchema:'stock-query-by-vid'
         },
         available
       });
