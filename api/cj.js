@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import cjDetail from '../lib/routes/cj-detail.js';
 import cjFreight from '../lib/routes/cj-freight.js';
 import cjMonitor from '../lib/routes/cj-monitor.js';
@@ -25,7 +26,9 @@ const handlers={
   'health':async(req,res)=>{
     const key=process.env.AI_BUYER_ADMIN_KEY;
     const supplied=String(req.headers?.authorization||'');
-    if(!key||supplied!==`Bearer ${key}`)return res.status(401).json({ok:false,error:'Unauthorized'});
+    const expected=Buffer.from(`Bearer ${key||''}`);
+    const received=Buffer.from(supplied);
+    if(!key||expected.length!==received.length||!crypto.timingSafeEqual(expected,received))return res.status(401).json({ok:false,error:'Unauthorized'});
     return cjHealth(req,res);
   }
 };
