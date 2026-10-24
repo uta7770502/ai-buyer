@@ -11,3 +11,9 @@ test('missing review evidence blocks recommendation',()=>{
  assert.match(source,/reason:'review-evidence-insufficient'/);
  assert.match(source,/exclude:true/);
 });
+
+test('invalid and inconsistent CJ review totals fail closed',()=>{
+ assert.match(source,/CJ review score count unavailable/);
+ assert.match(source,/CJ review totals inconsistent/);
+ assert.match(source,/score1\+score2>total/);
+});
