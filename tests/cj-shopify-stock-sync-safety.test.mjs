@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../lib/routes/cj-shopify-stock-sync.js',import.meta.url),'utf8');
+const summarySource=readFileSync(new URL('../lib/stock-audit-summary.js',import.meta.url),'utf8');
 
 test('stock sync is dry-run by default and requires an explicit feature flag to apply',()=>{
   assert.match(source,/const apply=req\.method==='POST'&&String\(req\.query\?\.apply\|\|''\)==='true'/);
@@ -82,9 +83,9 @@ test('stock sync requires complete Shopify connection metadata before mutation',
 
 test('stock sync summary counts confirmed applied stock as synchronized',()=>{
   assert.match(source,/effectiveShopifyStock:applied\?stock\.total:current/);
-  assert.match(source,/x\.cjStock===x\.effectiveShopifyStock/);
-  assert.match(source,/x\.cjStock!==x\.effectiveShopifyStock/);
-  assert.doesNotMatch(source,/x\.cjStock!==x\.shopifyStock/);
+  assert.match(source,/summarizeStockAudit\(rows\)/);
+  assert.match(summarySource,/row\.cjStock===row\.effectiveShopifyStock/);
+  assert.match(summarySource,/row\.cjStock!==row\.effectiveShopifyStock/);
 });
 
 test('stock sync refuses inventory targets without Shopify resource identifiers',()=>{
@@ -124,8 +125,8 @@ test('stock sync refuses missing or duplicate available inventory quantities',()
 });
 
 test('stock sync exposes incomplete row audits explicitly',()=>{
-  assert.match(source,/partial:rows\.some\(x=>!x\.ok\)/);
-  assert.match(source,/noAuditableVariants:rows\.length===0/);
-  assert.match(source,/allVerified:rows\.length>0&&rows\.every\(x=>x\.ok\)/);
-  assert.match(source,/blocked:rows\.filter\(x=>!x\.ok\)\.length/);
+  assert.match(source,/summarizeStockAudit\(rows\)/);
+  assert.match(summarySource,/partial:blocked>0/);
+  assert.match(summarySource,/noAuditableVariants:rows\.length===0/);
+  assert.match(summarySource,/allVerified:rows\.length>0&&blocked===0/);
 });
