@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import publish from '../api/shopify-publish.js';
@@ -360,4 +361,11 @@ test('active Shopify product with same CJ SKU blocks draft creation without muta
   globalThis.fetch=previousFetch;
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
+});
+
+test('Shopify draft creation rejects incomplete and duplicate CJ variant IDs',()=>{
+ const source=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+ assert.match(source,/validVariants\.length!==vs\.length/);
+ assert.match(source,/new Set\(variantIds\)\.size!==variantIds\.length/);
+ assert.match(source,/Shopify登録を保留します/);
 });
