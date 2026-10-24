@@ -63,3 +63,11 @@ test('stock sync stops before writes if product, variant or location pagination 
   assert.match(source,/Inventory audit incomplete: pagination required before stock sync/);
   assert.ok(source.indexOf('const incomplete=')<source.indexOf('for(const p of products)'));
 });
+
+test('stock sync never reports applied when Shopify mutation response is missing',()=>{
+  assert.match(source,/const result=out\?\.inventorySetQuantities/);
+  assert.match(source,/!result\|\|!Array\.isArray\(errors\)/);
+  assert.match(source,/result\.inventoryAdjustmentGroup\?\.createdAt/);
+  assert.match(source,/shopify-inventory-result-unverified/);
+  assert.doesNotMatch(source,/const errors=out\?\.inventorySetQuantities\?\.userErrors\|\|\[\]/);
+});
