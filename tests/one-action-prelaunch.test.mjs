@@ -414,3 +414,12 @@ test('one-action runs independent diagnostics concurrently and treats rejection 
  assert.match(route,/readiness\.code===200&&readiness\.body\?\.ok===true/);
  assert.match(route,/audit\.code===200&&audit\.body\?\.ok===true/);
 });
+
+test('prelaunch audit prioritizes blockers, counts all issues and rejects duplicate IDs',()=>{
+ const audit=fs.readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+ const one=fs.readFileSync(new URL('../lib/routes/prelaunch-one-action.js',import.meta.url),'utf8');
+ assert.match(audit,/Shopify audit duplicate or missing product identifiers/);
+ assert.match(audit,/products:\[\.\.\.rows\.filter\(x=>!x\.ready\)/);
+ assert.match(audit,/totalIssues:rows\.filter\(x=>!x\.ready\)\.length/);
+ assert.match(one,/totalIssues:Number\(audit\.body\?\.totalIssues\|\|0\)/);
+});
