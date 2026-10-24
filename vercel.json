@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/cj-stock-audit",
+      "destination": "/api/diagnostics?action=preview-cj-stock-audit"
+    },
+    {
       "source": "/api/cj-draft-audit",
       "destination": "/api/diagnostics?action=preview-cj-draft-audit"
     },
