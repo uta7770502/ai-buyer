@@ -115,3 +115,10 @@ test('stock sync rejects malformed Shopify GraphQL envelopes before trusting inv
   assert.match(source,/!j\.data\|\|typeof j\.data!=='object'\|\|Array\.isArray\(j\.data\)/);
   assert.ok(source.indexOf('Shopify GraphQL failed')<source.indexOf('const productsQuery='));
 });
+
+test('stock sync refuses missing or duplicate available inventory quantities',()=>{
+  assert.match(source,/Array\.isArray\(level\.quantities\)/);
+  assert.match(source,/level\.quantities\.filter\(x=>x\?\.name==='available'\)/);
+  assert.match(source,/available\.length!==1/);
+  assert.match(source,/const rawCurrent=available\[0\]\.quantity/);
+});
