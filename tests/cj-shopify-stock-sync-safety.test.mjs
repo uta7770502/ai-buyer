@@ -158,3 +158,11 @@ test('apply mode validates every inventory target before requesting supplier sto
   assert.match(source,/blockedVariants:invalidTargets\.length/);
   assert.ok(source.indexOf('const invalidTargets=')<source.indexOf('const token=await cjToken();'));
 });
+
+test('apply mode rejects duplicate supplier variants and duplicate inventory item targets',()=>{
+  assert.match(source,/variants\.length===0/);
+  assert.match(source,/new Set\(vids\)\.size!==vids\.length/);
+  assert.match(source,/new Set\(inventoryIds\)\.size!==inventoryIds\.length/);
+  assert.match(source,/Inventory audit has no variants or duplicate stock identifiers/);
+  assert.ok(source.indexOf('new Set(vids)')<source.indexOf('const token=await cjToken();'));
+});
