@@ -365,3 +365,12 @@ test('CJ monitor treats missing supplier sale status as critical',()=>{
  assert.match(html,/if\(!saleStatus\)alerts\.push/);
  assert.match(html,/販売状態未確認/);
 });
+
+test('prelaunch reconciliation must explicitly verify all counts and completion',()=>{
+  const source=fs.readFileSync(new URL('../lib/routes/prelaunch-one-action.js',import.meta.url),'utf8');
+  assert.match(source,/Number\.isSafeInteger\(reconciliation\.body\?\.summary\?\.total\)/);
+  assert.match(source,/Number\.isSafeInteger\(reconciliation\.body\?\.summary\?\.critical\)/);
+  assert.match(source,/Number\.isSafeInteger\(reconciliation\.body\?\.summary\?\.review\)/);
+  assert.match(source,/reconciliation\.body\?\.summary\?\.partial===false/);
+  assert.doesNotMatch(source,/Number\(reconciliation\.body\?\.summary\?\.total\|\|0\)===0/);
+});
