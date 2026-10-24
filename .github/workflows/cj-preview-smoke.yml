@@ -1,0 +1,28 @@
+name: CJ preview smoke test
+
+on:
+  push:
+    branches:
+      - safety-gate-20261024
+  workflow_dispatch:
+
+jobs:
+  cj-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wait for Preview and verify CJ connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-health"
+          for i in {1..12}; do
+            BODY="$(curl -fsS --max-time 15 "$URL" 2>/dev/null || true)"
+            if printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
+              echo "CJ preview connectivity: OK"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "CJ preview connectivity: NG"
+          exit 1
