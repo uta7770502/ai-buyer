@@ -9,3 +9,9 @@ test('read-only readiness is separate from order automation readiness',()=>{
  assert.match(source,/readOnlyMissing/);
  assert.match(source,/liveIntegrationVerified:false/);
 });
+
+test('read-only milestones remain unverified without actual CJ API evidence',()=>{
+ for(const id of ['cj-catalog-connectivity','cj-variant-inventory','cj-japan-freight','shopify-draft-sku-match']) assert.ok(source.includes(id));
+ assert.match(source,/readOnlyNextChecks=\[/);
+ assert.match(source,/verified:false/);
+});
