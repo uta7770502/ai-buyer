@@ -108,3 +108,10 @@ test('stock sync verifies returned draft status and approved vendor before any s
   assert.match(source,/product-not-approved-draft/);
   assert.ok(source.indexOf("p.status!=='DRAFT'")<source.indexOf('const stock=await cjStock'));
 });
+
+test('stock sync rejects malformed Shopify GraphQL envelopes before trusting inventory data',()=>{
+  assert.match(source,/Object\.hasOwn\(j,'errors'\)/);
+  assert.match(source,/!Array\.isArray\(j\.errors\)\|\|j\.errors\.length>0/);
+  assert.match(source,/!j\.data\|\|typeof j\.data!=='object'\|\|Array\.isArray\(j\.data\)/);
+  assert.ok(source.indexOf('Shopify GraphQL failed')<source.indexOf('const productsQuery='));
+});
