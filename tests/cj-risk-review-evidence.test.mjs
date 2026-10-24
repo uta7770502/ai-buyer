@@ -27,3 +27,8 @@ test('average CJ rating below 4.0 is excluded explicitly',()=>{
  assert.match(source,/rating<4\.0/);
  assert.match(source,/reason:'rating-below-four'/);
 });
+
+test('CJ ratings outside five-star scale are excluded',()=>{
+ assert.match(source,/rating>5/);
+ assert.match(source,/reason:'rating-out-of-range'/);
+});
