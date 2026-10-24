@@ -388,3 +388,12 @@ test('one-action prelaunch reports non-draft product blockers explicitly',()=>{
   assert.match(source,/管理対象の商品が下書き以外になっています/);
   assert.match(source,/nonDraftCount:Number\(audit\.body\?\.nonDraftCount\|\|0\)/);
 });
+
+test('product audit fails closed if Shopify connection data is incomplete',()=>{
+  const source=fs.readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+  assert.match(source,/Shopify audit pagination unverified/);
+  assert.match(source,/Array\.isArray\(p\.variants\?\.nodes\)/);
+  assert.match(source,/Array\.isArray\(p\.media\?\.nodes\)/);
+  assert.match(source,/Array\.isArray\(p\.metafields\?\.nodes\)/);
+  assert.match(source,/監査データが不足しています/);
+});
