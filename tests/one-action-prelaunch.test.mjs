@@ -82,6 +82,43 @@ test('one-action prelaunch reaches final manual step using read-only verified ch
   assert.deepEqual(res.body.blockers,[]);
 });
 
+test('stock sync may remain disabled without blocking read-only prelaunch checks',async t=>{
+  const previous={...process.env};Object.assign(process.env,env(),{CJ_SHOPIFY_STOCK_SYNC_ENABLED:'false'});t.after(()=>restore(previous));
+  t.mock.method(globalThis,'fetch',async(url,opts={})=>{
+    const s=String(url);
+    if(s==='https://redis.example/ping')return {ok:true,json:async()=>({result:'PONG'})};
+    if(s==='https://redis.example/'){
+      const cmd=JSON.parse(opts.body||'[]');
+      if(cmd[0]==='SCAN')return {ok:true,json:async()=>({result:['0',[]]})};
+      if(cmd[0]==='MGET')return {ok:true,json:async()=>({result:cmd.slice(1).map(()=>null)})};
+      throw Error('unexpected redis command');
+    }
+    if(s.includes('developers.cjdropshipping.com')&&s.includes('getCategory'))return {ok:true,json:async()=>({result:true,data:[]})};
+    if(s.includes('/api/2026-10/graphql.json')){
+      const q=String(JSON.parse(opts.body||'{}').query||'');
+      if(q.includes('PrelaunchProductAudit'))return {ok:true,json:async()=>({data:{products:{nodes:[{
+        id:'gid://shopify/Product/1',title:'テスト商品',description:'日本語の商品説明',handle:'test',status:'DRAFT',vendor:'ODDLY',tags:[],
+        variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980'}],pageInfo:{hasNextPage:false}},
+        media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
+        metafields:{nodes:[
+          {key:'adps_audience',value:'一般消費者'},{key:'adps_summary',value:'商品要約'},{key:'adps_why',value:'選定理由'},
+          {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}
+        ],pageInfo:{hasNextPage:false}}
+      }],pageInfo:{hasNextPage:false,endCursor:null}}}})};
+      if(q.includes('ReadinessShop'))return {ok:true,json:async()=>({data:{shop:{id:'gid://shopify/Shop/1',name:'ODDLY'}}})};
+      if(q.includes('ReadinessScopes'))return {ok:true,json:async()=>({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}})};
+      if(q.includes('ReadinessWebhooks'))return {ok:true,json:async()=>({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://example.com/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}})};
+      if(q.includes('ReadinessStorefront'))return {ok:true,json:async()=>({data:{shop:{name:'ODDLY'}}})};
+    }
+    throw Error('unexpected fetch '+s);
+  });
+  const res=response();
+  await oneAction({method:'POST',headers:{authorization:'Bearer admin'},body:{},query:{}},res);
+  assert.equal(res.code,200);
+  assert.equal(res.body.readyToFinalManualStep,true);
+  assert.equal(res.body.warnings.length,0);
+});
+
 test('admin UI exposes one-click prelaunch button without a public-launch action',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/ワンアクションで公開直前まで/);
