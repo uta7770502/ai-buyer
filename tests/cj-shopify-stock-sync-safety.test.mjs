@@ -93,3 +93,10 @@ test('stock sync refuses inventory targets without Shopify resource identifiers'
   assert.match(source,/inventory-target-unverified/);
   assert.ok(source.indexOf('inventory-target-unverified')<source.indexOf('const rawCurrent='));
 });
+
+test('stock mutation prioritizes Shopify user errors over missing success metadata',()=>{
+  const errorBranch=source.indexOf('if(Array.isArray(errors)&&errors.length)');
+  const missingBranch=source.indexOf('}else if(!result||!Array.isArray(errors)');
+  assert.ok(errorBranch>=0&&missingBranch>errorBranch);
+  assert.match(source,/errors\.map\(x=>x\?\.message\)\.filter\(Boolean\)/);
+});
