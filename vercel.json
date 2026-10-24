@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/prelaunch-preview-summary",
+      "destination": "/api/diagnostics?action=preview-prelaunch-summary"
+    },
+    {
       "source": "/cj-status",
       "destination": "/cj-status.html"
     },
