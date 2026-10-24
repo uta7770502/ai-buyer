@@ -33,3 +33,14 @@ test('CJ monitor refuses missing, ambiguous, or non-positive supplier prices',()
  assert.match(source,/Number\(supplierPrice\) <= 0/);
  assert.match(source,/sellPrice: Number\(supplierPrice\)/);
 });
+
+test('CJ monitor rejects oversized batches rather than silently skipping products',()=>{
+ assert.match(source,/ids\.length > 10/);
+ assert.match(source,/CJ商品IDは一度に10件まで指定できます/);
+});
+
+test('CJ monitor canonicalizes warehouse identifiers and rejects missing identity',()=>{
+ assert.match(source,/\.trim\(\)\.toUpperCase\(\)/);
+ assert.match(source,/name\.toLowerCase\(\)/);
+ assert.match(source,/!countryCode && !name/);
+});
