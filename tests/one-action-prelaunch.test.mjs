@@ -406,3 +406,11 @@ test('draft audit fails closed on GraphQL error envelopes and unapproved vendors
  assert.match(audit,/!\['ODDLY','AI BUYER'\]\.includes\(p\.vendor\)/);
  assert.match(audit,/管理対象外の販売元です/);
 });
+
+test('one-action runs independent diagnostics concurrently and treats rejection as failure',()=>{
+ const route=fs.readFileSync(new URL('../lib/routes/prelaunch-one-action.js',import.meta.url),'utf8');
+ assert.match(route,/Promise\.all\(\[/);
+ assert.match(route,/\.map\(p=>p\.catch\(\(\)=>\(\{code:503,body:\{ok:false\}\}\)\)\)/);
+ assert.match(route,/readiness\.code===200&&readiness\.body\?\.ok===true/);
+ assert.match(route,/audit\.code===200&&audit\.body\?\.ok===true/);
+});
