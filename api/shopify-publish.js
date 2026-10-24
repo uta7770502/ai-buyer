@@ -84,6 +84,9 @@ async function cjVariant(productId,selectedVariantId){
   if(!r.ok||j.result!==true)throw Error(j.message||'CJ商品情報を取得できません');
   const p=j.data||{},vs=Array.isArray(p.variants)?p.variants:Array.isArray(p.variantList)?p.variantList:[];
   const validVariants=vs.filter(x=>x&&(x.vid||x.id||x.variantId));
+  if(!vs.length||validVariants.length!==vs.length)throw Error('CJの商品バリエーション情報が不足しています。Shopify登録を保留します');
+  const variantIds=validVariants.map(x=>String(x.vid||x.id||x.variantId));
+  if(new Set(variantIds).size!==variantIds.length)throw Error('CJの商品バリエーションIDが重複しています。Shopify登録を保留します');
   const selected=String(selectedVariantId||'').trim();
   if(validVariants.length>1&&!selected)throw Error('CJ商品に複数バリエーションがあります。販売する色・サイズを選択してください');
   const v=selected?validVariants.find(x=>String(x.vid||x.id||x.variantId)===selected):validVariants[0];
