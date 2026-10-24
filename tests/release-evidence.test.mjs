@@ -9,3 +9,9 @@ test('release readiness explicitly preserves unverified integration milestones',
  assert.match(source,/readyForLive:false/);
  assert.match(source,/liveIntegrationVerified:false/);
 });
+
+test('release readiness does not claim sandbox checks prove live fulfillment',()=>{
+ assert.match(source,/fulfillmentVerified:false/);
+ assert.match(source,/liveCjOrdersEnabled:false/);
+ assert.match(source,/Actual webhook delivery and fulfillment still require sandbox evidence/);
+});
