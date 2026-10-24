@@ -17,3 +17,8 @@ test('invalid and inconsistent CJ review totals fail closed',()=>{
  assert.match(source,/CJ review totals inconsistent/);
  assert.match(source,/score1\+score2>total/);
 });
+
+test('risk scorer rejects internally inconsistent rating counts',()=>{
+ assert.match(source,/reason:'review-counts-invalid'/);
+ assert.match(source,/low\+mid>total/);
+});
