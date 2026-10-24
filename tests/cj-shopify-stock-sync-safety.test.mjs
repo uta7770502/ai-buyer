@@ -137,3 +137,10 @@ test('empty Shopify stock audit returns without requesting a CJ token',()=>{
   assert.match(source,/\.\.\.summarizeStockAudit\(\[\]\),rows:\[\]/);
   assert.ok(source.indexOf('if(products.length===0)')<source.indexOf('const token=await cjToken();'));
 });
+
+test('stock sync rejects entire batch if any product is not an approved draft',()=>{
+  assert.match(source,/products\.some\(p=>p\.status!=='DRAFT'/);
+  assert.match(source,/Inventory audit contains unapproved products/);
+  assert.match(source,/blockedProducts:products\.filter/);
+  assert.ok(source.indexOf('Inventory audit contains unapproved products')<source.indexOf('const token=await cjToken();'));
+});
