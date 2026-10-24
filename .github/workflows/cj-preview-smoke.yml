@@ -26,3 +26,23 @@ jobs:
           done
           echo "CJ preview connectivity: NG"
           exit 1
+
+      - name: Read safe prelaunch summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/prelaunch-preview-summary"
+          BODY=""
+          for i in {1..12}; do
+            BODY="$(curl -fsS --max-time 20 "$URL" 2>/dev/null || true)"
+            if printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*(true|false)'; then
+              break
+            fi
+            sleep 10
+          done
+          if [ -z "$BODY" ]; then
+            echo "Prelaunch summary unavailable"
+            exit 1
+          fi
+          printf '%s
+' "$BODY"
