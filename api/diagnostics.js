@@ -4,6 +4,7 @@ import automationReconciliation from '../lib/routes/automation-reconciliation.js
 import cjHealth from '../lib/routes/cj-health.js';
 import cjFreight from '../lib/routes/cj-freight.js';
 import cjShopifyStockSync from '../lib/routes/cj-shopify-stock-sync.js';
+import { validateCJStockResponse } from '../lib/cj-stock-validation.js';
 import shopifyFulfillmentSync from '../lib/routes/shopify-fulfillment-sync.js';
 import releaseReadiness from '../lib/routes/release-readiness.js';
 import shopifySandboxOrder from '../lib/routes/shopify-sandbox-order.js';
@@ -104,15 +105,19 @@ async function previewCjStockAudit(req,res){
       const u=new URL(BASE+'/product/stock/queryByVid');u.searchParams.set('vid',vid);
       const rr=await fetch(u,{headers:{'CJ-Access-Token':t},signal:AbortSignal.timeout(10000)});
       const jj=await rr.json().catch(()=>({}));
-      const items=Array.isArray(jj.data)?jj.data:[];
-      const verified=items.filter(x=>Number(x.verifiedWarehouse)===1);
-      const total=verified.reduce((n,x)=>n+Math.max(0,Number(x.totalInventoryNum??x.totalInventory??0)||0),0);
-      const cj=verified.reduce((n,x)=>n+Math.max(0,Number(x.cjInventoryNum??x.cjInventory??0)||0),0);
-      const factory=verified.reduce((n,x)=>n+Math.max(0,Number(x.factoryInventoryNum??x.factoryInventory??0)||0),0);
-      rows.push({vid,ok:rr.ok&&jj.result===true,verifiedWarehouseCount:verified.length,totalInventory:total,cjInventory:cj,factoryInventory:factory,available:total>0});
+      const valid=rr.ok?validateCJStockResponse(jj):{ok:false,reason:'cj-http-error'};
+      const verified=Array.isArray(jj.data)?jj.data.filter(x=>x&&Number(x.verifiedWarehouse)===1):[];
+      const total=valid.ok?valid.total:null;
+      const available=valid.ok&&total>0;
+      rows.push({
+        vid,ok:valid.ok,reason:valid.ok?null:valid.reason,
+        status:!valid.ok?'unverified':available?'available':'out-of-stock',
+        verifiedWarehouseCount:verified.length,totalInventory:total,
+        available
+      });
       await new Promise(r=>setTimeout(r,650));
     }
-    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.available).length,unavailable:rows.filter(x=>!x.available).length,rows});
+    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,allVerified:rows.every(x=>x.ok),rows});
   }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
 }
 
