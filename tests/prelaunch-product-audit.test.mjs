@@ -63,7 +63,7 @@ test('prelaunch audit refuses malformed Shopify GraphQL errors',async t=>{
  const prev={...process.env};
  Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
  t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
- t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({errors:{message:'unknown'},data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}}})}));
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({errors:{message:'unknown'},data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}})}));
  const r=res();
  await audit({method:'GET',headers:{authorization:'Bearer admin'},query:{}},r);
  assert.equal(r.code,503);
