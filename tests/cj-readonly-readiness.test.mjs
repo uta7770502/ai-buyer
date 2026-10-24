@@ -15,3 +15,9 @@ test('read-only milestones remain unverified without actual CJ API evidence',()=
  assert.match(source,/readOnlyNextChecks=\[/);
  assert.match(source,/verified:false/);
 });
+
+test('read-only progress never counts configured credentials as verified external calls',()=>{
+ assert.match(source,/readOnlySummary=\{/);
+ assert.match(source,/verifiedExternalChecks:0/);
+ assert.match(source,/totalExternalChecks:readOnlyNextChecks\.length/);
+});
