@@ -144,3 +144,10 @@ test('stock sync rejects entire batch if any product is not an approved draft',(
   assert.match(source,/blockedProducts:products\.filter/);
   assert.ok(source.indexOf('Inventory audit contains unapproved products')<source.indexOf('const token=await cjToken();'));
 });
+
+test('apply mode preflights every variant SKU and inventory policy before supplier calls',()=>{
+  assert.match(source,/const invalidVariants=products\.flatMap\(p=>p\.variants\.nodes\)/);
+  assert.match(source,/Inventory audit contains unsafe variants/);
+  assert.match(source,/blockedVariants:invalidVariants\.length/);
+  assert.ok(source.indexOf('const invalidVariants=')<source.indexOf('const token=await cjToken();'));
+});
