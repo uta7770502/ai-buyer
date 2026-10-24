@@ -126,7 +126,14 @@ async function previewCjStockAudit(req,res){
         },
         available
       });
-      await new Promise(r=>setTimeout(r,650));
+      // Do not continue hitting CJ after a rate-limit response. Remaining SKUs stay unverified.
+      if(rr.status===429){
+        for(const remaining of vids.slice(rows.length)){
+          rows.push({vid:remaining,ok:false,reason:'cj-rate-limit-skipped',status:'unverified',verifiedWarehouseCount:0,totalInventory:null,diagnostic:{httpStatus:null,cjResult:'not-requested',cjCode:null,dataShape:'not-requested',warehouseRows:null,warehouseFlagValues:[]},available:false});
+        }
+        break;
+      }
+      await new Promise(r=>setTimeout(r,1500));
     }
     return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,allVerified:rows.every(x=>x.ok),rows});
   }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
