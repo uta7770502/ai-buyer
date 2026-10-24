@@ -86,3 +86,10 @@ test('stock sync summary counts confirmed applied stock as synchronized',()=>{
   assert.match(source,/x\.cjStock!==x\.effectiveShopifyStock/);
   assert.doesNotMatch(source,/x\.cjStock!==x\.shopifyStock/);
 });
+
+test('stock sync refuses inventory targets without Shopify resource identifiers',()=>{
+  assert.match(source,/gid:\/\/shopify\/InventoryItem\//);
+  assert.match(source,/gid:\/\/shopify\/Location\//);
+  assert.match(source,/inventory-target-unverified/);
+  assert.ok(source.indexOf('inventory-target-unverified')<source.indexOf('const rawCurrent='));
+});
