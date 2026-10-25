@@ -4,9 +4,9 @@ import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../lib/routes/release-readiness.js',import.meta.url),'utf8');
 
-test('release readiness reports verified draft creation and supplier freight evidence',()=>{
-  assert.match(source,/shopifyDraftCreationEndToEndVerified:true/);
-  assert.match(source,/ninePetProductsSupplierAndFreightVerified:true/);
+test('release readiness does not present historical draft and freight checks as current verification',()=>{
+  assert.match(source,/shopifyDraftCreationEndToEndVerified:false/);
+  assert.match(source,/ninePetProductsSupplierAndFreightVerified:false/);
   assert.match(source,/stockSyncSafetyRegressionVerified:true/);
 });
 

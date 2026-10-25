@@ -40,7 +40,7 @@ test('one-action prelaunch refuses to run when a public launch switch is on',asy
   assert.match(res.body.error,/公開系スイッチ/);
 });
 
-test('one-action prelaunch reaches final manual step using read-only verified checks',async t=>{
+test('read-only connectivity alone cannot complete the final manual gate',async t=>{
   const previous={...process.env};Object.assign(process.env,env());t.after(()=>restore(previous));
   t.mock.method(globalThis,'fetch',async(url,opts={})=>{
     const s=String(url);
@@ -73,13 +73,14 @@ test('one-action prelaunch reaches final manual step using read-only verified ch
   const res=response();
   await oneAction({method:'POST',headers:{authorization:'Bearer admin'},body:{},query:{}},res);
   assert.equal(res.code,200);
-  assert.equal(res.body.readyToFinalManualStep,true);
+  assert.equal(res.body.readyToFinalManualStep,false);
+  assert.ok(res.body.blockers.some(x=>x.startsWith('未検証：')));
   assert.equal(res.body.changedPublicationState,false);
   assert.equal(res.body.changedCheckoutState,false);
   assert.equal(res.body.createdLiveOrder,false);
   assert.equal(res.body.changedAdsState,false);
   assert.equal(res.body.removedStorefrontPassword,false);
-  assert.deepEqual(res.body.blockers,[]);
+  assert.ok(res.body.blockers.every(x=>x.startsWith('未検証：')));
 });
 
 test('stock sync may remain disabled without blocking read-only prelaunch checks',async t=>{
@@ -115,7 +116,8 @@ test('stock sync may remain disabled without blocking read-only prelaunch checks
   const res=response();
   await oneAction({method:'POST',headers:{authorization:'Bearer admin'},body:{},query:{}},res);
   assert.equal(res.code,200);
-  assert.equal(res.body.readyToFinalManualStep,true);
+  assert.equal(res.body.readyToFinalManualStep,false);
+  assert.ok(res.body.blockers.some(x=>x.startsWith('未検証：')));
   assert.equal(res.body.warnings.length,0);
 });
 
