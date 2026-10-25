@@ -421,7 +421,7 @@ test('prelaunch audit prioritizes blockers, counts all issues and rejects duplic
  const audit=fs.readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
  const one=fs.readFileSync(new URL('../lib/routes/prelaunch-one-action.js',import.meta.url),'utf8');
  assert.match(audit,/Shopify audit duplicate or missing product identifiers/);
- assert.match(audit,/products:\[\.\.\.rows\.filter\(x=>!x\.ready\)/);
- assert.match(audit,/totalIssues:rows\.reduce\(/);
+ assert.match(audit,/products:\[\.\.\.auditRows\.filter\(x=>!x\.ready\)/);
+ assert.match(audit,/totalIssues:auditRows\.reduce\(/);
  assert.match(one,/totalIssues:Number\(audit\.body\?\.totalIssues\|\|0\)/);
 });

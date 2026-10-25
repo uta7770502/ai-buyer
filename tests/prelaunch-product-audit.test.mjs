@@ -85,3 +85,24 @@ test('prelaunch audit rejects duplicate product IDs rather than reporting readin
  assert.equal(r.code,503);
  assert.match(r.body.error,/duplicate or missing product identifiers/);
 });
+
+test('archived managed products are excluded without hiding active or unknown products',async t=>{
+ const prev={...process.env};
+ Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
+ t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
+ const draft={id:'gid://shopify/Product/1',title:'日本語商品',description:'日本語説明',status:'DRAFT',vendor:'ODDLY',tags:[],
+ variants:{nodes:[{id:'v1',sku:'123456789012',price:'2000'}],pageInfo:{hasNextPage:false}},
+ media:{nodes:[{image:{url:'https://example.com/p.jpg'}}],pageInfo:{hasNextPage:false}},
+ metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},{key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}],pageInfo:{hasNextPage:false}}};
+ let nodes=[draft,{id:'gid://shopify/Product/2',status:'ARCHIVED',vendor:'AI BUYER'}];
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{nodes,pageInfo:{hasNextPage:false}}}})}));
+ const req={method:'GET',headers:{authorization:'Bearer admin'}};
+ const first=res();await audit(req,first);
+ assert.equal(first.body.allDraftsReady,true);assert.equal(first.body.archivedCount,1);assert.equal(first.body.totalIssues,0);assert.equal(first.body.products.length,1);
+ nodes.push({...draft,id:'gid://shopify/Product/3',status:'ACTIVE'});
+ const second=res();await audit(req,second);
+ assert.equal(second.body.allDraftsReady,false);assert.equal(second.body.nonDraftCount,1);assert.equal(second.body.totalIssues,1);
+ nodes=[draft,{id:'gid://shopify/Product/4',status:'ARCHIVED',vendor:'Unexpected'}];
+ const third=res();await audit(req,third);
+ assert.equal(third.body.allDraftsReady,false);assert.equal(third.body.archivedCount,0);
+});
