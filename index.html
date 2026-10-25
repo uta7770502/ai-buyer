@@ -128,7 +128,7 @@ let adAutomationSettings=JSON.parse(localStorage.getItem('aiBuyerAdAutomationSet
 let growthSettings=JSON.parse(localStorage.getItem('aiBuyerGrowthSettings')||'null')||{mode:'test',dailySalesFloor:10000,testProducts:5,creativeVariants:3,cpaSafetyPct:70,daily:'on'};
 let growthState=JSON.parse(localStorage.getItem('aiBuyerGrowthState')||'null')||{lastRunAt:'',summary:'',actions:[]};
 let growthPhaseState=JSON.parse(localStorage.getItem('aiBuyerGrowthPhaseState')||'null')||{phase:'chase',changedAt:'',reason:''};
-let salesGoalSettings=JSON.parse(localStorage.getItem('aiBuyerSalesGoalSettings')||'null')||{daily:10000,monthly:300000,yearly:3650000};
+let salesGoalSettings=JSON.parse(localStorage.getItem('aiBuyerSalesGoalSettings')||'null')||{daily:10000,monthly:310000,yearly:3650000};
 let salesSummary=JSON.parse(sessionStorage.getItem('aiBuyerSalesSummary')||'null')||{daily:0,monthly:0,yearly:0,gross:{},refunded:{},units:{daily:[],monthly:[],yearly:[]},rolling:{d7:{average:0},d30:{average:0}},checkedAt:'',loading:false,error:''};
 let adAutomationLog=JSON.parse(localStorage.getItem('aiBuyerAdAutomationLog')||'[]');
 let returnAudit=JSON.parse(localStorage.getItem('aiBuyerReturnAudit')||'null');
@@ -505,7 +505,7 @@ function saveAdAutomationSettings(){
 function syncSalesGoalsFromDailyTarget(){
   const daily=Math.max(1000,Number(growthSettings.dailySalesFloor||10000));
   salesGoalSettings.daily=daily;
-  salesGoalSettings.monthly=Math.round(daily*30);
+  salesGoalSettings.monthly=Math.round(daily*31);
   salesGoalSettings.yearly=Math.round(daily*365);
   localStorage.setItem('aiBuyerSalesGoalSettings',JSON.stringify(salesGoalSettings));
 }
@@ -520,7 +520,7 @@ function saveSalesGoals(kind){
   const rawDaily=Number(document.getElementById('salesGoalDaily')?.value);
   const daily=Number.isFinite(rawDaily)&&rawDaily>=1000?Math.round(Math.min(rawDaily,1000000000)):10000;
   salesGoalSettings.daily=daily;
-  salesGoalSettings.monthly=Math.round(daily*30);
+  salesGoalSettings.monthly=Math.round(daily*31);
   salesGoalSettings.yearly=Math.round(daily*365);
   growthSettings.dailySalesFloor=daily;
   const g=document.getElementById('growthDailyFloor');if(g)g.value=daily;
@@ -548,7 +548,7 @@ function renderSalesGoals(){
   const start=new Date(now.getFullYear(),0,1),end=new Date(now.getFullYear()+1,0,1);
   const yearFrac=Math.max(.01,(now-start)/(end-start));
   const yearForecast=Math.round(Number(salesSummary.yearly||0)/yearFrac);
-  box.innerHTML=goalBarRow('日',Number(salesSummary.daily||0),Number(salesGoalSettings.daily||10000),dayForecast)+goalBarRow('月',Number(salesSummary.monthly||0),Number(salesGoalSettings.monthly||300000),monthForecast)+goalBarRow('年',Number(salesSummary.yearly||0),Number(salesGoalSettings.yearly||3650000),yearForecast);
+  box.innerHTML=goalBarRow('日',Number(salesSummary.daily||0),Number(salesGoalSettings.daily||10000),dayForecast)+goalBarRow('月',Number(salesSummary.monthly||0),Number(salesGoalSettings.monthly||310000),monthForecast)+goalBarRow('年',Number(salesSummary.yearly||0),Number(salesGoalSettings.yearly||3650000),yearForecast);
   if(stamp)stamp.textContent=salesSummary.loading?'Shopify実売上を更新中...':salesSummary.error?('取得エラー: '+salesSummary.error):(salesSummary.checkedAt?'更新 '+new Date(salesSummary.checkedAt).toLocaleString('ja-JP'):'未取得');
   if(note){
     const g=growthGoalStatus();
@@ -594,7 +594,7 @@ function salesGoalPacing(){
   const monthFrac=Math.max(.05,(now.getDate()-1+dayFrac)/daysInMonth);
   const yearStart=new Date(now.getFullYear(),0,1),yearEnd=new Date(now.getFullYear()+1,0,1);
   const yearFrac=Math.max(.01,(now-yearStart)/(yearEnd-yearStart));
-  const monthTarget=Math.max(1,Number(salesGoalSettings.monthly||300000));
+  const monthTarget=Math.max(1,Number(salesGoalSettings.monthly||310000));
   const yearTarget=Math.max(1,Number(salesGoalSettings.yearly||3650000));
   const monthNow=Math.max(0,Number(salesSummary.monthly||0));
   const yearNow=Math.max(0,Number(salesSummary.yearly||0));
@@ -695,7 +695,7 @@ function saveGrowthSettings(){
   if(growthSettings.dailySalesFloor!==prevTarget){
     applyGrowthTargetProfile(growthSettings.dailySalesFloor,true);
     salesGoalSettings.daily=growthSettings.dailySalesFloor;
-    salesGoalSettings.monthly=Math.round(growthSettings.dailySalesFloor*30);
+    salesGoalSettings.monthly=Math.round(growthSettings.dailySalesFloor*31);
     salesGoalSettings.yearly=Math.round(growthSettings.dailySalesFloor*365);
     localStorage.setItem('aiBuyerSalesGoalSettings',JSON.stringify(salesGoalSettings));
     const d=document.getElementById('salesGoalDaily'),m=document.getElementById('salesGoalMonthlyDisplay'),y=document.getElementById('salesGoalYearlyDisplay');
