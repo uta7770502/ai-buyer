@@ -191,8 +191,29 @@ function cleanProductDescription(raw){
   }
 }
 
-function catalogRisk(p){const inv=Number(p.verifiedInventory??p.inventory??0),delivery=String(p.deliveryCycle||''),sale=String(p.saleStatus??''),complaint=p.complaintRisk||null;let level='low',label='低リスク',reasons=[];if(sale&&sale!=='3'){level='high';label='販売停止';reasons.push('CJ販売状態が停止')}if(inv<=0){level='high';label='在庫リスク';reasons.push('検証済み在庫0')}else if(inv<=20&&level!=='high'){level='mid';label='低在庫';reasons.push('検証済み在庫'+inv)}const nums=(delivery.match(new RegExp('\\d+','g'))||[]).map(Number);if(nums.length&&Math.max(...nums)>=10&&level==='low'){level='mid';label='配送注意';reasons.push('配送目安'+delivery+'日')}if(complaint&&complaint.level==='high'){level='high';label='クレーム多め';reasons.push('低評価レビューが多い')}else if(complaint&&complaint.level==='mid'&&level==='low'){level='mid';label='クレーム注意';reasons.push('低評価レビューあり')}return {level,label,reasons,exclude:level==='high'||Boolean(complaint&&complaint.exclude)}}
-async function enrichRiskList(list,limit=6){const targets=list.filter(x=>x&&x.id&&!x.complaintRisk).slice(0,limit);await Promise.all(targets.map(async p=>{try{const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id));const j=await r.json();if(r.ok&&j.ok)p.complaintRisk=j.risk}catch(e){}}));return list}
+function catalogRisk(p){const inv=Number(p.verifiedInventory??p.inventory??0),delivery=String(p.deliveryCycle||''),sale=String(p.saleStatus??''),complaint=p.complaintRisk||null;let level='low',label='低リスク',reasons=[];if(!recommendationReviewReady(p)){level='mid';label='レビュー要確認';reasons.push('レビュー未確認・要確認（おすすめ対象外）')}if(sale&&sale!=='3'){level='high';label='販売停止';reasons.push('CJ販売状態が停止')}if(inv<=0){level='high';label='在庫リスク';reasons.push('検証済み在庫0')}else if(inv<=20&&level!=='high'){level='mid';label='低在庫';reasons.push('検証済み在庫'+inv)}const nums=(delivery.match(new RegExp('\\d+','g'))||[]).map(Number);if(nums.length&&Math.max(...nums)>=10&&level==='low'){level='mid';label='配送注意';reasons.push('配送目安'+delivery+'日')}if(complaint&&complaint.level==='high'){level='high';label='クレーム多め';reasons.push('低評価レビューが多い')}else if(complaint&&complaint.level==='mid'&&level==='low'){level='mid';label='クレーム注意';reasons.push('低評価レビューあり')}return {level,label,reasons,exclude:level==='high'||Boolean(complaint&&complaint.exclude)}}
+function recommendationReviewReady(p,now=Date.now()){
+ const r=p?.complaintRisk;
+ if(!r||r.level!=='low'||r.exclude!==false)return false;
+ const checked=Date.parse(r.checkedAt||'');
+ if(!Number.isFinite(checked)||checked>now||now-checked>24*60*60*1000)return false;
+ const {reviewCount,lowReviews,twoStarReviews,rating}=r;
+ if(!Number.isSafeInteger(reviewCount)||reviewCount<=0||!Number.isSafeInteger(lowReviews)||lowReviews<0||!Number.isSafeInteger(twoStarReviews)||twoStarReviews<0||lowReviews+twoStarReviews>reviewCount)return false;
+ if(typeof rating!=='number'||!Number.isFinite(rating)||rating<4||rating>5)return false;
+ const rate=(lowReviews+twoStarReviews)/reviewCount;
+ return lowReviews<3&&rate<0.08&&!(reviewCount>=10&&rate>=0.05);
+}
+async function enrichRiskList(list,limit=6){
+ const targets=list.filter(x=>x&&x.id&&!recommendationReviewReady(x)).slice(0,limit);
+ for(const p of targets){
+   try{
+     const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id),{signal:AbortSignal.timeout(12000)});
+     const j=await r.json();
+     p.complaintRisk=r.ok&&j.ok&&j.risk?j.risk:{level:'unknown',exclude:true,label:'レビュー取得失敗'};
+   }catch{p.complaintRisk={level:'unknown',exclude:true,label:'レビュー未確認'};}
+ }
+ return list;
+}
 function launchEligibility(x){
   if(!x)return {ready:false,reasons:['商品情報なし']};
   const reasons=[],risk=catalogRisk(x),unit=growthUnitEconomics(x);
@@ -359,7 +380,7 @@ function orderedRecommendedProducts(){
  const removedIds=new Set(removed.map(x=>String(x.product.id)));
  const main=fresh.filter(p=>!removedIds.has(String(p.id)));
  const tail=removed.map(x=>({...x.product,oddlyRecentlyRemoved:true})).filter(p=>!findActive(p.id)||findActive(p.id).uiSelected===false);
- return [...main,...tail];
+ return [...main,...tail].filter(p=>recommendationReviewReady(p)&&!catalogRisk(p).exclude);
 }
 function toggleCandidate(id){
  const p=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id))||active.find(x=>String(x.id)===String(id));
@@ -459,16 +480,17 @@ function renderRecommendTop(){
   if(!box)return;
   const picks=orderedRecommendedProducts();
   if(stamp)stamp.textContent=today?.at?'更新 '+new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'AIが毎日3〜5商品に絞ります';
-  box.innerHTML=picks.length?picks.map((p,i)=>recommendationCard(p,i+1)).join(''):'<div class="empty">AIおすすめを準備中です。CJ接続後に自動更新します。</div>';
+  box.innerHTML=picks.length?picks.map((p,i)=>recommendationCard(p,i+1)).join(''):'<div class="empty">レビューなどの推薦条件を確認できた商品がまだありません。未確認の商品はおすすめに表示しません。</div>';
 }
 function renderToday(){renderRecommendTop()}
 function renderScanSummary(){if(!today){scanSummary.innerHTML='<div class="tiny">まだスキャン結果はありません。</div>';return}const s=today.summary||{};scanSummary.innerHTML=`<div class="summary"><div><span class="tiny">取得</span><b>${s.fetched||0}</b></div><div><span class="tiny">条件通過</span><b>${s.passed||0}</b></div><div><span class="tiny">採用</span><b>${today.products?.length||0}</b></div></div><div class="explain">除外: スコア ${s.failScore||0} / 価格 ${s.failCost||0} / 売れ筋不足 ${s.failTrend||0} / 商品タイプ ${s.failType||0} / 安全性 ${s.failRisk||0} / 粗利 ${s.failMargin||0}</div><div class="tiny" style="margin-top:7px">${esc(new Date(today.at).toLocaleString('ja-JP'))}</div>`}
 function oddlyPetRelevant(p){const name=String(p.name||'').toLowerCase();const category=String(p.categoryName||p.category||'').toLowerCase();const pet=/\b(pet|pets|dog|dogs|puppy|puppies|cat|cats|kitten|kittens|feline|canine|aquarium|hamster|rabbit|bird cage|litter|leash|collar|harness|grooming|paw|pet feeder|pet bowl)\b|ペット|犬|猫|小動物/.test(name+' '+category);const unrelated=/sewer|drain|dredg|juicer|blender|kitchen mixer|hair cleaner|plumbing|sink unclog/.test(name);return pet&&!unrelated}
-async function runAutoScan(silent=false){if(recommendationScanRunning)return;recommendationScanRunning=true;if(!watch.length){watch=['pet','dog','cat'];saveWatch()}rules=readRules();localStorage.setItem('aiBuyerRules',JSON.stringify(rules));try{if(!silent)autoStatus.textContent='自動探索中…';let pool=[];for(const kw of ['pet dog','pet cat','dog toy','cat toy','pet grooming','dog leash','cat bed','cat mug','dog print home decor','cat themed gift']){try{if(pool.length||kw!==watch[0])await waitMs(1150);const r=await fetch(`/api/cj-search?q=${encodeURIComponent(kw)}&page=1&size=20&trending=1&minListed=${Math.max(SAFE_TREND_MIN_LISTINGS,rules.minListed)}`);const j=await r.json();if(!r.ok||!j.ok)continue;const arr=(j.products||[]).map(x=>({...x,_kw:kw,_m:metrics(x)}));const passed=arr.filter(x=>evaluateRule(x).pass&&!catalogRisk(x).exclude).length;pool.push(...arr);const top=arr.length?Math.max(...arr.map(x=>x._m.score)):0;addHistory(kw,arr.length,top,passed)}catch(e){}}pool=dedupe(pool).sort((a,b)=>b._m.score-a._m.score);const evaluated=pool.map(p=>({...p,_rule:evaluateRule(p)}));const passed=evaluated.filter(x=>oddlyPetRelevant(x)&&x._rule.pass&&!catalogRisk(x).exclude);await enrichRiskList(passed,10);const safe=passed.filter(x=>!catalogRisk(x).exclude);const chosen=safe.slice(0,rules.count).map(({_rule,...x})=>x);const summary={fetched:pool.length,passed:safe.length,failScore:evaluated.filter(x=>!x._rule.checks[0][1]).length,failCost:evaluated.filter(x=>!x._rule.checks[1][1]).length,failTrend:evaluated.filter(x=>!x._rule.checks[2][1]).length,failType:evaluated.filter(x=>!x._rule.checks[3][1]).length,failRisk:evaluated.filter(x=>!x._rule.checks[4][1]).length,failMargin:evaluated.filter(x=>!x._rule.checks[5][1]).length};today={at:new Date().toISOString(),products:chosen,summary};localStorage.setItem('aiBuyerToday',JSON.stringify(today));results=safe.slice(0,40);filtered=results;countLabel.textContent=`条件通過 ${safe.length}件`;renderToday();renderScanSummary();if(!silent){showPage('recommend');applyFilters();autoStatus.textContent=`${pool.length}件確認 → ${safe.length}件通過 → 今日のおすすめ${chosen.length}件（安全性＋CJ Trending必須）`;}}finally{recommendationScanRunning=false}}
+async function runAutoScan(silent=false){if(recommendationScanRunning)return;recommendationScanRunning=true;if(!watch.length){watch=['pet','dog','cat'];saveWatch()}rules=readRules();localStorage.setItem('aiBuyerRules',JSON.stringify(rules));try{if(!silent)autoStatus.textContent='自動探索中…';let pool=[];for(const kw of ['pet dog','pet cat','dog toy','cat toy','pet grooming','dog leash','cat bed','cat mug','dog print home decor','cat themed gift']){try{if(pool.length||kw!==watch[0])await waitMs(1150);const r=await fetch(`/api/cj-search?q=${encodeURIComponent(kw)}&page=1&size=20&trending=1&minListed=${Math.max(SAFE_TREND_MIN_LISTINGS,rules.minListed)}`);const j=await r.json();if(!r.ok||!j.ok)continue;const arr=(j.products||[]).map(x=>({...x,_kw:kw,_m:metrics(x)}));const passed=arr.filter(x=>evaluateRule(x).pass&&!catalogRisk(x).exclude).length;pool.push(...arr);const top=arr.length?Math.max(...arr.map(x=>x._m.score)):0;addHistory(kw,arr.length,top,passed)}catch(e){}}pool=dedupe(pool).sort((a,b)=>b._m.score-a._m.score);const evaluated=pool.map(p=>({...p,_rule:evaluateRule(p)}));const passed=evaluated.filter(x=>oddlyPetRelevant(x)&&x._rule.pass&&!catalogRisk(x).exclude);await enrichRiskList(passed,10);const safe=passed.filter(x=>recommendationReviewReady(x)&&!catalogRisk(x).exclude);const chosen=safe.slice(0,rules.count).map(({_rule,...x})=>x);const summary={fetched:pool.length,passed:safe.length,failScore:evaluated.filter(x=>!x._rule.checks[0][1]).length,failCost:evaluated.filter(x=>!x._rule.checks[1][1]).length,failTrend:evaluated.filter(x=>!x._rule.checks[2][1]).length,failType:evaluated.filter(x=>!x._rule.checks[3][1]).length,failRisk:evaluated.filter(x=>!x._rule.checks[4][1]).length,failMargin:evaluated.filter(x=>!x._rule.checks[5][1]).length};today={at:new Date().toISOString(),products:chosen,summary,reviewCheckCompleted:true};localStorage.setItem('aiBuyerToday',JSON.stringify(today));results=safe.slice(0,40);filtered=results;countLabel.textContent=`条件通過 ${safe.length}件`;renderToday();renderScanSummary();if(!silent){showPage('recommend');applyFilters();autoStatus.textContent=`${pool.length}件確認 → ${safe.length}件通過 → 今日のおすすめ${chosen.length}件（安全性＋CJ Trending必須）`;}}finally{recommendationScanRunning=false}}
 function recommendationsNeedRefresh(){
   const picks=Array.isArray(today?.products)?today.products:[];
   const last=today?.at?new Date(today.at).getTime():0;
-  return picks.length<3||picks.some(p=>!oddlyPetRelevant(p))||!Number.isFinite(last)||Date.now()-last>12*60*60*1000;
+  if(today?.reviewCheckCompleted&&Number.isFinite(last)&&Date.now()-last<15*60*1000)return false;
+  return picks.length<3||picks.some(p=>!oddlyPetRelevant(p)||!recommendationReviewReady(p))||!Number.isFinite(last)||Date.now()-last>12*60*60*1000;
 }
 function ensureRecommendations(){
   renderRecommendTop();
