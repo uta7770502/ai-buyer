@@ -148,7 +148,7 @@ const usd=n=>'$'+Number(n||0).toFixed(2);
 const parsePrice=v=>{const m=String(v??'').match(/\d+(?:\.\d+)?/);return m?Number(m[0]):0};
 const fx=150;
 function suggestedPrice(costUsd){const jpy=costUsd*fx; return Math.max(980,Math.ceil((jpy*2.8)/100)*100)}
-function metrics(p){const cost=parsePrice(p.sellPrice);const sell=suggestedPrice(cost);const costJpy=cost*fx;const gross=Math.max(0,sell-costJpy);const margin=sell?gross/sell:0;const listed=Number(p.listedNum||0);let score=58;const reasons=[];if(cost>0&&cost<=10){score+=14;reasons.push('低仕入価格')}else if(cost<=20){score+=9;reasons.push('仕入価格良好')}else if(cost>40){score-=7;reasons.push('仕入価格高め')}if(listed>=100){score+=12;reasons.push('掲載実績が多い')}else if(listed>=30){score+=8;reasons.push('掲載実績あり')}else if(listed<5){score-=4;reasons.push('掲載実績少なめ')}if(p.image){score+=4;reasons.push('商品画像あり')}if(margin>=.6){score+=12;reasons.push('粗利率が高い')}else if(margin>=.45){score+=7;reasons.push('粗利率良好')}else if(margin<.3){score-=8;reasons.push('粗利率低め')}score=Math.max(1,Math.min(99,Math.round(score)));const signal=score>=90?'strong':score>=80?'mid':'weak';const signalLabel=score>=90?'強':score>=80?'中':'弱';return {score,reasons,cost,sell,margin,gross,signal,signalLabel}}
+function metrics(p){const cost=parsePrice(p.sellPrice);const sell=suggestedPrice(cost);const costJpy=cost*fx;const gross=Math.max(0,sell-costJpy);const margin=sell?gross/sell:0;const listed=p.listedNum==null||String(p.listedNum).trim()===''?NaN:Number(p.listedNum);let score=58;const reasons=[];if(cost>0&&cost<=10){score+=14;reasons.push('低仕入価格')}else if(cost>0&&cost<=20){score+=9;reasons.push('仕入価格良好')}else if(cost>40){score-=7;reasons.push('仕入価格高め')}if(!Number.isFinite(listed)||listed<0){reasons.push('掲載実績は未確認')}else if(listed>=100){score+=12;reasons.push('掲載実績が多い')}else if(listed>=30){score+=8;reasons.push('掲載実績あり')}else if(listed<5){score-=4;reasons.push('掲載実績少なめ')}if(p.image){score+=4;reasons.push('商品画像あり')}if(cost<=0){score-=15;reasons.push('仕入価格は未確認')}else if(margin>=.6){score+=12;reasons.push('粗利率が高い')}else if(margin>=.45){score+=7;reasons.push('粗利率良好')}else if(margin<.3){score-=8;reasons.push('粗利率低め')}score=Math.max(1,Math.min(99,Math.round(score)));const signal=score>=90?'strong':score>=80?'mid':'weak';const signalLabel=score>=90?'強':score>=80?'中':'弱';return {score,reasons,cost,sell,margin,gross,signal,signalLabel}}
 function learnedMetrics(x){const base=Number(x.aiScore||metrics(x).score);const views=Math.max(0,Number(x.views||0)),orders=Math.max(0,Number(x.orders||0)),ad=Math.max(0,Number(x.adSpend||0)),returns=Math.max(0,Number(x.returns||0));const price=Number(x.actualUnitPrice??x.price??suggestedPrice(x.costUsd||parsePrice(x.sellPrice)));const costJpy=Number(x.actualUnitCost??Math.round((x.costUsd||parsePrice(x.sellPrice))*fx));const shipping=Number(x.actualUnitShipping??(hasValidShipping(x)?Number(x.shippingJpy):0));const revenue=orders*price;const gross=(price-costJpy)*orders;const fees=Math.round(revenue*.045);const net=gross-ad-fees-orders*shipping;const cv=views?orders/views:0;const roas=ad?revenue/ad:(orders?99:0);const rr=orders?returns/orders:0;let delta=0;const reasons=[];if(views>=50){if(cv>=.04){delta+=10;reasons.push('購入率4%以上')}else if(cv>=.02){delta+=5;reasons.push('購入率良好')}else if(cv<.008){delta-=10;reasons.push('購入率が低い')}}if(orders>=3){if(roas>=3){delta+=7;reasons.push('ROAS 3以上')}else if(roas>=2){delta+=4;reasons.push('ROAS良好')}else if(ad>0&&roas<1.2){delta-=8;reasons.push('広告効率が低い')}}if(orders>=3&&rr>.15){delta-=7;reasons.push('返品率が高い')}else if(orders>=5&&rr<=.05){delta+=3;reasons.push('返品率が低い')}if(orders>=3&&net>0){delta+=4;reasons.push('実利益プラス')}else if(orders>=1&&net<0){delta-=6;reasons.push('実利益マイナス')}delta=Math.max(-20,Math.min(20,delta));const learned=Math.max(1,Math.min(99,Math.round(base+delta)));let autoStatus=x.status||'candidate';if(views>=100&&orders>=3&&cv>=.02&&net>0&&(ad===0||roas>=1.8))autoStatus='live';else if(views>=100&&(orders===0||cv<.008||net<0))autoStatus='candidate';else if(views>=30)autoStatus='test';return {base,learned,delta,views,orders,ad,returns,revenue,net,cv,roas,rr,reasons,autoStatus}}
 function addLearningLog(x,before,after,lm){const dir=lm.delta>0?'up':lm.delta<0?'down':'same';learning.unshift({time:new Date().toLocaleString('ja-JP'),id:x.id,name:x.name,before,after,score:lm.learned,delta:lm.delta,dir,cv:lm.cv,roas:lm.roas,net:lm.net});learning=learning.slice(0,30);localStorage.setItem('aiBuyerLearningHistory',JSON.stringify(learning));renderLearningHistory();renderArchive();renderPortfolio();renderBudgetAllocation();renderAdAutomation();renderDailyActions()}
 function renderLearningHistory(){const el=document.getElementById('learningHistory');if(!el)return;el.innerHTML=learning.length?learning.map(h=>`<div class="historyItem"><span><b>${esc(h.name)}</b><br><span class="tiny">${esc(h.time)} / CVR ${(h.cv*100).toFixed(1)}% / 利益 ${yen(h.net)}</span></span><span>${h.before}→${h.after}<span class="historyBadge ${h.dir}">${h.delta>0?'+':''}${h.delta}点</span></span></div>`).join(''):'<div class="tiny">まだ学習履歴はありません。</div>'}
@@ -2774,7 +2774,18 @@ function freezeActualUnitValues(x){if(Number(x.orders||0)<=0||x.actualUnitPrice!
 function applyTargetPrice(id,target){const x=findActive(id);if(!x)return;if(!hasValidShipping(x)){alert('先に送料を設定してください。');return}const price=Math.round(Number(target));if(!Number.isFinite(price)||price<=0)return;if(!confirm('想定売価を '+yen(price)+' に変更しますか？'))return;freezeActualUnitValues(x);x.price=price;save();renderAll()}
 function changePrice(id,v){const x=findActive(id);if(!x)return;const n=Number(v);if(String(v).trim()===''||!Number.isSafeInteger(n)||n<0){alert('売価は0以上の整数（円）で入力してください。');renderAll();return}freezeActualUnitValues(x);x.price=n;save();renderAll()}
 function removeCandidate(id){const x=findActive(id);if(x?.shopifyProductId&&!confirm('選択をOFFにしてもShopify登録済み商品は残ります。選択を解除しますか？'))return;cancelAutoPreparationRetry(id);active=active.filter(x=>String(x.id)!==String(id));save();renderAll();if(results.length)applyFilters();showCandidateToast('選択OFF（Shopify側の商品は維持）')}
+function detailProductForDisplay(detailProduct, catalogProduct){
+  const p={...detailProduct};
+  // Only listing popularity may fall back; never copy stale stock, reviews or shipping.
+  if(catalogProduct&&String(catalogProduct.id)===String(p.id)&&p.listedNum==null){
+    const value=catalogProduct.listedNum;
+    if(value!==null&&value!==undefined&&String(value).trim()!==''&&Number.isFinite(Number(value))&&Number(value)>=0)p.listedNum=Number(value);
+  }
+  return p;
+}
+let detailRequestVersion=0;
 async function openDetail(id){
+  const requestVersion=++detailRequestVersion;
   modal.classList.add('on');
   detail.innerHTML='<div class="loading">商品詳細を読み込み中…</div>';
   try{
@@ -2785,12 +2796,15 @@ async function openDetail(id){
       lastCjProductSearchAt=Date.now();
       const r=await fetch(`/api/cj-detail?id=${encodeURIComponent(id)}`);
       j=await r.json();
+      if(requestVersion!==detailRequestVersion)return;
       if(r.ok&&j.ok)break;
       if(!isCjRateLimitMessage(j.error)||attempt===3)throw new Error(j.error||'詳細取得に失敗しました');
       detail.innerHTML='<div class="loading">CJのアクセス制限を避けて再試行しています…</div>';
       await waitMs(1600*(attempt+1));
     }
-    const p=j.product;
+    if(!j?.product||String(j.product.id)!==String(id))throw new Error('選択した商品と取得情報が一致しません。商品を選び直してください。');
+    const catalogProduct=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id));
+    const p=detailProductForDisplay(j.product,catalogProduct);
     const m=metrics(p);
     const desc=cleanProductDescription(p.description);
     const current=findActive(p.id);
@@ -2798,7 +2812,7 @@ async function openDetail(id){
     detail.innerHTML=`${p.image?`<img class="detailHero" src="${esc(p.image)}" alt="">`:''}
       <div class="detailTitle">${esc(japaneseProductName(p))}</div>
       <div class="kv">
-        <b>AIスコア</b><span>${m.score}/100</span>
+        <b>AIスコア</b><span>${m.score}/100（暫定）</span>
         <b>評価理由</b><span>${esc(m.reasons.join(' / '))}</span>
         <b>SKU</b><span>${esc(p.sku||'—')}</span>
         <b>CJ価格</b><span>${esc(p.sellPrice||'—')}</span>
@@ -2808,6 +2822,7 @@ async function openDetail(id){
       </div>
       <div class="desc">${esc(japaneseProductName(p))}の販売準備用情報です。仕様・品質・ペットへの適性は仕入先の情報を確認してください。</div>
       <details class="desc"><summary>仕入先の商品名・説明（原文を確認）</summary><p>${esc(p.name||'商品名未取得')}</p>${desc?`<div>${esc(desc)}</div>`:'説明は取得できていません。'}<p>翻訳・仕様確認が完了するまで、販売用の説明として確定しないでください。</p></details>
+      <p class="tiny">評価は取得できた価格・掲載実績などによる参考値です。詳細取得時の価格で再計算するため一覧と変わる場合があります。在庫・レビュー・送料の確認や販売承認を示すものではありません。</p>
       <div class="detailActionSticky">
         <button type="button" role="switch" aria-label="販売候補に加える" aria-checked="${selected}" class="selectionToggle" id="addDetailCandidateButton">
           <span class="switchTrack" aria-hidden="true"><span class="switchThumb"></span></span>
@@ -2825,7 +2840,8 @@ async function openDetail(id){
     const sheet=modal.querySelector('.sheet');
     if(sheet)sheet.scrollTop=0;
   }catch(e){
-    detail.innerHTML=`<div class="error">${esc(e.message)}</div>`;
+    if(requestVersion!==detailRequestVersion)return;
+    detail.innerHTML=`<div class="error">商品詳細を取得できませんでした。時間をおいて開き直してください。</div>`;
   }
 }
 function normalizedCategory(p){
@@ -2843,7 +2859,7 @@ function normalizedCategory(p){
   return '分類未確認';
 }
 function addDetailCandidate(p){let x=findActive(p.id);if(!x){x={...p,price:suggestedPrice(p.costUsd),qty:12,status:'candidate',shippingDestination:'JP',autoSetupState:'queued'};active.push(x);save()}closeModal();renderAll();if(results.length)applyFilters();showCandidateToast('商品を選択しました。AIが自動準備します');setTimeout(()=>autoPrepareSelectedProduct(x),120)}
-function closeModal(){modal.classList.remove('on')}
+function closeModal(){detailRequestVersion++;modal.classList.remove('on')}
 function showPage(id,btn){const currentPage=document.querySelector('.page.on')?.id||'';if(id!==currentPage){active=active.filter(x=>x.uiSelected!==false);save()}document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('.nav button')[id==='recommend'?1:id==='profit'?2:0].classList.add('on');if(id==='recommend'){renderRecommendTop();ensureRecommendations()}renderAll();requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}))}
 document.addEventListener('click',e=>{const btn=e.target.closest('[data-publish-id]');if(!btn)return;e.preventDefault();e.stopPropagation();const id=btn.getAttribute('data-publish-id');btn.disabled=true;btn.textContent='確認中…';publishById(id)});
 document.addEventListener('click',async e=>{
