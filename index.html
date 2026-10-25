@@ -236,21 +236,33 @@ function simpleProductState(x){
 function japaneseProductName(p){
   const raw=String(p?.name||'').trim();
   if(!raw)return '商品名を確認中';
+  if(/[ぁ-んァ-ヶ一-龠]/.test(raw)&&!/[a-z]{3}/i.test(raw))return raw;
   const patterns=[
-    [/cat bag|pet cat bag|cat carrier|pet shoulder carrying bag|canvas carrier bag/i,'大容量 ペット用キャリーバッグ'],
-    [/solar ant|electronic pet toy/i,'ソーラー式 アリ型ペットおもちゃ'],
-    [/golf putting practice mat|swing trajectory paper/i,'ゴルフ パッティング練習マット'],
-    [/four.legged pet outfit|pet outfit/i,'ペット用 四つ足ウェア'],
+    [/cat paw.*(?:cup|mug)|cat paws.*(?:cup|mug)/i,'猫の肉球モチーフ カップ'],
+    [/electric.*(?:jumping fish|fish toy)/i,'電動フィッシュ型おもちゃ'],
+    [/cat.*sisal|sisal.*cat/i,'猫用 サイザル爪とぎ'],
+    [/cotton rope ball/i,'ペット用 ロープボール'],
+    [/dog.*(?:toy.*ball|ball.*toy)/i,'犬用 おもちゃボール'],
+    [/lint roller/i,'ペットの抜け毛取りローラー'],
+    [/cat litter mat/i,'猫砂マット'],
+    [/cat.*scratch|scratch.*cat/i,'猫用 爪とぎ・保護シート'],
+    [/dog.*(?:double bowls|feeding dish)|feeders for dogs/i,'犬用 フード・給水ボウル'],
+    [/led.*dog collar|dog collar.*led/i,'犬用 LED首輪'],
+    [/dog bath brush/i,'犬用 バスブラシ'],
+    [/grooming brush|massage comb/i,'ペット用 グルーミングブラシ'],
+    [/cat bag|cat carrier|pet shoulder carrying bag|canvas carrier bag/i,'ペット用キャリーバッグ'],
+    [/solar ant/i,'ソーラー式 アリ型おもちゃ'],
+    [/golf putting practice mat/i,'ゴルフ パッティング練習マット'],
+    [/swing trajectory paper/i,'ゴルフ スイング軌道確認シート'],
+    [/four.legged pet outfit/i,'ペット用 四つ足ウェア'],
+    [/pet outfit/i,'ペット用ウェア'],
     [/electric hair pulling|blowing comb/i,'ペット用 電動グルーミングブラシ'],
     [/kitchen knife sharpener|knife sharpener/i,'家庭用 包丁研ぎ器'],
-    [/dogs? water bottle|drinking bowl/i,'携帯用 ペット給水ボトル'],
+    [/dogs? water bottle|drinking bowl/i,'ペット用給水用品'],
     [/dog mattress|dog mat|pet sleeping pad/i,'犬用 ペットマット']
   ];
   for(const [re,name] of patterns)if(re.test(raw))return name;
-  const words=[['Pet','ペット'],['Dog','犬'],['Cat','猫'],['Golf','ゴルフ'],['Putting','パッティング'],['Practice','練習'],['Mat','マット'],['Bag','バッグ'],['Carrier','キャリー'],['Toy','おもちゃ'],['Outfit','ウェア'],['Brush','ブラシ'],['Comb','コーム'],['Kitchen','キッチン'],['Storage','収納'],['Portable','携帯用'],['Waterproof','防水'],['Foldable','折りたたみ'],['Electric','電動'],['Solar','ソーラー'],['Large','大型'],['Capacity','大容量']];
-  let result=raw;
-  for(const [en,ja] of words)result=result.replace(new RegExp('\\b'+en+'\\b','gi'),ja);
-  return result;
+  return '商品名の日本語確認待ち';
 }
 function shopifyPreparationBadge(x){
   if(!x)return '';
@@ -2794,7 +2806,8 @@ async function openDetail(id){
         <b>カテゴリ</b><span>${esc(normalizedCategory(p))}</span>
         <b>バリエーション</b><span>${p.variants?.length||0}件</span>
       </div>
-      ${desc?`<div class="desc">${esc(desc)}</div>`:''}
+      <div class="desc">${esc(japaneseProductName(p))}の販売準備用情報です。仕様・品質・ペットへの適性は仕入先の情報を確認してください。</div>
+      <details class="desc"><summary>仕入先の商品名・説明（原文を確認）</summary><p>${esc(p.name||'商品名未取得')}</p>${desc?`<div>${esc(desc)}</div>`:'説明は取得できていません。'}<p>翻訳・仕様確認が完了するまで、販売用の説明として確定しないでください。</p></details>
       <div class="detailActionSticky">
         <button type="button" role="switch" aria-label="販売候補に加える" aria-checked="${selected}" class="selectionToggle" id="addDetailCandidateButton">
           <span class="switchTrack" aria-hidden="true"><span class="switchThumb"></span></span>
@@ -2816,9 +2829,18 @@ async function openDetail(id){
   }
 }
 function normalizedCategory(p){
-  const text=(String(p?.name||'')+' '+String(p?.category||'')).toLowerCase();
-  if(/\b(cat|dog|pet|puppy|kitten|carrier|pet supplies)\b/.test(text))return 'Pet Supplies > Carriers & Travel';
-  return p?.category||'—';
+  const text=String(p?.name||'').toLowerCase();
+  const rules=[
+    [/cat paw.*(?:cup|mug)|cat paws.*(?:cup|mug)/,'ペットモチーフの生活雑貨'],
+    [/carrier|carrying bag|cat bag/,'ペット用品 / キャリー'],
+    [/cat litter/,'ペット用品 / トイレ用品'],
+    [/groom|brush|comb|lint roller/,'ペット用品 / お手入れ'],
+    [/bowl|feeder|water bottle/,'ペット用品 / 食器・給水'],
+    [/collar|leash/,'ペット用品 / 首輪・リード'],
+    [/toy|sisal|scratch/,'ペット用品 / おもちゃ・爪とぎ']
+  ];
+  for(const [pattern,label] of rules)if(pattern.test(text))return label+'（商品名からの仮分類）';
+  return '分類未確認';
 }
 function addDetailCandidate(p){let x=findActive(p.id);if(!x){x={...p,price:suggestedPrice(p.costUsd),qty:12,status:'candidate',shippingDestination:'JP',autoSetupState:'queued'};active.push(x);save()}closeModal();renderAll();if(results.length)applyFilters();showCandidateToast('商品を選択しました。AIが自動準備します');setTimeout(()=>autoPrepareSelectedProduct(x),120)}
 function closeModal(){modal.classList.remove('on')}
