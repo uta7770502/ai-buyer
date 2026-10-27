@@ -45,6 +45,10 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
   assert.ok(blocked?.reasons.includes('SKU未設定'));
   assert.ok(blocked?.reasons.includes('商品画像なし'));
   assert.equal(r.body.products[0].id,'gid://shopify/Product/2');
+  assert.equal(r.body.totalIssues,blocked.reasons.length);
+  assert.ok(r.body.totalIssues>r.body.blockedDrafts);
+  assert.deepEqual(r.body.issueSummary,blocked.reasons.map(reason=>({reason,productCount:1})));
+  assert.ok(r.body.issueSummary.every(row=>Object.keys(row).sort().join(',')==='productCount,reason'));
 });
 
 test('prelaunch product audit is admin protected',async()=>{
@@ -98,10 +102,11 @@ test('archived managed products are excluded without hiding active or unknown pr
  t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{nodes,pageInfo:{hasNextPage:false}}}})}));
  const req={method:'GET',headers:{authorization:'Bearer admin'}};
  const first=res();await audit(req,first);
- assert.equal(first.body.allDraftsReady,true);assert.equal(first.body.archivedCount,1);assert.equal(first.body.totalIssues,0);assert.equal(first.body.products.length,1);
+ assert.equal(first.body.allDraftsReady,true);assert.equal(first.body.archivedCount,1);assert.equal(first.body.totalIssues,0);assert.equal(first.body.products.length,1);assert.deepEqual(first.body.issueSummary,[]);
  nodes.push({...draft,id:'gid://shopify/Product/3',status:'ACTIVE'});
  const second=res();await audit(req,second);
  assert.equal(second.body.allDraftsReady,false);assert.equal(second.body.nonDraftCount,1);assert.equal(second.body.totalIssues,1);
+ assert.deepEqual(second.body.issueSummary,[{reason:'下書きではありません',productCount:1}]);
  nodes=[draft,{id:'gid://shopify/Product/4',status:'ARCHIVED',vendor:'Unexpected'}];
  const third=res();await audit(req,third);
  assert.equal(third.body.allDraftsReady,false);assert.equal(third.body.archivedCount,0);

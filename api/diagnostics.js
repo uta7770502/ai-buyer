@@ -46,7 +46,10 @@ async function previewPrelaunchSummary(req,res){
     productAudit:{
       draftCount:Number(b.productAudit?.draftCount||0),
       readyDrafts:Number(b.productAudit?.readyDrafts||0),
-      blockedDrafts:Number(b.productAudit?.blockedDrafts||0)
+      blockedDrafts:Number(b.productAudit?.blockedDrafts||0),
+      totalIssues:Number(b.productAudit?.totalIssues||0),
+      nonDraftCount:Number(b.productAudit?.nonDraftCount||0),
+      issueSummary:Array.isArray(b.productAudit?.issueSummary)?b.productAudit.issueSummary:[]
     },
     reconciliation:b.reconciliation?{total:Number(b.reconciliation.total||0),partial:Boolean(b.reconciliation.partial)}:null
   });
