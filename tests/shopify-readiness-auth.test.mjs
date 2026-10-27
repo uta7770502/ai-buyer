@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { redisConnection } from '../lib/redis-connection.js';
 
 const source=readFileSync(new URL('../lib/routes/release-readiness.js',import.meta.url),'utf8')
+  .replace("import { redisConnection } from '../redis-connection.js';",'')
   .replace("import { loadShopifySession } from '../shopify-session-store.js';",'').replace("import { loadLegalConfig } from '../legal-config-store.js';",'').replace('export default async function handler','async function handler')+'\nthis.handler=handler;';
 
 function run(env={}){
   const context={loadShopifySession:async()=>null,loadLegalConfig:async()=>null,process:{env:{AI_BUYER_ADMIN_KEY:'test-admin-key',...env}},fetch:async()=>{throw Error('Network calls must not be made in this fixture')},AbortSignal,Date,Boolean,String,Number,RegExp};
+  context.redisConnection=()=>redisConnection(context.process.env);
   vm.runInNewContext(source,context);
   let status=0,body;
   const res={setHeader(){},status(code){status=code;return this},json(value){body=JSON.parse(JSON.stringify(value));return this}};
@@ -32,6 +35,7 @@ test('server token presence is not proof of API connectivity',async()=>{
 });
 test('readiness requires administrator authorization',async()=>{
   const context={loadShopifySession:async()=>null,process:{env:{AI_BUYER_ADMIN_KEY:'test-admin-key'}},fetch:async()=>{throw Error('Unexpected network')},AbortSignal,Date,Boolean,String,Number};
+  context.redisConnection=()=>redisConnection(context.process.env);
   vm.runInNewContext(source,context);
   let status;const res={setHeader(){},status(code){status=code;return this},json(){return this}};
   await context.handler({method:'GET',headers:{}},res);

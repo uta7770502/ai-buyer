@@ -11,8 +11,7 @@ test('legal config is admin-gated and encrypted at rest',()=>{
   assert.match(store,/aes-256-gcm/);
   assert.match(store,/ai-buyer:oddly:legal-config:v1/);
   assert.match(store,/SHOPIFY_TOKEN_ENCRYPTION_KEY/);
-  assert.match(store,/UPSTASH_REDIS_REST_URL/);
-  assert.match(store,/UPSTASH_REDIS_REST_TOKEN/);
+  assert.match(store,/redisConnection/);
   assert.match(store,/SET/);
   assert.match(store,/GET/);
   assert.match(storefront,/req\.method==='POST'/);
