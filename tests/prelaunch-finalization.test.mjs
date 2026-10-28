@@ -31,6 +31,8 @@ test('legal config stays not ready until every required public field exists',asy
   const prev={...process.env};
   for(const k of Object.keys(process.env))if(k.startsWith('ODDLY_'))delete process.env[k];
   t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
+  Object.assign(process.env,{VERCEL_ENV:'production',UPSTASH_REDIS_REST_URL:'https://redis.example',UPSTASH_REDIS_REST_TOKEN:'test'});
+  t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({result:null})}));
   let r=res();await config({method:'GET'},r);assert.equal(r.body.legalReady,false);
   Object.assign(process.env,{
     ODDLY_SELLER_NAME:'Seller',ODDLY_REPRESENTATIVE_NAME:'Representative',ODDLY_SELLER_ADDRESS:'Tokyo',
