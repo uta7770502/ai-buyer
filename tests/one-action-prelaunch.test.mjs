@@ -47,6 +47,7 @@ test('read-only connectivity alone cannot complete the final manual gate',async 
     if(s==='https://redis.example/ping')return {ok:true,json:async()=>({result:'PONG'})};
     if(s==='https://redis.example/'){
       const cmd=JSON.parse(opts.body||'[]');
+      if(cmd[0]==='GET')return {ok:true,json:async()=>({result:null})};
       if(cmd[0]==='SCAN')return {ok:true,json:async()=>({result:['0',[]]})};
       if(cmd[0]==='MGET')return {ok:true,json:async()=>({result:cmd.slice(1).map(()=>null)})};
       throw Error('unexpected redis command');
@@ -90,6 +91,7 @@ test('stock sync may remain disabled without blocking read-only prelaunch checks
     if(s==='https://redis.example/ping')return {ok:true,json:async()=>({result:'PONG'})};
     if(s==='https://redis.example/'){
       const cmd=JSON.parse(opts.body||'[]');
+      if(cmd[0]==='GET')return {ok:true,json:async()=>({result:null})};
       if(cmd[0]==='SCAN')return {ok:true,json:async()=>({result:['0',[]]})};
       if(cmd[0]==='MGET')return {ok:true,json:async()=>({result:cmd.slice(1).map(()=>null)})};
       throw Error('unexpected redis command');

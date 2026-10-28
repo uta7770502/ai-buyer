@@ -98,7 +98,7 @@ test('authorization failure does not contact services',async t=>{
 test('missing client ID and noninteger quantity limit fail release gate',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
@@ -169,7 +169,7 @@ for(const sandboxFlag of [0,undefined])test('real or unconfirmed CJ orders canno
 test('release readiness distinguishes Redis ping from unverified external integrations',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
@@ -195,7 +195,7 @@ test('release readiness distinguishes Redis ping from unverified external integr
 test('release readiness fails closed for missing numeric safety limits',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});

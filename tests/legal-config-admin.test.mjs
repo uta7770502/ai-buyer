@@ -25,7 +25,7 @@ test('readiness consumes encrypted legal config before env fallback',()=>{
   assert.match(readiness,/loadLegalConfig/);
   assert.match(readiness,/legalValue\(legal\.sellerName,'ODDLY_SELLER_NAME'\)/);
   assert.match(readiness,/legalValue\(legal\.returnDays,'ODDLY_RETURN_DAYS'\)/);
-  assert.match(readiness,/legalSource:Object\.keys\(legal\)\.length\?'encrypted-redis':'environment'/);
+  assert.match(readiness,/legalSource:legalReadFailed\?'unavailable':Object\.keys\(legal\)\.length\?'encrypted-redis':'environment'/);
 });
 
 test('admin UI contains one-screen legal form and save flow',()=>{
