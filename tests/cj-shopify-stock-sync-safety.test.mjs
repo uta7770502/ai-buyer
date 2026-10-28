@@ -165,6 +165,6 @@ test('apply mode rejects duplicate supplier variants and duplicate inventory ite
   assert.match(source,/variants\.length===0/);
   assert.match(source,/new Set\(vids\)\.size!==vids\.length/);
   assert.match(source,/new Set\(inventoryIds\)\.size!==inventoryIds\.length/);
-  assert.match(source,/Inventory audit has no variants or duplicate stock identifiers/);
+  assert.match(source,/DUPLICATE_OR_EMPTY_STOCK_IDENTIFIERS/);
   assert.ok(source.indexOf('new Set(vids)')<source.indexOf('const token=await cjToken();'));
 });
