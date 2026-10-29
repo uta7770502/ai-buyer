@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-shopify-stock-sync.js';
 
-async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false}={}){
+async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
   const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify'};
   for(const [k,v] of Object.entries(env)){const old=process.env[k];process.env[k]=v;t.after(()=>old===undefined?delete process.env[k]:process.env[k]=old);}
   t.mock.method(globalThis,'setTimeout',fn=>{fn();return 0;});
@@ -24,7 +24,7 @@ async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplica
       return reply({data:{inventorySetQuantities:mutation==='missing'?{}:mutation==='reject'?{userErrors:[{message:'compare failed'}]}:{userErrors:[],inventoryAdjustmentGroup:{createdAt:'2026-10-25'}}}});
     }
     events.push('read');
-    return reply({data:{products:{pageInfo:{hasNextPage:false},nodes:[{id:'p1',title:'test',status:'DRAFT',vendor:'ODDLY',variants:{pageInfo:{hasNextPage:false},nodes:(empty?[]:[1,2]).map(n=>({id:'v'+n,sku:'142105742165633024'+(duplicateSku?1:n),inventoryPolicy:'DENY',inventoryItem:{id:'gid://shopify/InventoryItem/'+(duplicateItem?1:n),inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:'gid://shopify/Location/1',name:'test'},quantities:[{name:'available',quantity:0}]}]}}}))}}]}}});
+    return reply({data:{products:{pageInfo:{hasNextPage:false},nodes:[{id:'p1',title:'test',status:'DRAFT',vendor:'ODDLY',variants:{pageInfo:{hasNextPage:false},nodes:(empty?[]:[1,2]).map(n=>({id:'v'+n,sku:'142105742165633024'+(duplicateSku?1:n),inventoryPolicy:'DENY',inventoryItem:{...(n===2&&tracking==='missing'?{}:{tracked:n===2&&tracking==='disabled'?false:true}),id:'gid://shopify/InventoryItem/'+(duplicateItem?1:n),inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:'gid://shopify/Location/1',name:'test'},quantities:[{name:'available',quantity:0}]}]}}}))}}]}}});
   });
   const res={setHeader(){},status(n){this.code=n;return this;},json(body){this.body=body;return this;}};
   await handler({method:dry?'GET':'POST',query:{apply:'true'},headers:{authorization:'Bearer test-key'}},res);
@@ -49,5 +49,12 @@ for(const dry of [true,false])for(const kind of ['duplicateSku','duplicateItem',
  const {res,events}=await run(t,{dry,[kind]:true});
  assert.equal(res.code,409);assert.equal(res.body.ok,false);assert.equal(res.body.readOnly,true);
  assert.equal(res.body.code,'DUPLICATE_OR_EMPTY_STOCK_IDENTIFIERS');
+ assert.deepEqual(events,['read']);
+});
+
+for(const dry of [true,false])for(const tracking of ['disabled','missing'])test(`${dry?'dry-run':'apply'} rejects ${tracking} tracking before supplier requests or writes`,async t=>{
+ const {res,events}=await run(t,{dry,tracking});
+ assert.equal(res.code,409);assert.equal(res.body.ok,false);assert.equal(res.body.readOnly,true);
+ assert.equal(res.body.code,'INVENTORY_TRACKING_REQUIRED');assert.equal(res.body.blockedVariants,1);
  assert.deepEqual(events,['read']);
 });
