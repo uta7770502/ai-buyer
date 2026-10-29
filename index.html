@@ -573,6 +573,12 @@ function goalBarRow(label,current,target,forecast){
 function renderSalesGoals(){
   const box=document.getElementById('salesGoalRows'),stamp=document.getElementById('salesGoalStamp'),note=document.getElementById('salesGoalAiNote');
   if(!box)return;
+  if(stamp)stamp.textContent=salesSummary.loading?'Shopify実売上を更新中...':salesSummary.error?('取得エラー: '+salesSummary.error):(salesSummary.checkedAt?'更新 '+new Date(salesSummary.checkedAt).toLocaleString('ja-JP'):'未取得');
+  if(!salesSummary.checkedAt||salesSummary.error||salesSummary.loading){
+    box.innerHTML=[['日','daily'],['月','monthly'],['年','yearly']].map(([label,key])=>'<div class="goalRow"><div class="goalLine"><span class="goalLabel">'+label+'</span><b>未確認</b></div><div class="goalMeta">目標 '+yen(Number(salesGoalSettings[key]||0))+'</div></div>').join('');
+    if(note)note.textContent='売上を確認できるまで、達成率・着地予測・目標ペースの判定を保留します。';
+    return;
+  }
   const now=new Date();
   const dayFrac=Math.max(.05,(now.getHours()+now.getMinutes()/60)/24);
   const dayForecast=Math.round(Number(salesSummary.daily||0)/dayFrac);
