@@ -748,9 +748,19 @@ function hydrateGrowthSettings(){
   for(const [id,val] of Object.entries(map)){const el=document.getElementById(id);if(el)el.value=val}
   renderGrowthMode();
 }
+function hasFreshGrowthSales(){
+  const stamp=Date.parse(salesSummary?.checkedAt||'');
+  const age=Date.now()-stamp;
+  return hasVerifiedSales()&&Number.isFinite(age)&&age>=0&&age<5*60*1000;
+}
 function renderGrowthMode(){
   const summary=document.getElementById('growthSummary'),box=document.getElementById('growthActions');
   if(!summary||!box)return;
+  if(!hasFreshGrowthSales()){
+    summary.textContent='最新のShopify売上が未確認のため、AI成長判定を保留しています。売上を更新してから再実行してください。';
+    box.innerHTML='';
+    return;
+  }
   const goal=growthGoalStatus(),revenue=goal.revenue,floor=goal.target,gap=goal.gap;
   const rows=active.filter(x=>!x.archived).map(x=>({x,e:growthUnitEconomics(x)}));
   const winners=rows.filter(r=>r.e.lm.orders>=2&&r.e.lm.net>0&&(r.e.lm.roas===99||r.e.lm.roas>=Number(adAutomationSettings.scaleRoas||2.5)));
@@ -778,15 +788,15 @@ function renderGrowthMode(){
 }
 async function runGrowthEngine(silent=false){
   if(growthSettings.mode==='off'){if(!silent)alert('AI売上成長モードはOFFです。');return}
-  const lastSales=Date.parse(salesSummary?.checkedAt||'');
-  const salesFresh=Number.isFinite(lastSales)&&Date.now()-lastSales<5*60*1000&&!salesSummary.error;
-  if(!salesFresh&&shopifyConnected)await refreshSalesSummary({silent:true});
+  if(!hasFreshGrowthSales()&&shopifyConnected)await refreshSalesSummary({silent:true});
+  if(!hasFreshGrowthSales()){
+    renderGrowthMode();
+    if(!silent)alert('最新のShopify売上を確認できないため、成長判定を保留しました。売上を更新してから再実行してください。');
+    return;
+  }
   const now=new Date().toISOString(),actions=[];
   const goal=growthGoalStatus();
   const pace=salesGoalPacing();
-  const salesAge=Date.parse(salesSummary?.checkedAt||'');
-  const salesDataFresh=Number.isFinite(salesAge)&&Date.now()-salesAge<10*60*1000&&!salesSummary.error;
-  if(!salesDataFresh)actions.push({type:'wait',tag:'売上データ',text:'Shopify最新売上を確認できないため、直近取得済みデータで安全側に判定します。'});
   let targetProfile=growthTargetProfile(growthSettings.dailySalesFloor);
   if(goal.phase==='chase'){
     targetProfile=applyGrowthTargetProfile(growthSettings.dailySalesFloor,true);
