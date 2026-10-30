@@ -57,7 +57,7 @@ test('read-only connectivity alone cannot complete the final manual gate',async 
       const body=JSON.parse(opts.body||'{}'),q=String(body.query||'');
       if(q.includes('PrelaunchProductAudit'))return {ok:true,json:async()=>({data:{products:{nodes:[{
         id:'gid://shopify/Product/1',title:'テスト商品',description:'日本語の商品説明',handle:'test',status:'DRAFT',vendor:'ODDLY',tags:[],
-        variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980'}],pageInfo:{hasNextPage:false}},
+        variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
         media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
         metafields:{nodes:[
           {key:'adps_audience',value:'一般消費者'},{key:'adps_summary',value:'商品要約'},{key:'adps_why',value:'選定理由'},
@@ -101,7 +101,7 @@ test('stock sync may remain disabled without blocking read-only prelaunch checks
       const q=String(JSON.parse(opts.body||'{}').query||'');
       if(q.includes('PrelaunchProductAudit'))return {ok:true,json:async()=>({data:{products:{nodes:[{
         id:'gid://shopify/Product/1',title:'テスト商品',description:'日本語の商品説明',handle:'test',status:'DRAFT',vendor:'ODDLY',tags:[],
-        variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980'}],pageInfo:{hasNextPage:false}},
+        variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
         media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
         metafields:{nodes:[
           {key:'adps_audience',value:'一般消費者'},{key:'adps_summary',value:'商品要約'},{key:'adps_why',value:'選定理由'},

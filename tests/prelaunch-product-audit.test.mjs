@@ -16,7 +16,7 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
   t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{
     nodes:[{
       id:'gid://shopify/Product/1',title:'テスト商品',description:'日本語の商品説明',handle:'test',status:'DRAFT',vendor:'ODDLY',tags:[],
-      variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980'}],pageInfo:{hasNextPage:false}},
+      variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
       media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
       metafields:{nodes:[
         {key:'adps_audience',value:'一般消費者'},
@@ -79,7 +79,7 @@ test('prelaunch audit rejects duplicate product IDs rather than reporting readin
  Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
  t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
  const p={id:'gid://shopify/Product/123',title:'日本語商品',description:'日本語の説明',handle:'a',status:'DRAFT',vendor:'ODDLY',tags:[],
-  variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'123456789012',price:'2000'}],pageInfo:{hasNextPage:false}},
+  variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'123456789012',price:'2000',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
   media:{nodes:[{image:{url:'https://example.com/p.png'}}],pageInfo:{hasNextPage:false}},
   metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},
     {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}],pageInfo:{hasNextPage:false}}};
@@ -95,7 +95,7 @@ test('archived managed products are excluded without hiding active or unknown pr
  Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
  t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
  const draft={id:'gid://shopify/Product/1',title:'日本語商品',description:'日本語説明',status:'DRAFT',vendor:'ODDLY',tags:[],
- variants:{nodes:[{id:'v1',sku:'123456789012',price:'2000'}],pageInfo:{hasNextPage:false}},
+ variants:{nodes:[{id:'v1',sku:'123456789012',price:'2000',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
  media:{nodes:[{image:{url:'https://example.com/p.jpg'}}],pageInfo:{hasNextPage:false}},
  metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},{key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}],pageInfo:{hasNextPage:false}}};
  let nodes=[draft,{id:'gid://shopify/Product/2',status:'ARCHIVED',vendor:'AI BUYER'}];
@@ -110,4 +110,23 @@ test('archived managed products are excluded without hiding active or unknown pr
  nodes=[draft,{id:'gid://shopify/Product/4',status:'ARCHIVED',vendor:'Unexpected'}];
  const third=res();await audit(req,third);
  assert.equal(third.body.allDraftsReady,false);assert.equal(third.body.archivedCount,0);
+});
+
+test('inventory safety rejects untracked, unknown and overselling variants',async()=>{
+  const {default:vm}=await import('node:vm');
+  const s=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+  const c=vm.createContext({});
+  vm.runInContext(s.slice(s.indexOf('const VERSION'),s.indexOf('export default')),c);
+  const product={status:'DRAFT',vendor:'ODDLY',variants:{nodes:[{sku:'123',price:'100',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}]}};
+  const safe=c.assess(product).reasons;
+  assert.ok(!safe.some(x=>x.includes('在庫')));
+  for(const tracked of [false,undefined,null]){
+    product.variants.nodes[0].inventoryItem.tracked=tracked;
+    assert.ok(c.assess(product).reasons.includes('在庫追跡が無効または未確認'));
+  }
+  product.variants.nodes[0].inventoryItem.tracked=true;
+  for(const policy of ['CONTINUE',undefined]){
+    product.variants.nodes[0].inventoryPolicy=policy;
+    assert.ok(c.assess(product).reasons.includes('在庫切れ時の販売禁止が未確認'));
+  }
 });
