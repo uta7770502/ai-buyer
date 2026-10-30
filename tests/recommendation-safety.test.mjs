@@ -15,9 +15,9 @@ test('CJ trending search sends trending and listing floor parameters',async t=>{
   await handler({method:'GET',query:{q:'home',page:'1',size:'20',trending:'1',minListed:'30'}},res);
   assert.equal(res.code,200);
   const u=new URL(called);
-  assert.equal(u.searchParams.get('searchType'),'2');
-  assert.equal(u.searchParams.get('orderBy'),'listedNum');
-  assert.equal(u.searchParams.get('minListedNum'),'30');
+  assert.equal(u.searchParams.get('productFlag'),'0');
+  assert.equal(u.searchParams.get('orderBy'),'1');
+  assert.equal(u.searchParams.get('sort'),'desc');
   assert.equal(res.body.products[0].trending,true);
   assert.equal(res.body.products[0].productType,'0');
 });

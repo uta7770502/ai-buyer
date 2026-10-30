@@ -11,7 +11,7 @@ import cj from '../api/cj.js';
 import diagnostics from '../api/diagnostics.js';
 import { createShopifyBrowserSession } from '../lib/shopify-auth-context.js';
 process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY='33'.repeat(32);
-const env={SHOPIFY_TOKEN_ENCRYPTION_KEY:'33'.repeat(32),SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-admin-token',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10', CJ_ORDER_LIMIT_CURRENCY:'USD',ODDLY_SELLER_NAME:'Seller',ODDLY_REPRESENTATIVE_NAME:'Rep',ODDLY_SELLER_ADDRESS:'Tokyo',ODDLY_SUPPORT_PHONE:'03-0000-0000',ODDLY_SUPPORT_EMAIL:'support@example.com',ODDLY_PAYMENT_TIMING:'注文時',ODDLY_SHIPPING_WINDOW:'7日以内',ODDLY_RETURN_DAYS:'7',ODDLY_RETURN_CONDITIONS:'未使用品',ODDLY_RETURN_SHIPPING:'お客様都合はお客様負担',ODDLY_ADDITIONAL_FEES:'送料は商品ページに表示',ODDLY_PRIVACY_CONTACT:'privacy@example.com',ODDLY_CHECKOUT_ENABLED:'false'};
+const env={SHOPIFY_TOKEN_ENCRYPTION_KEY:'33'.repeat(32),SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-admin-token',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10', CJ_ORDER_LIMIT_CURRENCY:'USD',ODDLY_SELLER_NAME:'Seller',ODDLY_REPRESENTATIVE_NAME:'Rep',ODDLY_SELLER_ADDRESS:'Tokyo',ODDLY_SUPPORT_PHONE:'03-0000-0000',ODDLY_SUPPORT_EMAIL:'support@example.com',ODDLY_PAYMENT_TIMING:'注文時',ODDLY_SHIPPING_WINDOW:'7日以内',ODDLY_RETURN_DAYS:'7',ODDLY_RETURN_CONDITIONS:'未使用品',ODDLY_RETURN_SHIPPING:'お客様都合はお客様負担',ODDLY_ADDITIONAL_FEES:'送料は商品ページに表示',ODDLY_PRIVACY_CONTACT:'privacy@example.com',ODDLY_CHECKOUT_ENABLED:'false'};
 const headers={authorization:'Bearer test-admin',cookie:'shopify_session='+encodeURIComponent(createShopifyBrowserSession('test.myshopify.com',3600))+'; shopify_connected_shop=test.myshopify.com'};
 const payload={orderId:'gid://shopify/Order/123',trackingNumber:'TRACK123'};
 const target={id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]};
@@ -98,7 +98,7 @@ test('authorization failure does not contact services',async t=>{
 test('missing client ID and noninteger quantity limit fail release gate',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
@@ -169,7 +169,7 @@ for(const sandboxFlag of [0,undefined])test('real or unconfirmed CJ orders canno
 test('release readiness distinguishes Redis ping from unverified external integrations',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
@@ -195,7 +195,7 @@ test('release readiness distinguishes Redis ping from unverified external integr
 test('release readiness fails closed for missing numeric safety limits',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});

@@ -10,7 +10,7 @@ test('tracking endpoint is read-only and requires admin auth',()=>{
   assert.doesNotMatch(source,/fulfillmentCreate\s*\(/);
 });
 test('CJ sandbox shipment requires both tracking and shipment status',()=>{
-  assert.match(source,/const shipmentConfirmed=Boolean\(cjTracking\)/);
+  assert.match(source,/const shipmentConfirmed=trackingSafe/);
   assert.match(source,/\['SHIPPED','DELIVERED'\]/);
 });
 test('Shopify sync eligibility requires paid, unfulfilled, uncancelled test order',()=>{
@@ -59,4 +59,10 @@ test('tracking write performs a post-write Shopify read and persists confirmatio
 test('post-write verification matches the exact created fulfillment ID',()=>{
   assert.match(sync,/fulfillments\{id trackingInfo\{number\}\}/);
   assert.match(sync,/f\.id===payload\.fulfillment\.id/);
+});
+
+test('tracking read endpoint rejects unsafe CJ tracking before sync eligibility',()=>{
+ assert.match(source,/const trackingSafe=Boolean\(cjTracking\)/);
+ assert.match(source,/tracking_needs_review/);
+ assert.match(source,/trackingSafe,/);
 });

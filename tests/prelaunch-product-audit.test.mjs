@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import audit from '../lib/routes/prelaunch-product-audit.js';
@@ -15,7 +16,7 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
   t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{
     nodes:[{
       id:'gid://shopify/Product/1',title:'テスト商品',description:'日本語の商品説明',handle:'test',status:'DRAFT',vendor:'ODDLY',tags:[],
-      variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980'}],pageInfo:{hasNextPage:false}},
+      variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
       media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
       metafields:{nodes:[
         {key:'adps_audience',value:'一般消費者'},
@@ -40,12 +41,92 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
   assert.equal(r.body.readyDrafts,1);
   assert.equal(r.body.blockedDrafts,1);
   assert.equal(r.body.allDraftsReady,false);
-  assert.ok(r.body.products[1].reasons.includes('SKU未設定'));
-  assert.ok(r.body.products[1].reasons.includes('商品画像なし'));
+  const blocked=r.body.products.find(p=>p.id==='gid://shopify/Product/2');
+  assert.ok(blocked?.reasons.includes('SKU未設定'));
+  assert.ok(blocked?.reasons.includes('商品画像なし'));
+  assert.equal(r.body.products[0].id,'gid://shopify/Product/2');
+  assert.equal(r.body.totalIssues,blocked.reasons.length);
+  assert.ok(r.body.totalIssues>r.body.blockedDrafts);
+  assert.deepEqual(r.body.issueSummary,blocked.reasons.map(reason=>({reason,productCount:1})));
+  assert.ok(r.body.issueSummary.every(row=>Object.keys(row).sort().join(',')==='productCount,reason'));
 });
 
 test('prelaunch product audit is admin protected',async()=>{
   const r=res();
   await audit({method:'GET',headers:{},query:{}},r);
   assert.equal(r.code,401);
+});
+
+test('prelaunch audit never approves partial scans or multiple variants without individual checks',()=>{
+ const source=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+ assert.match(source,/allDraftsReady:!more&&draftRows\.length>0&&notReady\.length===0/);
+ assert.match(source,/p\.variants\?\.nodes\|\|\[\]\)\.length!==1/);
+});
+
+test('prelaunch audit refuses malformed Shopify GraphQL errors',async t=>{
+ const prev={...process.env};
+ Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
+ t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({errors:{message:'unknown'},data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}})}));
+ const r=res();
+ await audit({method:'GET',headers:{authorization:'Bearer admin'},query:{}},r);
+ assert.equal(r.code,503);
+ assert.equal(r.body.ok,false);
+});
+
+test('prelaunch audit rejects duplicate product IDs rather than reporting readiness',async t=>{
+ const prev={...process.env};
+ Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
+ t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
+ const p={id:'gid://shopify/Product/123',title:'日本語商品',description:'日本語の説明',handle:'a',status:'DRAFT',vendor:'ODDLY',tags:[],
+  variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'123456789012',price:'2000',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
+  media:{nodes:[{image:{url:'https://example.com/p.png'}}],pageInfo:{hasNextPage:false}},
+  metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},
+    {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}],pageInfo:{hasNextPage:false}}};
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{nodes:[p,{...p}],pageInfo:{hasNextPage:false,endCursor:null}}}})}));
+ const r=res();
+ await audit({method:'GET',headers:{authorization:'Bearer admin'},query:{}},r);
+ assert.equal(r.code,503);
+ assert.match(r.body.error,/duplicate or missing product identifiers/);
+});
+
+test('archived managed products are excluded without hiding active or unknown products',async t=>{
+ const prev={...process.env};
+ Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
+ t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
+ const draft={id:'gid://shopify/Product/1',title:'日本語商品',description:'日本語説明',status:'DRAFT',vendor:'ODDLY',tags:[],
+ variants:{nodes:[{id:'v1',sku:'123456789012',price:'2000',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
+ media:{nodes:[{image:{url:'https://example.com/p.jpg'}}],pageInfo:{hasNextPage:false}},
+ metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},{key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}],pageInfo:{hasNextPage:false}}};
+ let nodes=[draft,{id:'gid://shopify/Product/2',status:'ARCHIVED',vendor:'AI BUYER'}];
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{nodes,pageInfo:{hasNextPage:false}}}})}));
+ const req={method:'GET',headers:{authorization:'Bearer admin'}};
+ const first=res();await audit(req,first);
+ assert.equal(first.body.allDraftsReady,true);assert.equal(first.body.archivedCount,1);assert.equal(first.body.totalIssues,0);assert.equal(first.body.products.length,1);assert.deepEqual(first.body.issueSummary,[]);
+ nodes.push({...draft,id:'gid://shopify/Product/3',status:'ACTIVE'});
+ const second=res();await audit(req,second);
+ assert.equal(second.body.allDraftsReady,false);assert.equal(second.body.nonDraftCount,1);assert.equal(second.body.totalIssues,1);
+ assert.deepEqual(second.body.issueSummary,[{reason:'下書きではありません',productCount:1}]);
+ nodes=[draft,{id:'gid://shopify/Product/4',status:'ARCHIVED',vendor:'Unexpected'}];
+ const third=res();await audit(req,third);
+ assert.equal(third.body.allDraftsReady,false);assert.equal(third.body.archivedCount,0);
+});
+
+test('inventory safety rejects untracked, unknown and overselling variants',async()=>{
+  const {default:vm}=await import('node:vm');
+  const s=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+  const c=vm.createContext({});
+  vm.runInContext(s.slice(s.indexOf('const VERSION'),s.indexOf('export default')),c);
+  const product={status:'DRAFT',vendor:'ODDLY',variants:{nodes:[{sku:'123',price:'100',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}]}};
+  const safe=c.assess(product).reasons;
+  assert.ok(!safe.some(x=>x.includes('在庫')));
+  for(const tracked of [false,undefined,null]){
+    product.variants.nodes[0].inventoryItem.tracked=tracked;
+    assert.ok(c.assess(product).reasons.includes('在庫追跡が無効または未確認'));
+  }
+  product.variants.nodes[0].inventoryItem.tracked=true;
+  for(const policy of ['CONTINUE',undefined]){
+    product.variants.nodes[0].inventoryPolicy=policy;
+    assert.ok(c.assess(product).reasons.includes('在庫切れ時の販売禁止が未確認'));
+  }
 });

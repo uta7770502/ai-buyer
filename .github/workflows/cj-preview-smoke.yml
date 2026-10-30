@@ -1,0 +1,70 @@
+name: CJ preview smoke test
+
+on:
+  push:
+    branches:
+      - safety-gate-20261024
+  workflow_dispatch:
+
+jobs:
+  cj-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wait for Preview and verify CJ connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-health"
+          for i in {1..12}; do
+            BODY="$(curl -fsS --max-time 15 "$URL" 2>/dev/null || true)"
+            if printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
+              echo "CJ preview connectivity: OK"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "CJ preview connectivity: NG"
+          exit 1
+
+      - name: Read safe prelaunch summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/prelaunch-preview-summary"
+          BODY=""
+          for i in {1..12}; do
+            BODY="$(curl -fsS --max-time 20 "$URL" 2>/dev/null || true)"
+            if printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*(true|false)'; then
+              break
+            fi
+            sleep 10
+          done
+          if [ -z "$BODY" ]; then
+            echo "Prelaunch summary unavailable"
+            exit 1
+          fi
+          printf '%s\\n' "$BODY"
+
+      - name: Read CJ draft audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-draft-audit"
+          BODY="$(curl -fsS --max-time 180 "$URL")"
+          printf '%s\\n' "$BODY"
+          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+
+      # CJ stock requests are rate-limited. Run this audit only on explicit manual dispatch,
+      # not on every development push. This avoids exhausting the CJ quota during iteration.
+      - name: Read CJ stock audit
+        # One-time, explicit opt-in via a marked development-branch commit.
+        # Regular pushes never request CJ inventory.
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[cj-stock-audit-once]'))
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-stock-audit"
+          BODY="$(curl -fsS --max-time 180 "$URL")"
+          printf '%s\\n' "$BODY"
+          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'

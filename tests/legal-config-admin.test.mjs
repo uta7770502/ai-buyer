@@ -11,8 +11,7 @@ test('legal config is admin-gated and encrypted at rest',()=>{
   assert.match(store,/aes-256-gcm/);
   assert.match(store,/ai-buyer:oddly:legal-config:v1/);
   assert.match(store,/SHOPIFY_TOKEN_ENCRYPTION_KEY/);
-  assert.match(store,/UPSTASH_REDIS_REST_URL/);
-  assert.match(store,/UPSTASH_REDIS_REST_TOKEN/);
+  assert.match(store,/redisConnection/);
   assert.match(store,/SET/);
   assert.match(store,/GET/);
   assert.match(storefront,/req\.method==='POST'/);
@@ -26,7 +25,7 @@ test('readiness consumes encrypted legal config before env fallback',()=>{
   assert.match(readiness,/loadLegalConfig/);
   assert.match(readiness,/legalValue\(legal\.sellerName,'ODDLY_SELLER_NAME'\)/);
   assert.match(readiness,/legalValue\(legal\.returnDays,'ODDLY_RETURN_DAYS'\)/);
-  assert.match(readiness,/legalSource:Object\.keys\(legal\)\.length\?'encrypted-redis':'environment'/);
+  assert.match(readiness,/legalSource:legalReadFailed\?'unavailable':Object\.keys\(legal\)\.length\?'encrypted-redis':'environment'/);
 });
 
 test('admin UI contains one-screen legal form and save flow',()=>{
