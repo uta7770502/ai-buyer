@@ -54,7 +54,6 @@ test('CJ product lookup failure prevents any Shopify draft creation',async()=>{
  globalThis.fetch=async(url)=>{
   calls.push(String(url));
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
-  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:false,message:'CJ product unavailable'})};
   throw Error('Shopify must not be called after CJ lookup failure');
  };
@@ -80,6 +79,7 @@ test('valid CJ product creates Shopify draft but never publishes without approva
  process.env.SHOPIFY_LIVE_PUBLISH_ENABLED='false';
  globalThis.fetch=async(url,opts={})=>{
   const u=String(url);
+  if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant',variantSku:'CJ-001'}]}})};
   assert.match(u,/test\.myshopify\.com\/admin\/api\//);
   const data=JSON.parse(opts.body);requests.push(data);
@@ -393,7 +393,7 @@ test('Shopify draft metadata supports bounded ad-cost and return-reserve assumpt
 
 
 test('Shopify draft creation re-verifies CJ variant stock server-side and fails closed below 21',()=>{
-  const src=fs.readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  const src=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
   assert.match(src,/validateCJStockResponse/);
   assert.match(src,/const MIN_LAUNCH_INVENTORY=21/);
   assert.match(src,/function cjVariantStock\(vid\)/);
