@@ -13,6 +13,10 @@
       "destination": "/api/diagnostics?action=preview-cj-draft-audit"
     },
     {
+      "source": "/api/cj-profit-audit",
+      "destination": "/api/diagnostics?action=preview-profit-audit"
+    },
+    {
       "source": "/api/prelaunch-preview-summary",
       "destination": "/api/diagnostics?action=preview-prelaunch-summary"
     },
