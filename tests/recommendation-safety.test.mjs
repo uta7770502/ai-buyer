@@ -164,8 +164,8 @@ test('variant-level CJ stock verification is read-only validated and launch-gate
   assert.match(route,/validateCJStockResponse/);
   assert.match(route,/req\.method!=='GET'/);
   assert.match(route,/readOnly:true/);
-  assert.match(route,/launchEligible:checked\.total>=21/);
-  assert.match(route,/minimumLaunchInventory:21/);
+  assert.match(route,/launchEligible:checked\.total>=MIN_LAUNCH_INVENTORY/);
+  assert.match(route,/minimumLaunchInventory:MIN_LAUNCH_INVENTORY/);
   assert.match(api,/'variant-stock':cjVariantStock/);
   assert.match(vercel,/\/api\/cj-variant-stock/);
 });
