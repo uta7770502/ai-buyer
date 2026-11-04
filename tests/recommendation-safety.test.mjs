@@ -178,3 +178,16 @@ test('variant stock verification failures fail closed and are eligible for autom
   assert.match(html,/x\.variantInventoryVerifiedAt=''/);
   assert.match(html,/m\.startsWith\('variant_stock_unverified:'\)\)return true/);
 });
+
+
+test('launch eligibility requires fresh variant-level stock verification within 15 minutes',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const start=html.indexOf('function launchEligibility(');
+  const end=html.indexOf('function scaleEligibility(',start);
+  const gate=html.slice(start,end);
+  assert.match(gate,/variantInventoryVerifiedAt/);
+  assert.match(gate,/variantInventoryVerified===true/);
+  assert.match(gate,/15\*60\*1000/);
+  assert.match(gate,/variant在庫の最新確認が必要/);
+  assert.match(gate,/freshVariantInventory/);
+});

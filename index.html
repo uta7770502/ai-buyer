@@ -221,11 +221,14 @@ function launchEligibility(x){
   if(!x)return {ready:false,reasons:['商品情報なし']};
   const reasons=[],risk=catalogRisk(x),unit=growthUnitEconomics(x);
   const listed=Number(x.listedNum||0),inventory=Number(x.verifiedInventory??x.inventory??0);
+  const inventoryVerifiedAt=Date.parse(x.variantInventoryVerifiedAt||'');
+  const freshVariantInventory=x.variantInventoryVerified===true&&Number.isFinite(inventoryVerifiedAt)&&inventoryVerifiedAt<=Date.now()&&Date.now()-inventoryVerifiedAt<=15*60*1000;
   const safeType=!['1','3','5'].includes(String(x.productType??''));
   if(x.trending!==true)reasons.push('CJ Trending未確認');
   if(listed<SAFE_TREND_MIN_LISTINGS)reasons.push('他店舗掲載実績が30件未満');
   if(!safeType)reasons.push('販売対象外の商品タイプ');
-  if(inventory<=20)reasons.push('検証済み在庫が少ない');
+  if(!freshVariantInventory)reasons.push('variant在庫の最新確認が必要');
+  else if(inventory<=20)reasons.push('検証済み在庫が少ない');
   if(!hasValidShipping(x))reasons.push('送料未確定');
   if(!x.shopifyProductId||!x.shopifyVariantId||x.shopifyPublishState==='error')reasons.push('Shopify下書き未完了');
   if(!x.growthPageOptimized)reasons.push('商品ページ最適化未完了');
@@ -240,7 +243,7 @@ function launchEligibility(x){
     const finalProfit=unit.contribution-plannedAds-returnReserve;
     if(finalProfit<=0)reasons.push('広告費・返品引当後の利益が赤字');
   }
-  return {ready:reasons.length===0,reasons,unit,listed,inventory,safeType,trending:x.trending===true};
+  return {ready:reasons.length===0,reasons,unit,listed,inventory,inventoryVerifiedAt:x.variantInventoryVerifiedAt||'',freshVariantInventory,safeType,trending:x.trending===true};
 }
 function scaleEligibility(x){
   if(!x)return {ready:false,reasons:['商品情報なし']};
