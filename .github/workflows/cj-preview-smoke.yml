@@ -55,6 +55,29 @@ jobs:
           printf '%s\\n' "$BODY"
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
 
+      - name: Verify Preview is serving this commit
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/deployment-info"
+          EXPECTED="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+          BODY=""
+          for i in {1..18}; do
+            BODY="$(curl -fsS --max-time 15 "$URL" 2>/dev/null || true)"
+            ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "Preview commit verified: $ACTUAL"
+              break
+            fi
+            sleep 10
+          done
+          ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "Preview is stale. expected=$EXPECTED actual=${ACTUAL:-unknown}"
+            exit 1
+          fi
+
       - name: Read CJ profit audit
         if: github.event_name == 'workflow_dispatch'
         shell: bash
