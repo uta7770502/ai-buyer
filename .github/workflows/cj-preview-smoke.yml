@@ -9,6 +9,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Verify Preview is serving this commit
+        id: verify_preview
         shell: bash
         run: |
           set -euo pipefail
@@ -31,6 +32,7 @@ jobs:
           fi
 
       - name: Wait for Preview and verify CJ connectivity
+        id: cj_connectivity
         shell: bash
         run: |
           set -euo pipefail
@@ -47,6 +49,7 @@ jobs:
           exit 1
 
       - name: Read consolidated launch audit
+        id: consolidated_audit
         shell: bash
         run: |
           set -euo pipefail
@@ -99,11 +102,16 @@ jobs:
       - name: Write failure diagnosis
         if: failure()
         shell: bash
+        env:
+          VERIFY_OUTCOME: ${{ steps.verify_preview.outcome }}
+          CJ_OUTCOME: ${{ steps.cj_connectivity.outcome }}
+          AUDIT_OUTCOME: ${{ steps.consolidated_audit.outcome }}
         run: |
           echo "## 監査失敗診断" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- 最新Preview一致確認、CJ接続確認、統合監査のいずれかで停止しました。" >> "$GITHUB_STEP_SUMMARY"
-          echo "- launch-audit.json が存在する場合は、統合監査までは到達しています。" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Preview一致確認: ${VERIFY_OUTCOME:-not-run}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CJ接続確認: ${CJ_OUTCOME:-not-run}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 統合監査: ${AUDIT_OUTCOME:-not-run}" >> "$GITHUB_STEP_SUMMARY"
           if [ -f launch-audit.json ]; then
             echo "- 統合監査JSON: 生成済み" >> "$GITHUB_STEP_SUMMARY"
           else

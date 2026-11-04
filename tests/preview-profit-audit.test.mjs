@@ -244,3 +244,17 @@ test('manual preview audit writes failure diagnosis even when the workflow stops
  assert.match(wf,/監査失敗診断/);
  assert.match(wf,/launch-audit\.json が存在する場合/);
 });
+
+
+test('manual preview audit failure diagnosis reports each guarded step outcome separately',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/id: verify_preview/);
+ assert.match(wf,/id: cj_connectivity/);
+ assert.match(wf,/id: consolidated_audit/);
+ assert.match(wf,/steps\.verify_preview\.outcome/);
+ assert.match(wf,/steps\.cj_connectivity\.outcome/);
+ assert.match(wf,/steps\.consolidated_audit\.outcome/);
+ assert.match(wf,/Preview一致確認/);
+ assert.match(wf,/CJ接続確認/);
+ assert.match(wf,/統合監査:/);
+});
