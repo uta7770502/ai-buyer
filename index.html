@@ -232,6 +232,13 @@ function launchEligibility(x){
   if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
   if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
   else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT)reasons.push('限界利益率35%未満');
+  const plannedAds=Number(x.plannedAdCostPerOrderJpy),returnReserve=Number(x.returnReservePerOrderJpy);
+  if(!Number.isFinite(plannedAds)||plannedAds<0)reasons.push('広告費想定未設定');
+  if(!Number.isFinite(returnReserve)||returnReserve<0)reasons.push('返品・返金引当未設定');
+  if(Number.isFinite(plannedAds)&&plannedAds>=0&&Number.isFinite(returnReserve)&&returnReserve>=0&&Number.isFinite(unit.contribution)){
+    const finalProfit=unit.contribution-plannedAds-returnReserve;
+    if(finalProfit<=0)reasons.push('広告費・返品引当後の利益が赤字');
+  }
   return {ready:reasons.length===0,reasons,unit,listed,inventory,safeType,trending:x.trending===true};
 }
 function scaleEligibility(x){

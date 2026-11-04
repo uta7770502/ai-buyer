@@ -87,3 +87,16 @@ test('launch gate and automatic pricing preserve at least 35 percent contributio
   assert.match(html,/1-paymentFeeRate-targetMargin/);
   assert.match(html,/限界利益率35%未満/);
 });
+
+
+test('launch gate fails closed until ad cost and return reserve assumptions are explicitly set',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const start=html.indexOf('function launchEligibility(');
+  const end=html.indexOf('function scaleEligibility(',start);
+  const gate=html.slice(start,end);
+  assert.match(gate,/plannedAdCostPerOrderJpy/);
+  assert.match(gate,/returnReservePerOrderJpy/);
+  assert.match(gate,/広告費想定未設定/);
+  assert.match(gate,/返品・返金引当未設定/);
+  assert.match(gate,/広告費・返品引当後の利益が赤字/);
+});
