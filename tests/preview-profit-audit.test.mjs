@@ -164,3 +164,17 @@ test('consolidated launch audit returns a per-SKU freight stock profit matrix fo
  assert.match(block,/在庫21未満または未確認/);
  assert.match(block,/skuMatrix,/);
 });
+
+
+test('consolidated launch audit summarizes per-SKU blockers for fast diagnosis',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/const skuSummary=\{/);
+ assert.match(block,/launchCandidates:skuMatrix\.filter\(x=>x\.launchCandidate\)\.length/);
+ assert.match(block,/freightBlocked:skuMatrix\.filter\(x=>!x\.freightPass\)\.length/);
+ assert.match(block,/stockBlocked:skuMatrix\.filter\(x=>!x\.stockPass\)\.length/);
+ assert.match(block,/profitBlocked:skuMatrix\.filter\(x=>!x\.profitPass\)\.length/);
+ assert.match(block,/skuSummary,/);
+});

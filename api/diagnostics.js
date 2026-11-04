@@ -201,6 +201,13 @@ async function previewLaunchAuditSummary(req,res){
     if(!profitPass)reasons.push('最終利益条件未達');
     return {sku:vid,freightPass,stockPass,profitPass,launchCandidate:freightPass&&stockPass&&profitPass,reasons};
   });
+  const skuSummary={
+    total:skuMatrix.length,
+    launchCandidates:skuMatrix.filter(x=>x.launchCandidate).length,
+    freightBlocked:skuMatrix.filter(x=>!x.freightPass).length,
+    stockBlocked:skuMatrix.filter(x=>!x.stockPass).length,
+    profitBlocked:skuMatrix.filter(x=>!x.profitPass).length
+  };
   const checks={
     catalogCoverageComplete:missingSkus.length===0&&unexpectedSkus.length===0&&duplicateSkus.freight===0&&duplicateSkus.stock===0&&duplicateSkus.profit===0&&freightRows.length===expectedSkus.length&&stockRows.length===expectedSkus.length&&profitRows.length===expectedSkus.length,
     freightVerified:freight.code===200&&f.ok===true&&Number(f.failed)===0&&Number(f.passed)===Number(f.total)&&Number(f.total)>0,
@@ -218,6 +225,7 @@ async function previewLaunchAuditSummary(req,res){
     profit:{total:Number(p.total||0),verified:Number(p.verified||0),failed:Number(p.failed||0),launchEconomicsEligible:Number(p.launchEconomicsEligible||0),minimumContributionMarginPercent:Number(p.minimumContributionMarginPercent||35)},
     supplierLaunchCandidates:{count:launchCandidateSkus.length,skus:launchCandidateSkus.slice(0,20)},
     skuMatrix,
+    skuSummary,
     catalogCoverage:{expected:expectedSkus.length,missingSkus,unexpectedSkus,duplicateSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
   });
