@@ -12,6 +12,7 @@ import storefrontCheckout from '../lib/routes/storefront-checkout.js';
 import storefrontConfig from '../lib/routes/storefront-config.js';
 import prelaunchProductAudit from '../lib/routes/prelaunch-product-audit.js';
 import prelaunchOneAction from '../lib/routes/prelaunch-one-action.js';
+import previewProfitAudit from '../lib/routes/preview-profit-audit.js';
 
 function normalizeShopHost(v){return String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'')}
 function shopifyEnvCheck(req,res){
@@ -159,6 +160,7 @@ const handlers={
   'preview-prelaunch-summary':previewPrelaunchSummary,
   'preview-cj-draft-audit':previewCjDraftAudit,
   'preview-cj-stock-audit':previewCjStockAudit,
+  'preview-profit-audit':previewProfitAudit,
   'cj-shopify-stock-sync':cjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
