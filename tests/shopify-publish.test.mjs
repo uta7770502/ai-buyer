@@ -402,3 +402,29 @@ test('Shopify draft creation re-verifies CJ variant stock server-side and fails 
   assert.match(src,/stock\.total<MIN_LAUNCH_INVENTORY/);
   assert.match(src,/Shopify下書きを作成しません/);
 });
+
+
+test('server-side Shopify draft creation blocks verified CJ stock below launch floor',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN;
+ const previousFetch=globalThis.fetch,calls=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+ process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url)=>{
+  const u=String(url);calls.push(u);
+  if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'20',factoryInventoryNum:'0',totalInventoryNum:'20'}]})};
+  throw Error('Shopify must not be called when verified CJ stock is below launch floor');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Low stock sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.code,409);
+  assert.equal(res.body.verifiedInventory,20);
+  assert.equal(res.body.minimumLaunchInventory,21);
+  assert.match(res.body.error,/販売準備基準未満/);
+  assert.ok(calls.every(url=>!url.includes('myshopify.com')));
+ }finally{
+  globalThis.fetch=previousFetch;
+  for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
+ }
+});
