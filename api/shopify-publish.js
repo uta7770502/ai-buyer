@@ -26,6 +26,9 @@ function aioMetafields(p,ownerId,title,description){
   if(/^[A-Z]{2}$/.test(shippingCountry))rows.push({ownerId,namespace:'custom',key:'shipping_country',type:'single_line_text_field',value:shippingCountry});
   const returnDays=Number(p.returnDays);
   if(Number.isInteger(returnDays)&&returnDays>0&&returnDays<=365)rows.push({ownerId,namespace:'custom',key:'return_days',type:'number_integer',value:String(returnDays)});
+  const adCost=Number(p.adCostPerOrderJpy),returnReserve=Number(p.returnReservePerOrderJpy);
+  if(Number.isSafeInteger(adCost)&&adCost>=0&&adCost<=10000000)rows.push({ownerId,namespace:'custom',key:'ad_cost_per_order_jpy',type:'number_integer',value:String(adCost)});
+  if(Number.isSafeInteger(returnReserve)&&returnReserve>=0&&returnReserve<=10000000)rows.push({ownerId,namespace:'custom',key:'return_reserve_per_order_jpy',type:'number_integer',value:String(returnReserve)});
   return rows;
 }
 async function translateDraftCopy(title,description){

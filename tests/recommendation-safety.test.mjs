@@ -100,3 +100,15 @@ test('launch gate fails closed until ad cost and return reserve assumptions are 
   assert.match(gate,/返品・返金引当未設定/);
   assert.match(gate,/広告費・返品引当後の利益が赤字/);
 });
+
+
+test('automatic profit assumptions derive ad cost from CPA safety policy and return reserve from the 15 percent stop threshold',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/SAFE_RETURN_RESERVE_RATE=0\.15/);
+  assert.match(html,/function autoProfitAssumptions\(x\)/);
+  assert.match(html,/plannedAdCostPerOrderJpy=ad/);
+  assert.match(html,/returnReservePerOrderJpy=reserve/);
+  assert.match(html,/autoProfitAssumptions\(x\);/);
+  assert.match(html,/out\.adCostPerOrderJpy=adCost/);
+  assert.match(html,/out\.returnReservePerOrderJpy=reserve/);
+});

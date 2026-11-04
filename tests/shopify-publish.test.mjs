@@ -369,3 +369,12 @@ test('Shopify draft creation rejects incomplete and duplicate CJ variant IDs',()
  assert.match(source,/new Set\(variantIds\)\.size!==variantIds\.length/);
  assert.match(source,/Shopify登録を保留します/);
 });
+
+
+test('Shopify draft metadata supports bounded ad-cost and return-reserve assumptions',()=>{
+ const source=fs.readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+ assert.match(source,/key:'ad_cost_per_order_jpy'/);
+ assert.match(source,/key:'return_reserve_per_order_jpy'/);
+ assert.match(source,/adCost<=10000000/);
+ assert.match(source,/returnReserve<=10000000/);
+});

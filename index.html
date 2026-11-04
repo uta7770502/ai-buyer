@@ -121,6 +121,7 @@ let rules=JSON.parse(localStorage.getItem('aiBuyerRules')||'null')||{minScore:82
 const SAFE_TREND_MIN_LISTINGS=30;
 const SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=21;
 const SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=35;
+const SAFE_RETURN_RESERVE_RATE=0.15;
 let today=JSON.parse(localStorage.getItem('aiBuyerToday')||'null');
 let recommendationScanRunning=false;
 let learning=JSON.parse(localStorage.getItem('aiBuyerLearningHistory')||'[]');
@@ -684,6 +685,17 @@ function growthUnitEconomics(x){
   const cpa=lm.orders>0?lm.ad/lm.orders:lm.ad;
   const maxCpa=Math.max(0,Math.round(contribution*(Number(growthSettings.cpaSafetyPct||70)/100)));
   return {price,cost,shipping,fees,contribution,cpa,maxCpa,lm};
+}
+function autoProfitAssumptions(x){
+  const unit=growthUnitEconomics(x);
+  const landed=Math.max(0,Number(unit.cost||0)+Number(unit.shipping||0));
+  const ad=Math.max(0,Number.isSafeInteger(unit.maxCpa)?unit.maxCpa:Math.round(Number(unit.maxCpa)||0));
+  const reserve=Math.max(0,Math.ceil(landed*SAFE_RETURN_RESERVE_RATE));
+  x.plannedAdCostPerOrderJpy=ad;
+  x.returnReservePerOrderJpy=reserve;
+  x.profitAssumptionSource='policy:cpaSafetyPct+return15pct';
+  x.profitAssumptionUpdatedAt=new Date().toISOString();
+  return {adCostPerOrderJpy:ad,returnReservePerOrderJpy:reserve,source:x.profitAssumptionSource};
 }
 function growthCreativeDrafts(x){
   const price=Number(x.price||suggestedPrice(x.costUsd||parsePrice(x.sellPrice)));
@@ -2290,6 +2302,9 @@ function buildAioPublishMeta(x){
   if(/^[A-Z]{2}$/.test(country))out.shippingCountry=country;
   const returnDays=Number(x.returnDays);
   if(Number.isInteger(returnDays)&&returnDays>0&&returnDays<=365)out.returnDays=returnDays;
+  const adCost=Number(x.plannedAdCostPerOrderJpy),reserve=Number(x.returnReservePerOrderJpy);
+  if(Number.isSafeInteger(adCost)&&adCost>=0)out.adCostPerOrderJpy=adCost;
+  if(Number.isSafeInteger(reserve)&&reserve>=0)out.returnReservePerOrderJpy=reserve;
   return out;
 }
 function publishById(id){const x=findActive(id);if(!x){showCandidateToast('販売候補が見つかりません。候補を再登録してください');return}sessionStorage.setItem('aiBuyerPendingPublishId',String(id));showCandidateToast('Shopify接続を確認します…');if(!shopifyConnected){window.location.href='/api/shopify-auth';return}autoPublishCandidate(x).catch(e=>{x.shopifyPublishState='error';x.shopifyPublishError=String(e?.message||e);save();renderAll();applyFilters()})}
@@ -2647,6 +2662,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     const existingPrice=Number(x.price);
     x.price=Math.max(Number.isFinite(existingPrice)?existingPrice:0,minPrice,980);
     if(!Number.isSafeInteger(x.price)||x.price<=0||x.price>10000000)throw new Error('販売価格が安全な範囲を超えています。原価・送料・為替を確認してください');
+    autoProfitAssumptions(x);
     x.autoSetupState='draft';
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
     save();renderAll();
