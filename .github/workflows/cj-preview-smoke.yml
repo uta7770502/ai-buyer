@@ -1,9 +1,6 @@
 name: CJ preview smoke test
 
 on:
-  push:
-    branches:
-      - safety-gate-20261024
   workflow_dispatch:
 
 jobs:
@@ -11,6 +8,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Verify Preview is serving this commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/deployment-info"
+          EXPECTED="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+          BODY=""
+          for i in {1..18}; do
+            BODY="$(curl -fsS --max-time 15 "$URL" 2>/dev/null || true)"
+            ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "Preview commit verified: $ACTUAL"
+              break
+            fi
+            sleep 10
+          done
+          ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "Preview is stale. expected=$EXPECTED actual=${ACTUAL:-unknown}"
+            exit 1
+          fi
+
       - name: Wait for Preview and verify CJ connectivity
         shell: bash
         run: |
@@ -55,44 +74,9 @@ jobs:
           printf '%s\\n' "$BODY"
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
 
-      - name: Verify Preview is serving this commit
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          set -euo pipefail
-          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/deployment-info"
-          EXPECTED="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
-          BODY=""
-          for i in {1..18}; do
-            BODY="$(curl -fsS --max-time 15 "$URL" 2>/dev/null || true)"
-            ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-            if [ "$ACTUAL" = "$EXPECTED" ]; then
-              echo "Preview commit verified: $ACTUAL"
-              break
-            fi
-            sleep 10
-          done
-          ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-          if [ "$ACTUAL" != "$EXPECTED" ]; then
-            echo "Preview is stale. expected=$EXPECTED actual=${ACTUAL:-unknown}"
-            exit 1
-          fi
-
-      - name: Read CJ profit audit
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          set -euo pipefail
-          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-profit-audit"
-          BODY="$(curl -fsS --max-time 180 "$URL")"
-          printf '%s\\n' "$BODY"
-          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
-          printf '%s' "$BODY" | grep -Eq '"verified"[[:space:]]*:[[:space:]]*9'
-
       # Expensive supplier checks are intentionally manual-only.
       # The consolidated endpoint performs stock, profit and prelaunch checks together.
       - name: Read consolidated launch audit
-        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
