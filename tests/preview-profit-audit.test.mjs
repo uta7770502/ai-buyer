@@ -282,3 +282,11 @@ test('manual preview audit persists the checked variant stock result into the la
  assert.match(wf,/verifiedAt:String\(stock\.verifiedAt/);
  assert.match(wf,/variant在庫確認/);
 });
+
+
+test('variant stock smoke evidence is tied to the workflow commit and run',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/variantStockSmoke=\{/);
+ assert.match(wf,/commitSha:String\(process\.env\.GITHUB_SHA/);
+ assert.match(wf,/runId:String\(process\.env\.GITHUB_RUN_ID/);
+});

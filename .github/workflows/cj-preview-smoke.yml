@@ -83,6 +83,8 @@ jobs:
           const audit=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
           const stock=JSON.parse(process.env.VARIANT_BODY_JSON);
           audit.variantStockSmoke={
+            commitSha:String(process.env.GITHUB_SHA||''),
+            runId:String(process.env.GITHUB_RUN_ID||''),
             vid:String(stock.vid||''),
             verifiedInventory:Number(stock.verifiedInventory),
             minimumLaunchInventory:Number(stock.minimumLaunchInventory),
