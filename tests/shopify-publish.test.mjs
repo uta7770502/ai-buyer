@@ -529,3 +529,11 @@ test('successful Shopify draft response returns server-verified CJ stock evidenc
   assert.match(src,/inventoryVerifiedAt:p\.inventoryVerifiedAt/);
   assert.match(src,/minimumLaunchInventory:MIN_LAUNCH_INVENTORY/);
 });
+
+
+test('frontend retains server-verified CJ inventory returned by Shopify draft creation',()=>{
+  const src=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(src,/j\.verifiedInventory/);
+  assert.match(src,/x\.variantInventoryVerified=true/);
+  assert.match(src,/x\.variantInventoryVerifiedAt=String\(j\.inventoryVerifiedAt\)/);
+});
