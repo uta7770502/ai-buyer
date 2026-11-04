@@ -390,14 +390,14 @@ function orderedRecommendedProducts(){
  const removed=recentlyRemovedCandidates();
  const removedIds=new Set(removed.map(x=>String(x.product.id)));
  const main=fresh.filter(p=>!removedIds.has(String(p.id)));
- const tail=removed.map(x=>({...x.product,oddlyRecentlyRemoved:true})).filter(p=>!findActive(p.id)||findActive(p.id).uiSelected===false);
+ const tail=removed.map(x=>({...x.product,oddlyRecentlyRemoved:true})).filter(p=>!p.autoExcludedReason).filter(p=>!findActive(p.id)||findActive(p.id).uiSelected===false);
  return [...main,...tail].filter(p=>recommendationReviewReady(p)&&!catalogRisk(p).exclude);
 }
 function toggleCandidate(id){
  const p=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id))||active.find(x=>String(x.id)===String(id));
  if(!p)return showCandidateToast('商品情報がありません');
  const x=findActive(id);
- if(x){x.uiSelected=x.uiSelected===false; if(!x.uiSelected)cancelAutoPreparationRetry(id);setRecentlyRemovedCandidate(x,!x.uiSelected);save();if(results.length)applyFilters();renderAll();renderToday();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
+ if(x){x.uiSelected=x.uiSelected===false; if(x.uiSelected&&x.autoExcludedReason)return showCandidateToast('利益ゲートで除外された商品のため再選択できません'); if(!x.uiSelected)cancelAutoPreparationRetry(id);setRecentlyRemovedCandidate(x,!x.uiSelected);save();if(results.length)applyFilters();renderAll();renderToday();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
  setRecentlyRemovedCandidate(p,false);
  const m=metrics(p);
  active.push({...p,costUsd:m.cost,price:m.sell,qty:0,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'',autoSetupMessage:'Shopify未登録',autoSetupAttempts:0,uiSelected:true});
@@ -711,6 +711,7 @@ function excludeUnprofitableCandidateAndRefill(x){
   x.uiSelected=false;
   x.autoSetupState='needs_review';
   x.autoSetupLastError='final_profit_not_positive';
+  x.autoExcludedReason='final_profit_not_positive';
   x.autoSetupMessage='広告費・返品引当後の利益が赤字のため販売候補から自動除外';
   setRecentlyRemovedCandidate(x,true);
   addOps('利益ゲート除外',String(x.name||'商品')+'：最終利益 '+yen(result.profitJpy)+' のため候補から除外。代替候補を再探索します');

@@ -124,3 +124,11 @@ test('negative planned final profit auto-removes the candidate before Shopify dr
   assert.match(html,/runAutoScan\(true\)/);
   assert.match(html,/if\(excludeUnprofitableCandidateAndRefill\(x\)\)return/);
 });
+
+
+test('auto-excluded unprofitable products cannot re-enter recommendations through recently removed history',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/autoExcludedReason='final_profit_not_positive'/);
+  assert.match(html,/filter\(p=>!p\.autoExcludedReason\)/);
+  assert.match(html,/利益ゲートで除外された商品のため再選択できません/);
+});
