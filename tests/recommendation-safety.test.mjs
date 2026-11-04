@@ -140,3 +140,15 @@ test('replacement recommendations exclude auto-blocked products and require veri
   assert.match(html,/const refillSafe=safe\.filter\(x=>\{const a=findActive\(x\.id\);return !a\|\|!a\.autoExcludedReason\}\)/);
   assert.match(html,/在庫・レビュー・利益安全ゲート通過/);
 });
+
+
+test('selected candidates with verified inventory below 21 are auto-removed before freight or Shopify draft work',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/function excludeLowStockCandidateAndRefill\(x\)/);
+  assert.match(html,/inventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
+  assert.match(html,/verified_inventory_below_launch_floor/);
+  assert.match(html,/在庫ゲート除外/);
+  assert.match(html,/if\(excludeLowStockCandidateAndRefill\(x\)\)return/);
+  assert.match(html,/在庫ゲートで除外された商品のため再選択できません/);
+  assert.match(html,/runAutoScan\(true\)/);
+});

@@ -397,7 +397,7 @@ function toggleCandidate(id){
  const p=results.find(x=>String(x.id)===String(id))||(today?.products||[]).find(x=>String(x.id)===String(id))||active.find(x=>String(x.id)===String(id));
  if(!p)return showCandidateToast('商品情報がありません');
  const x=findActive(id);
- if(x){x.uiSelected=x.uiSelected===false; if(x.uiSelected&&x.autoExcludedReason)return showCandidateToast('利益ゲートで除外された商品のため再選択できません'); if(!x.uiSelected)cancelAutoPreparationRetry(id);setRecentlyRemovedCandidate(x,!x.uiSelected);save();if(results.length)applyFilters();renderAll();renderToday();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
+ if(x){x.uiSelected=x.uiSelected===false; if(x.uiSelected&&x.autoExcludedReason)return showCandidateToast(x.autoExcludedReason==='verified_inventory_below_launch_floor'?'在庫ゲートで除外された商品のため再選択できません':'利益ゲートで除外された商品のため再選択できません'); if(!x.uiSelected)cancelAutoPreparationRetry(id);setRecentlyRemovedCandidate(x,!x.uiSelected);save();if(results.length)applyFilters();renderAll();renderToday();return showCandidateToast(x.uiSelected?'販売候補に戻しました':'販売候補から外しました')}
  setRecentlyRemovedCandidate(p,false);
  const m=metrics(p);
  active.push({...p,costUsd:m.cost,price:m.sell,qty:0,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'',autoSetupMessage:'Shopify未登録',autoSetupAttempts:0,uiSelected:true});
@@ -703,6 +703,21 @@ function plannedFinalProfit(x){
   if(!Number.isFinite(unit.contribution)||!Number.isFinite(ads)||ads<0||!Number.isFinite(reserve)||reserve<0)return {ready:false,profitJpy:null};
   const profit=Math.round(unit.contribution-ads-reserve);
   return {ready:true,profitJpy:profit,marginPercent:unit.price>0?Math.round(profit/unit.price*1000)/10:null};
+}
+function excludeLowStockCandidateAndRefill(x){
+  const inventory=Number(x?.verifiedInventory);
+  if(!Number.isFinite(inventory)||inventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY)return false;
+  cancelAutoPreparationRetry(x.id);
+  x.uiSelected=false;
+  x.autoSetupState='needs_review';
+  x.autoSetupLastError='verified_inventory_below_launch_floor';
+  x.autoExcludedReason='verified_inventory_below_launch_floor';
+  x.autoSetupMessage='検証済み在庫が'+inventory+'個のため販売候補から自動除外';
+  setRecentlyRemovedCandidate(x,true);
+  addOps('在庫ゲート除外',String(x.name||'商品')+'：検証済み在庫 '+inventory+'個（基準'+SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY+'個以上）のため候補から除外。代替候補を再探索します');
+  save();renderAll();renderToday();
+  setTimeout(()=>{if(cjConnected&&!recommendationScanRunning)runAutoScan(true).catch(()=>{})},0);
+  return true;
 }
 function excludeUnprofitableCandidateAndRefill(x){
   const result=plannedFinalProfit(x);
@@ -2629,6 +2644,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
   if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x)||x.shopifyPublishState==='publishing'||x.shopifyPublishState==='published'||x.shopifyPublished||x.autoSetupState==='ready')return;
   if(Number(x.autoSetupAttempts||0)>=3&&attempt>0)return;
   if(attempt>0&&x.autoSetupState==='needs_review'&&!autoPrepareRetryable(x.autoSetupLastError||x.autoSetupMessage))return;
+  if(excludeLowStockCandidateAndRefill(x))return;
   autoPreparationInFlight.add(x);
   cancelAutoPreparationRetry(x.id);
   x.autoSetupLastAttemptAt=new Date().toISOString();
