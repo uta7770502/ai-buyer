@@ -24,7 +24,7 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
         {key:'adps_why',value:'選定理由'},
         {key:'shipping_price_jpy',value:'500'},
         {key:'shipping_country',value:'JP'},
-        {key:'return_days',value:'7'}
+        {key:'return_days',value:'7'},{key:'ad_cost_per_order_jpy',value:'800'},{key:'return_reserve_per_order_jpy',value:'200'}
       ],pageInfo:{hasNextPage:false}}
     },{
       id:'gid://shopify/Product/2',title:'English only',description:'English only',handle:'bad',status:'DRAFT',vendor:'ODDLY',tags:['要日本語確認'],
@@ -82,7 +82,7 @@ test('prelaunch audit rejects duplicate product IDs rather than reporting readin
   variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'123456789012',price:'2000',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
   media:{nodes:[{image:{url:'https://example.com/p.png'}}],pageInfo:{hasNextPage:false}},
   metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},
-    {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}],pageInfo:{hasNextPage:false}}};
+    {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'},{key:'ad_cost_per_order_jpy',value:'800'},{key:'return_reserve_per_order_jpy',value:'200'}],pageInfo:{hasNextPage:false}}};
  t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{nodes:[p,{...p}],pageInfo:{hasNextPage:false,endCursor:null}}}})}));
  const r=res();
  await audit({method:'GET',headers:{authorization:'Bearer admin'},query:{}},r);
@@ -97,7 +97,7 @@ test('archived managed products are excluded without hiding active or unknown pr
  const draft={id:'gid://shopify/Product/1',title:'日本語商品',description:'日本語説明',status:'DRAFT',vendor:'ODDLY',tags:[],
  variants:{nodes:[{id:'v1',sku:'123456789012',price:'2000',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
  media:{nodes:[{image:{url:'https://example.com/p.jpg'}}],pageInfo:{hasNextPage:false}},
- metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},{key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}],pageInfo:{hasNextPage:false}}};
+ metafields:{nodes:[{key:'adps_audience',value:'飼い主'},{key:'adps_summary',value:'要約'},{key:'adps_why',value:'理由'},{key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'},{key:'ad_cost_per_order_jpy',value:'800'},{key:'return_reserve_per_order_jpy',value:'200'}],pageInfo:{hasNextPage:false}}};
  let nodes=[draft,{id:'gid://shopify/Product/2',status:'ARCHIVED',vendor:'AI BUYER'}];
  t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{nodes,pageInfo:{hasNextPage:false}}}})}));
  const req={method:'GET',headers:{authorization:'Bearer admin'}};
@@ -129,4 +129,13 @@ test('inventory safety rejects untracked, unknown and overselling variants',asyn
     product.variants.nodes[0].inventoryPolicy=policy;
     assert.ok(c.assess(product).reasons.includes('在庫切れ時の販売禁止が未確認'));
   }
+});
+
+
+test('prelaunch audit requires bounded ad-cost and return-reserve assumptions',()=>{
+ const source=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+ assert.match(source,/広告費想定未設定または不正/);
+ assert.match(source,/返品・返金引当未設定または不正/);
+ assert.match(source,/ad_cost_per_order_jpy/);
+ assert.match(source,/return_reserve_per_order_jpy/);
 });

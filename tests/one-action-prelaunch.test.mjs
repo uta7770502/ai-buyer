@@ -61,7 +61,7 @@ test('read-only connectivity alone cannot complete the final manual gate',async 
         media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
         metafields:{nodes:[
           {key:'adps_audience',value:'一般消費者'},{key:'adps_summary',value:'商品要約'},{key:'adps_why',value:'選定理由'},
-          {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}
+          {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'},{key:'ad_cost_per_order_jpy',value:'800'},{key:'return_reserve_per_order_jpy',value:'200'}
         ],pageInfo:{hasNextPage:false}}
       }],pageInfo:{hasNextPage:false,endCursor:null}}}})};
       if(q.includes('ReadinessShop'))return {ok:true,json:async()=>({data:{shop:{id:'gid://shopify/Shop/1',name:'ODDLY'}}})};
@@ -105,7 +105,7 @@ test('stock sync may remain disabled without blocking read-only prelaunch checks
         media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
         metafields:{nodes:[
           {key:'adps_audience',value:'一般消費者'},{key:'adps_summary',value:'商品要約'},{key:'adps_why',value:'選定理由'},
-          {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'}
+          {key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'},{key:'ad_cost_per_order_jpy',value:'800'},{key:'return_reserve_per_order_jpy',value:'200'}
         ],pageInfo:{hasNextPage:false}}
       }],pageInfo:{hasNextPage:false,endCursor:null}}}})};
       if(q.includes('ReadinessShop'))return {ok:true,json:async()=>({data:{shop:{id:'gid://shopify/Shop/1',name:'ODDLY'}}})};
