@@ -53,3 +53,18 @@ test('consolidated launch audit runs CJ-backed checks sequentially to avoid supp
  assert.match(block,/await previewProfitAudit/);
  assert.match(block,/setTimeout\(r,1500\)/);
 });
+
+
+test('consolidated launch audit includes fresh CJ freight verification before stock and profit checks',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/await previewCjDraftAudit/);
+ assert.match(block,/freightVerified/);
+ assert.match(block,/freight:\{total:/);
+ const a=block.indexOf('await previewCjDraftAudit');
+ const b=block.indexOf('await previewCjStockAudit');
+ const c=block.indexOf('await previewProfitAudit');
+ assert.ok(a>=0&&b>a&&c>b);
+});

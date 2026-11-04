@@ -157,16 +157,19 @@ async function previewLaunchAuditSummary(req,res){
   const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
   if(!allowed)return res.status(404).json({ok:false});
   const capture=()=>({code:200,status(n){this.code=n;return this},setHeader(){return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}});
-  const stock=capture(),profit=capture(),prelaunch=capture();
+  const freight=capture(),stock=capture(),profit=capture(),prelaunch=capture();
   // Run supplier-backed checks sequentially. CJ enforces a strict request rate and
   // concurrent stock/profit audits can otherwise rate-limit each other.
   await previewPrelaunchSummary({method:'GET',headers:{},query:{}},prelaunch);
   await new Promise(r=>setTimeout(r,1500));
+  await previewCjDraftAudit({method:'GET',headers:{},query:{}},freight);
+  await new Promise(r=>setTimeout(r,1500));
   await previewCjStockAudit({method:'GET',headers:{},query:{}},stock);
   await new Promise(r=>setTimeout(r,1500));
   await previewProfitAudit({method:'GET',headers:{},query:{}},profit);
-  const s=stock.body||{},p=profit.body||{},q=prelaunch.body||{};
+  const f=freight.body||{},s=stock.body||{},p=profit.body||{},q=prelaunch.body||{};
   const checks={
+    freightVerified:freight.code===200&&f.ok===true&&Number(f.failed)===0&&Number(f.passed)===Number(f.total)&&Number(f.total)>0,
     stockVerified:stock.code===200&&s.ok===true&&s.allVerified===true,
     launchInventoryReady:stock.code===200&&s.ok===true&&Number(s.launchEligible)>0,
     profitVerified:profit.code===200&&p.ok===true&&Number(p.failed)===0,
@@ -177,6 +180,7 @@ async function previewLaunchAuditSummary(req,res){
   return res.status(200).json({
     ok:true,readOnly:true,checkedAt:new Date().toISOString(),ready,
     checks,
+    freight:{total:Number(f.total||0),passed:Number(f.passed||0),failed:Number(f.failed||0)},
     stock:{total:Number(s.total||0),allVerified:Boolean(s.allVerified),launchEligible:Number(s.launchEligible||0),minimumLaunchInventory:Number(s.minimumLaunchInventory||21)},
     profit:{total:Number(p.total||0),verified:Number(p.verified||0),failed:Number(p.failed||0),launchEconomicsEligible:Number(p.launchEconomicsEligible||0),minimumContributionMarginPercent:Number(p.minimumContributionMarginPercent||35)},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
