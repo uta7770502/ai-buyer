@@ -169,3 +169,12 @@ test('variant-level CJ stock verification is read-only validated and launch-gate
   assert.match(api,/'variant-stock':cjVariantStock/);
   assert.match(vercel,/\/api\/cj-variant-stock/);
 });
+
+
+test('variant stock verification failures fail closed and are eligible for automatic retry',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/variant_stock_unverified:/);
+  assert.match(html,/x\.variantInventoryVerified=false/);
+  assert.match(html,/x\.variantInventoryVerifiedAt=''/);
+  assert.match(html,/m\.startsWith\('variant_stock_unverified:'\)\)return true/);
+});
