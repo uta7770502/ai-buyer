@@ -264,7 +264,8 @@ test('manual preview audit verifies the read-only variant stock endpoint before 
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
  assert.match(wf,/Verify variant stock endpoint safety/);
  assert.match(wf,/id: variant_stock/);
- assert.match(wf,/api\/cj-variant-stock\?vid=1421057421656330240/);
+ assert.match(wf,/catalogCoverage\?\.expectedSkus\?\.\[0\]|skuMatrix\?\.\[0\]\?\.sku/);
+ assert.match(wf,/api\/cj-variant-stock\?vid=\$VID/);
  assert.match(wf,/"readOnly"/);
  assert.match(wf,/"minimumLaunchInventory"/);
  assert.match(wf,/steps\.variant_stock\.outcome/);

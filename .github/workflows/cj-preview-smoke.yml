@@ -48,19 +48,6 @@ jobs:
           echo "CJ preview connectivity: NG"
           exit 1
 
-      - name: Verify variant stock endpoint safety
-        id: variant_stock
-        shell: bash
-        run: |
-          set -euo pipefail
-          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-variant-stock?vid=1421057421656330240"
-          BODY="$(curl -fsS --max-time 30 "$URL")"
-          printf '%s\n' "$BODY"
-          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
-          printf '%s' "$BODY" | grep -Eq '"readOnly"[[:space:]]*:[[:space:]]*true'
-          printf '%s' "$BODY" | grep -Eq '"minimumLaunchInventory"[[:space:]]*:[[:space:]]*21'
-          printf '%s' "$BODY" | grep -Eq '"verifiedInventory"[[:space:]]*:[[:space:]]*[0-9]+'
-
       - name: Read consolidated launch audit
         id: consolidated_audit
         shell: bash
@@ -76,6 +63,20 @@ jobs:
           printf '%s' "$BODY" | grep -Eq '"stockVerified"[[:space:]]*:[[:space:]]*(true|false)'
           printf '%s' "$BODY" | grep -Eq '"profitVerified"[[:space:]]*:[[:space:]]*(true|false)'
           printf '%s' "$BODY" | grep -Eq '"prelaunchAuditReady"[[:space:]]*:[[:space:]]*(true|false)'
+
+      - name: Verify variant stock endpoint safety
+        id: variant_stock
+        shell: bash
+        run: |
+          set -euo pipefail
+          VID="$(node -e 'const j=require("./launch-audit.json");const sku=j?.catalogCoverage?.expectedSkus?.[0]||j?.skuMatrix?.[0]?.sku||j?.supplierLaunchCandidates?.skus?.[0];if(!sku)process.exit(2);process.stdout.write(String(sku))')"
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-variant-stock?vid=$VID"
+          BODY="$(curl -fsS --max-time 30 "$URL")"
+          printf '%s\n' "$BODY"
+          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+          printf '%s' "$BODY" | grep -Eq '"readOnly"[[:space:]]*:[[:space:]]*true'
+          printf '%s' "$BODY" | grep -Eq '"minimumLaunchInventory"[[:space:]]*:[[:space:]]*21'
+          printf '%s' "$BODY" | grep -Eq '"verifiedInventory"[[:space:]]*:[[:space:]]*[0-9]+'
 
       - name: Write launch audit summary
         if: always()
