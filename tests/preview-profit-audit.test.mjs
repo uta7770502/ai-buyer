@@ -89,10 +89,10 @@ test('consolidated launch audit fails closed when any of the nine managed CJ SKU
  const start=source.indexOf('async function previewLaunchAuditSummary');
  const end=source.indexOf('function deploymentInfo',start);
  const block=source.slice(start,end);
- assert.match(block,/const expectedSkus=\[/);
+ assert.match(block,/const expectedSkus=PREVIEW_MANAGED_CJ_VIDS;/);
  assert.match(block,/const missingSkus=expectedSkus\.filter/);
  assert.match(block,/catalogCoverageComplete:missingSkus\.length===0/);
- assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus\}/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
 
 
@@ -104,7 +104,7 @@ test('consolidated launch audit rejects unexpected CJ SKUs in freight stock or p
  assert.match(block,/const unexpectedSkus=/);
  assert.match(block,/!expectedSkus\.includes\(vid\)/);
  assert.match(block,/unexpectedSkus\.length===0/);
- assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus\}/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
 
 
