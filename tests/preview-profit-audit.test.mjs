@@ -213,3 +213,13 @@ test('manual preview audit workflow persists the consolidated audit JSON as an a
  assert.match(wf,/name: oddly-launch-audit/);
  assert.match(wf,/retention-days: 14/);
 });
+
+
+test('saved launch audit artifact is traceable to commit branch run and timestamp',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/auditArtifact/);
+ assert.match(wf,/commitSha:process\.env\.GITHUB_SHA/);
+ assert.match(wf,/branch:process\.env\.GITHUB_REF_NAME/);
+ assert.match(wf,/runId:process\.env\.GITHUB_RUN_ID/);
+ assert.match(wf,/recordedAt:new Date\(\)\.toISOString\(\)/);
+});

@@ -53,7 +53,8 @@ jobs:
           URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/preview-launch-audit-summary"
           BODY="$(curl -fsS --max-time 240 "$URL")"
           printf '%s\n' "$BODY"
-          printf '%s\n' "$BODY" > launch-audit.json
+          export BODY_JSON="$BODY"
+          node -e 'const fs=require("fs");const body=JSON.parse(process.env.BODY_JSON);body.auditArtifact={commitSha:process.env.GITHUB_SHA,branch:process.env.GITHUB_REF_NAME,runId:process.env.GITHUB_RUN_ID,recordedAt:new Date().toISOString()};fs.writeFileSync("launch-audit.json",JSON.stringify(body,null,2)+"\n")' 
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
           printf '%s' "$BODY" | grep -Eq '"freightVerified"[[:space:]]*:[[:space:]]*(true|false)'
           printf '%s' "$BODY" | grep -Eq '"stockVerified"[[:space:]]*:[[:space:]]*(true|false)'
