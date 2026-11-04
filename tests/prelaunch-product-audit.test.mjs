@@ -16,7 +16,7 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
   t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{
     nodes:[{
       id:'gid://shopify/Product/1',title:'テスト商品',description:'日本語の商品説明',handle:'test',status:'DRAFT',vendor:'ODDLY',tags:[],
-      variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'CJ-V1',price:'2980',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
+      variants:{nodes:[{id:'gid://shopify/ProductVariant/1',sku:'1234567890123456',price:'2980',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
       media:{nodes:[{image:{url:'https://example.com/a.jpg'}}],pageInfo:{hasNextPage:false}},
       metafields:{nodes:[
         {key:'adps_audience',value:'一般消費者'},
