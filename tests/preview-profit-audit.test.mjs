@@ -178,3 +178,18 @@ test('consolidated launch audit summarizes per-SKU blockers for fast diagnosis',
  assert.match(block,/profitBlocked:skuMatrix\.filter\(x=>!x\.profitPass\)\.length/);
  assert.match(block,/skuSummary,/);
 });
+
+
+test('consolidated launch audit returns prioritized next actions for blocker resolution',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/const nextActions=\[\]/);
+ assert.match(block,/監査対象SKUの不整合を解消/);
+ assert.match(block,/送料未確認SKUを再取得/);
+ assert.match(block,/在庫21未満SKUを販売候補から外し代替候補を補充/);
+ assert.match(block,/最終利益条件未達SKUを価格調整または候補除外/);
+ assert.match(block,/最終手動承認待ち/);
+ assert.match(block,/nextActions,/);
+});

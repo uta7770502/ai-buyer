@@ -208,6 +208,13 @@ async function previewLaunchAuditSummary(req,res){
     stockBlocked:skuMatrix.filter(x=>!x.stockPass).length,
     profitBlocked:skuMatrix.filter(x=>!x.profitPass).length
   };
+  const nextActions=[];
+  if(missingSkus.length||unexpectedSkus.length||duplicateSkus.freight||duplicateSkus.stock||duplicateSkus.profit)nextActions.push('監査対象SKUの不整合を解消');
+  if(skuSummary.freightBlocked>0)nextActions.push('送料未確認SKUを再取得');
+  if(skuSummary.stockBlocked>0)nextActions.push('在庫21未満SKUを販売候補から外し代替候補を補充');
+  if(skuSummary.profitBlocked>0)nextActions.push('最終利益条件未達SKUを価格調整または候補除外');
+  if(!q.readyToFinalManualStep)nextActions.push('公開前監査blockersを解消');
+  if(nextActions.length===0)nextActions.push('最終手動承認待ち');
   const checks={
     catalogCoverageComplete:missingSkus.length===0&&unexpectedSkus.length===0&&duplicateSkus.freight===0&&duplicateSkus.stock===0&&duplicateSkus.profit===0&&freightRows.length===expectedSkus.length&&stockRows.length===expectedSkus.length&&profitRows.length===expectedSkus.length,
     freightVerified:freight.code===200&&f.ok===true&&Number(f.failed)===0&&Number(f.passed)===Number(f.total)&&Number(f.total)>0,
@@ -226,6 +233,7 @@ async function previewLaunchAuditSummary(req,res){
     supplierLaunchCandidates:{count:launchCandidateSkus.length,skus:launchCandidateSkus.slice(0,20)},
     skuMatrix,
     skuSummary,
+    nextActions,
     catalogCoverage:{expected:expectedSkus.length,missingSkus,unexpectedSkus,duplicateSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
   });
