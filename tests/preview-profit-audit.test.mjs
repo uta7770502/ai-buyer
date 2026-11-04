@@ -235,3 +235,12 @@ test('manual preview audit writes a human-readable GitHub Actions summary',()=>{
  assert.match(wf,/利益NG/);
  assert.match(wf,/次のアクション/);
 });
+
+
+test('manual preview audit writes failure diagnosis even when the workflow stops early',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/Write failure diagnosis/);
+ assert.match(wf,/if: failure\(\)/);
+ assert.match(wf,/監査失敗診断/);
+ assert.match(wf,/launch-audit\.json が存在する場合/);
+});

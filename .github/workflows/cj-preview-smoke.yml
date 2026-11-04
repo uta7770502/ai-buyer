@@ -95,3 +95,17 @@ jobs:
           path: launch-audit.json
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Write failure diagnosis
+        if: failure()
+        shell: bash
+        run: |
+          echo "## 監査失敗診断" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 最新Preview一致確認、CJ接続確認、統合監査のいずれかで停止しました。" >> "$GITHUB_STEP_SUMMARY"
+          echo "- launch-audit.json が存在する場合は、統合監査までは到達しています。" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f launch-audit.json ]; then
+            echo "- 統合監査JSON: 生成済み" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- 統合監査JSON: 未生成" >> "$GITHUB_STEP_SUMMARY"
+          fi
