@@ -428,3 +428,27 @@ test('server-side Shopify draft creation blocks verified CJ stock below launch f
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
 });
+
+
+test('server-side Shopify draft creation fails closed when CJ stock cannot be verified',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN;
+ const previousFetch=globalThis.fetch,calls=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+ process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url)=>{
+  const u=String(url);calls.push(u);
+  if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'20',factoryInventoryNum:'0',totalInventoryNum:'21'}]})};
+  throw Error('Shopify must not be called when CJ stock verification fails');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Unverified stock sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.code,409);
+  assert.match(res.body.error,/在庫をサーバー確認できない/);
+  assert.ok(calls.every(url=>!url.includes('myshopify.com')));
+ }finally{
+  globalThis.fetch=previousFetch;
+  for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
+ }
+});
