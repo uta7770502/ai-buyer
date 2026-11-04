@@ -112,3 +112,15 @@ test('automatic profit assumptions derive ad cost from CPA safety policy and ret
   assert.match(html,/out\.adCostPerOrderJpy=adCost/);
   assert.match(html,/out\.returnReservePerOrderJpy=reserve/);
 });
+
+
+test('negative planned final profit auto-removes the candidate before Shopify draft creation and refreshes recommendations',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/function plannedFinalProfit\(x\)/);
+  assert.match(html,/function excludeUnprofitableCandidateAndRefill\(x\)/);
+  assert.match(html,/x\.uiSelected=false/);
+  assert.match(html,/final_profit_not_positive/);
+  assert.match(html,/setRecentlyRemovedCandidate\(x,true\)/);
+  assert.match(html,/runAutoScan\(true\)/);
+  assert.match(html,/if\(excludeUnprofitableCandidateAndRefill\(x\)\)return/);
+});

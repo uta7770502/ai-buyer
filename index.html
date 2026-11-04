@@ -697,6 +697,27 @@ function autoProfitAssumptions(x){
   x.profitAssumptionUpdatedAt=new Date().toISOString();
   return {adCostPerOrderJpy:ad,returnReservePerOrderJpy:reserve,source:x.profitAssumptionSource};
 }
+function plannedFinalProfit(x){
+  const unit=growthUnitEconomics(x);
+  const ads=Number(x.plannedAdCostPerOrderJpy),reserve=Number(x.returnReservePerOrderJpy);
+  if(!Number.isFinite(unit.contribution)||!Number.isFinite(ads)||ads<0||!Number.isFinite(reserve)||reserve<0)return {ready:false,profitJpy:null};
+  const profit=Math.round(unit.contribution-ads-reserve);
+  return {ready:true,profitJpy:profit,marginPercent:unit.price>0?Math.round(profit/unit.price*1000)/10:null};
+}
+function excludeUnprofitableCandidateAndRefill(x){
+  const result=plannedFinalProfit(x);
+  if(!result.ready||result.profitJpy>0)return false;
+  cancelAutoPreparationRetry(x.id);
+  x.uiSelected=false;
+  x.autoSetupState='needs_review';
+  x.autoSetupLastError='final_profit_not_positive';
+  x.autoSetupMessage='広告費・返品引当後の利益が赤字のため販売候補から自動除外';
+  setRecentlyRemovedCandidate(x,true);
+  addOps('利益ゲート除外',String(x.name||'商品')+'：最終利益 '+yen(result.profitJpy)+' のため候補から除外。代替候補を再探索します');
+  save();renderAll();renderToday();
+  setTimeout(()=>{if(cjConnected&&!recommendationScanRunning)runAutoScan(true).catch(()=>{})},0);
+  return true;
+}
 function growthCreativeDrafts(x){
   const price=Number(x.price||suggestedPrice(x.costUsd||parsePrice(x.sellPrice)));
   const category=String(x.category||'').trim();
@@ -2663,6 +2684,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     x.price=Math.max(Number.isFinite(existingPrice)?existingPrice:0,minPrice,980);
     if(!Number.isSafeInteger(x.price)||x.price<=0||x.price>10000000)throw new Error('販売価格が安全な範囲を超えています。原価・送料・為替を確認してください');
     autoProfitAssumptions(x);
+    if(excludeUnprofitableCandidateAndRefill(x))return;
     x.autoSetupState='draft';
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
     save();renderAll();
