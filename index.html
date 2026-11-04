@@ -120,6 +120,7 @@ let history=JSON.parse(localStorage.getItem('aiBuyerScanHistory')||'[]');
 let rules=JSON.parse(localStorage.getItem('aiBuyerRules')||'null')||{minScore:82,maxCost:35,minListed:30,minMargin:45,count:5,daily:'on'};
 const SAFE_TREND_MIN_LISTINGS=30;
 const SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=21;
+const SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=35;
 let today=JSON.parse(localStorage.getItem('aiBuyerToday')||'null');
 let recommendationScanRunning=false;
 let learning=JSON.parse(localStorage.getItem('aiBuyerLearningHistory')||'[]');
@@ -230,6 +231,7 @@ function launchEligibility(x){
   if(risk.exclude||x.monitorRisk!=='ok'||x.monitorStopCandidate||x.stopCandidate)reasons.push(x.monitorRisk==='unknown'||!x.monitorRisk?'最新CJ監視未確認':'販売リスクあり');
   if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
   if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
+  else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT)reasons.push('限界利益率35%未満');
   return {ready:reasons.length===0,reasons,unit,listed,inventory,safeType,trending:x.trending===true};
 }
 function scaleEligibility(x){
@@ -2630,7 +2632,11 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(data.usdJpyRate))||Number(data.usdJpyRate)<=0)throw new Error('商品原価または為替レートが不正です');
     const cost=Math.ceil(unitCost*Number(data.usdJpyRate))+Number(x.shippingJpy||0);
     if(!Number.isFinite(cost)||cost<0)throw new Error('商品原価と送料を確認できません');
-    const minPrice=Math.ceil((cost/.595)/100)*100;
+    const paymentFeeRate=.045;
+    const targetMargin=SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT/100;
+    const denominator=1-paymentFeeRate-targetMargin;
+    if(!(denominator>0))throw new Error('最低利益率設定が不正です');
+    const minPrice=Math.ceil((cost/denominator)/100)*100;
     const existingPrice=Number(x.price);
     x.price=Math.max(Number.isFinite(existingPrice)?existingPrice:0,minPrice,980);
     if(!Number.isSafeInteger(x.price)||x.price<=0||x.price>10000000)throw new Error('販売価格が安全な範囲を超えています。原価・送料・為替を確認してください');

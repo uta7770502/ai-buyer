@@ -11,6 +11,8 @@ test('preview profit audit stays read-only and fails closed on unverified suppli
  assert.match(source,/paymentFeeJpy/);
  assert.match(source,/contributionBeforeAdsJpy/);
  assert.match(source,/launchEconomicsEligible/);
+ assert.match(source,/minimumContributionMarginPercent=35/);
+ assert.match(source,/contributionMarginPercent>=minimumContributionMarginPercent/);
  assert.doesNotMatch(source,/mutation\s/i);
 });
 
