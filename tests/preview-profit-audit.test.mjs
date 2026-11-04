@@ -141,3 +141,11 @@ test('manual preview audit workflow remains read-only and cannot perform launch 
  assert.doesNotMatch(wf,/api\/shopify-publish|api\/shopify-order-webhook|api\/cj-sandbox-simulate/);
  assert.match(wf,/api\/preview-launch-audit-summary/);
 });
+
+
+test('manual preview audit workflow has enough job time for preview verification plus consolidated audit',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/timeout-minutes: 10/);
+ assert.match(wf,/for i in \{1\.\.18\}/);
+ assert.match(wf,/api\/preview-launch-audit-summary/);
+});
