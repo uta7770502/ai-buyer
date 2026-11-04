@@ -198,3 +198,11 @@ test('variant stock route rejects implausibly large supplier totals',()=>{
   assert.match(route,/checked\.total>1000000/);
   assert.match(route,/outside safe bounds/);
 });
+
+
+test('variant stock launch floor is defined once and returned with every verified response',()=>{
+  const route=fs.readFileSync(new URL('../lib/routes/cj-variant-stock.js',import.meta.url),'utf8');
+  assert.match(route,/const MIN_LAUNCH_INVENTORY=21/);
+  assert.match(route,/launchEligible:checked\.total>=MIN_LAUNCH_INVENTORY/);
+  assert.match(route,/minimumLaunchInventory:MIN_LAUNCH_INVENTORY/);
+});
