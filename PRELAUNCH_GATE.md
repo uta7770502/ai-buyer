@@ -6,6 +6,7 @@ This document is the operational gate for the final step before public launch.
 - CJ health: OK
 - 9 draft product CJ freight checks: 9/9 OK
 - CJ real-time stock dry-run: no supplier lookup failures
+- CJ cost/profit audit: supplier cost verified and gross margin checked against latest JP freight
 - Shopify draft products: all remain DRAFT until explicit approval
 - Shopify inventory: synchronized only from verified CJ warehouse stock
 - Inventory policy: DENY
