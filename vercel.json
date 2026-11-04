@@ -119,6 +119,10 @@
     {
       "source": "/api/deployment-info",
       "destination": "/api/diagnostics?action=deployment-info"
+    },
+    {
+      "source": "/api/preview-launch-audit-summary",
+      "destination": "/api/diagnostics?action=preview-launch-audit-summary"
     }
   ]
 }

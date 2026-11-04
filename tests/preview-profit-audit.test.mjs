@@ -27,3 +27,17 @@ test('server stock audit enforces the same 21-unit launch floor as the UI gate',
  assert.match(source,/totalInventory>20/);
  assert.match(source,/launchEligible/);
 });
+
+
+test('preview launch audit summary consolidates stock profit and prelaunch readiness without mutation',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const vercel=fs.readFileSync(new URL('../vercel.json',import.meta.url),'utf8');
+ assert.match(source,/async function previewLaunchAuditSummary/);
+ assert.match(source,/stockVerified/);
+ assert.match(source,/launchInventoryReady/);
+ assert.match(source,/profitVerified/);
+ assert.match(source,/finalProfitReady/);
+ assert.match(source,/prelaunchAuditReady/);
+ assert.match(source,/readOnly:true/);
+ assert.match(vercel,/preview-launch-audit-summary/);
+});

@@ -151,6 +151,36 @@ async function previewCjStockAudit(req,res){
   }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
 }
 
+async function previewLaunchAuditSummary(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  if(!allowed)return res.status(404).json({ok:false});
+  const capture=()=>({code:200,status(n){this.code=n;return this},setHeader(){return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}});
+  const stock=capture(),profit=capture(),prelaunch=capture();
+  await Promise.all([
+    previewCjStockAudit({method:'GET',headers:{},query:{}},stock),
+    previewProfitAudit({method:'GET',headers:{},query:{}},profit),
+    previewPrelaunchSummary({method:'GET',headers:{},query:{}},prelaunch)
+  ]);
+  const s=stock.body||{},p=profit.body||{},q=prelaunch.body||{};
+  const checks={
+    stockVerified:stock.code===200&&s.ok===true&&s.allVerified===true,
+    launchInventoryReady:stock.code===200&&s.ok===true&&Number(s.launchEligible)>0,
+    profitVerified:profit.code===200&&p.ok===true&&Number(p.failed)===0,
+    finalProfitReady:profit.code===200&&p.ok===true&&Number(p.launchEconomicsEligible)>0,
+    prelaunchAuditReady:prelaunch.code===200&&q.ok===true&&q.readyToFinalManualStep===true
+  };
+  const ready=Object.values(checks).every(Boolean);
+  return res.status(200).json({
+    ok:true,readOnly:true,checkedAt:new Date().toISOString(),ready,
+    checks,
+    stock:{total:Number(s.total||0),allVerified:Boolean(s.allVerified),launchEligible:Number(s.launchEligible||0),minimumLaunchInventory:Number(s.minimumLaunchInventory||21)},
+    profit:{total:Number(p.total||0),verified:Number(p.verified||0),failed:Number(p.failed||0),launchEconomicsEligible:Number(p.launchEconomicsEligible||0),minimumContributionMarginPercent:Number(p.minimumContributionMarginPercent||35)},
+    prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
+  });
+}
+
 function deploymentInfo(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -163,6 +193,7 @@ const handlers={
   'preview-cj-draft-audit':previewCjDraftAudit,
   'preview-cj-stock-audit':previewCjStockAudit,
   'preview-profit-audit':previewProfitAudit,
+  'preview-launch-audit-summary':previewLaunchAuditSummary,
   'cj-shopify-stock-sync':cjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
