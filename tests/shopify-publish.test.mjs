@@ -54,6 +54,7 @@ test('CJ product lookup failure prevents any Shopify draft creation',async()=>{
  globalThis.fetch=async(url)=>{
   calls.push(String(url));
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:false,message:'CJ product unavailable'})};
   throw Error('Shopify must not be called after CJ lookup failure');
  };
@@ -110,6 +111,7 @@ test('duplicate CJ SKU drafts block creation before any Shopify mutation',async(
  process.env.CJ_ACCESS_TOKEN='test-cj';
  globalThis.fetch=async(url,opts={})=>{
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
   const request=JSON.parse(opts.body);queries.push(request.query);
   assert.match(request.query,/ExistingProductsBySku/);
@@ -134,6 +136,7 @@ test('single matching CJ SKU draft is updated rather than creating a duplicate',
  process.env.CJ_ACCESS_TOKEN='test-cj';
  process.env.SHOPIFY_LIVE_PUBLISH_ENABLED='false';
  globalThis.fetch=async(url,opts={})=>{
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
   const req=JSON.parse(opts.body);queries.push(req);
@@ -162,6 +165,7 @@ test('truncated Shopify draft search stops before product creation',async()=>{
  process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
  process.env.CJ_ACCESS_TOKEN='test-cj';
  globalThis.fetch=async(url,opts={})=>{
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
   const request=JSON.parse(opts.body);queries.push(request.query);
@@ -232,6 +236,7 @@ test('incomplete Shopify duplicate-search pagination fails closed before creatin
  process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
  process.env.CJ_ACCESS_TOKEN='test-cj';
  globalThis.fetch=async(url,opts={})=>{
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
   const payload=JSON.parse(opts.body);queries.push(payload.query);
@@ -349,6 +354,7 @@ test('active Shopify product with same CJ SKU blocks draft creation without muta
  process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
  process.env.CJ_ACCESS_TOKEN='test-cj';
  globalThis.fetch=async(url,opts={})=>{
+  if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
   if(String(url).includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
   const request=JSON.parse(opts.body);queries.push(request.query);
