@@ -67,3 +67,14 @@ test('CJ risk gate excludes mid and high complaint risk products',()=>{
   assert.match(risk,/rating<4\.0/);
   assert.match(risk,/lowRate>=0\.05/);
 });
+
+
+test('automatic recommendations require at least 21 units of verified discovery inventory',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const search=fs.readFileSync(new URL('../lib/routes/cj-search.js',import.meta.url),'utf8');
+  assert.match(html,/SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=21/);
+  assert.match(html,/minVerifiedInventory=\$\{SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY\}/);
+  assert.match(search,/minVerifiedInventory/);
+  assert.match(search,/p\.verifiedInventory>=minVerifiedInventory/);
+  assert.match(search,/Variant-level CJ stock is reverified before launch/);
+});
