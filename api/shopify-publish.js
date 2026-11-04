@@ -27,6 +27,10 @@ function aioMetafields(p,ownerId,title,description){
   if(/^[A-Z]{2}$/.test(shippingCountry))rows.push({ownerId,namespace:'custom',key:'shipping_country',type:'single_line_text_field',value:shippingCountry});
   const returnDays=Number(p.returnDays);
   if(Number.isInteger(returnDays)&&returnDays>0&&returnDays<=365)rows.push({ownerId,namespace:'custom',key:'return_days',type:'number_integer',value:String(returnDays)});
+  const verifiedInventory=Number(p.verifiedInventory);
+  if(Number.isSafeInteger(verifiedInventory)&&verifiedInventory>=0&&verifiedInventory<=1000000)rows.push({ownerId,namespace:'custom',key:'cj_verified_inventory',type:'number_integer',value:String(verifiedInventory)});
+  const inventoryVerifiedAt=clean(p.inventoryVerifiedAt,40);
+  if(/^\d{4}-\d{2}-\d{2}T/.test(inventoryVerifiedAt))rows.push({ownerId,namespace:'custom',key:'cj_inventory_verified_at',type:'single_line_text_field',value:inventoryVerifiedAt});
   const adCost=Number(p.adCostPerOrderJpy),returnReserve=Number(p.returnReservePerOrderJpy);
   if(Number.isSafeInteger(adCost)&&adCost>=0&&adCost<=10000000)rows.push({ownerId,namespace:'custom',key:'ad_cost_per_order_jpy',type:'number_integer',value:String(adCost)});
   if(Number.isSafeInteger(returnReserve)&&returnReserve>=0&&returnReserve<=10000000)rows.push({ownerId,namespace:'custom',key:'return_reserve_per_order_jpy',type:'number_integer',value:String(returnReserve)});
@@ -559,6 +563,8 @@ export default async function handler(req,res){
     const stock=await cjVariantStock(cj.vid);
     if(!stock.ok)return res.status(409).json({ok:false,error:'CJ variant在庫をサーバー確認できないためShopify下書きを作成しません',reason:stock.reason||'stock-unverified'});
     if(stock.total<MIN_LAUNCH_INVENTORY)return res.status(409).json({ok:false,error:'CJ variant在庫が販売準備基準未満のためShopify下書きを作成しません',verifiedInventory:stock.total,minimumLaunchInventory:MIN_LAUNCH_INVENTORY});
+    p.verifiedInventory=stock.total;
+    p.inventoryVerifiedAt=new Date().toISOString();
     // Translate supplier facts, not only the generic frontend placeholder description.
     // Preserve a Japanese description deliberately written by the merchant.
     const hasJapanese=s=>/[ぁ-んァ-ヶ一-龠]/.test(String(s||''));

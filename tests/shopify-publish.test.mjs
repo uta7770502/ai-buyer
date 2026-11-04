@@ -477,3 +477,12 @@ test('server-side Shopify draft creation fails closed on CJ stock rate limit',as
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
 });
+
+
+test('Shopify draft metadata records server-verified CJ inventory evidence',()=>{
+  const src=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  assert.match(src,/key:'cj_verified_inventory'/);
+  assert.match(src,/key:'cj_inventory_verified_at'/);
+  assert.match(src,/p\.verifiedInventory=stock\.total/);
+  assert.match(src,/p\.inventoryVerifiedAt=new Date\(\)\.toISOString\(\)/);
+});
