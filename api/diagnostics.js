@@ -145,7 +145,9 @@ async function previewCjStockAudit(req,res){
       }
       await new Promise(r=>setTimeout(r,1500));
     }
-    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,allVerified:rows.every(x=>x.ok),rows});
+    const launchEligible=rows.filter(x=>x.ok&&Number.isSafeInteger(x.totalInventory)&&x.totalInventory>20).length;
+    for(const row of rows)row.launchEligible=row.ok&&Number.isSafeInteger(row.totalInventory)&&row.totalInventory>20;
+    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,launchEligible,minimumLaunchInventory:21,allVerified:rows.every(x=>x.ok),rows});
   }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
 }
 
