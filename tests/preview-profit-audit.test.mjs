@@ -68,3 +68,17 @@ test('consolidated launch audit includes fresh CJ freight verification before st
  const c=block.indexOf('await previewProfitAudit');
  assert.ok(a>=0&&b>a&&c>b);
 });
+
+
+test('consolidated launch audit requires the same CJ SKU to pass freight stock and final-profit gates',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/const freightOk=new Set/);
+ assert.match(block,/const stockOk=new Set/);
+ assert.match(block,/const profitOk=new Set/);
+ assert.match(block,/freightOk\.has\(vid\)&&profitOk\.has\(vid\)/);
+ assert.match(block,/supplierLaunchCandidateReady:launchCandidateSkus\.length>0/);
+ assert.match(block,/supplierLaunchCandidates:\{count:launchCandidateSkus\.length/);
+});
