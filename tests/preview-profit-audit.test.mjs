@@ -271,3 +271,14 @@ test('manual preview audit verifies the read-only variant stock endpoint before 
  assert.match(wf,/steps\.variant_stock\.outcome/);
  assert.match(wf,/variant在庫API/);
 });
+
+
+test('manual preview audit persists the checked variant stock result into the launch artifact',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/variantStockSmoke=/);
+ assert.match(wf,/verifiedInventory:Number\(stock\.verifiedInventory\)/);
+ assert.match(wf,/minimumLaunchInventory:Number\(stock\.minimumLaunchInventory\)/);
+ assert.match(wf,/launchEligible:stock\.launchEligible===true/);
+ assert.match(wf,/verifiedAt:String\(stock\.verifiedAt/);
+ assert.match(wf,/variant在庫確認/);
+});

@@ -77,6 +77,20 @@ jobs:
           printf '%s' "$BODY" | grep -Eq '"readOnly"[[:space:]]*:[[:space:]]*true'
           printf '%s' "$BODY" | grep -Eq '"minimumLaunchInventory"[[:space:]]*:[[:space:]]*21'
           printf '%s' "$BODY" | grep -Eq '"verifiedInventory"[[:space:]]*:[[:space:]]*[0-9]+'
+          export VARIANT_BODY_JSON="$BODY"
+          node - <<'NODE'
+          const fs=require('fs');
+          const audit=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
+          const stock=JSON.parse(process.env.VARIANT_BODY_JSON);
+          audit.variantStockSmoke={
+            vid:String(stock.vid||''),
+            verifiedInventory:Number(stock.verifiedInventory),
+            minimumLaunchInventory:Number(stock.minimumLaunchInventory),
+            launchEligible:stock.launchEligible===true,
+            verifiedAt:String(stock.verifiedAt||'')
+          };
+          fs.writeFileSync('launch-audit.json',JSON.stringify(audit,null,2)+'\n');
+          NODE
 
       - name: Write launch audit summary
         if: always()
@@ -99,6 +113,9 @@ jobs:
           console.log('- 送料NG: '+Number(s.freightBlocked||0));
           console.log('- 在庫NG: '+Number(s.stockBlocked||0));
           console.log('- 利益NG: '+Number(s.profitBlocked||0));
+          if(j.variantStockSmoke){
+            console.log('- variant在庫確認: '+j.variantStockSmoke.vid+' / '+j.variantStockSmoke.verifiedInventory+'個');
+          }
           console.log('');
           console.log('### 次のアクション');
           for(const a of actions) console.log('- '+a);
