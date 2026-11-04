@@ -193,3 +193,14 @@ test('consolidated launch audit returns prioritized next actions for blocker res
  assert.match(block,/最終手動承認待ち/);
  assert.match(block,/nextActions,/);
 });
+
+
+test('consolidated launch audit never reports manual approval as the only next action when readiness is false',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/const inconsistentState=!ready&&nextActions\.length===1&&nextActions\[0\]==='最終手動承認待ち'/);
+ assert.match(block,/監査結果の不整合を再確認/);
+ assert.match(block,/ready,inconsistentState/);
+});

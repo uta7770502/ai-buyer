@@ -224,8 +224,13 @@ async function previewLaunchAuditSummary(req,res){
     prelaunchAuditReady:prelaunch.code===200&&q.ok===true&&q.readyToFinalManualStep===true
   };
   const ready=Object.values(checks).every(Boolean);
+  const inconsistentState=!ready&&nextActions.length===1&&nextActions[0]==='最終手動承認待ち';
+  if(inconsistentState){
+    nextActions.length=0;
+    nextActions.push('監査結果の不整合を再確認');
+  }
   return res.status(200).json({
-    ok:true,readOnly:true,checkedAt:new Date().toISOString(),ready,
+    ok:true,readOnly:true,checkedAt:new Date().toISOString(),ready,inconsistentState,
     checks,
     freight:{total:Number(f.total||0),passed:Number(f.passed||0),failed:Number(f.failed||0)},
     stock:{total:Number(s.total||0),allVerified:Boolean(s.allVerified),launchEligible:Number(s.launchEligible||0),minimumLaunchInventory:Number(s.minimumLaunchInventory||21)},
