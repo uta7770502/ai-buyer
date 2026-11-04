@@ -191,3 +191,10 @@ test('launch eligibility requires fresh variant-level stock verification within 
   assert.match(gate,/variant在庫の最新確認が必要/);
   assert.match(gate,/freshVariantInventory/);
 });
+
+
+test('variant stock route rejects implausibly large supplier totals',()=>{
+  const route=fs.readFileSync(new URL('../lib/routes/cj-variant-stock.js',import.meta.url),'utf8');
+  assert.match(route,/checked\.total>1000000/);
+  assert.match(route,/outside safe bounds/);
+});
