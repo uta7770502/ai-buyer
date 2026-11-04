@@ -223,3 +223,15 @@ test('saved launch audit artifact is traceable to commit branch run and timestam
  assert.match(wf,/runId:process\.env\.GITHUB_RUN_ID/);
  assert.match(wf,/recordedAt:new Date\(\)\.toISOString\(\)/);
 });
+
+
+test('manual preview audit writes a human-readable GitHub Actions summary',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/Write launch audit summary/);
+ assert.match(wf,/GITHUB_STEP_SUMMARY/);
+ assert.match(wf,/公開候補/);
+ assert.match(wf,/送料NG/);
+ assert.match(wf,/在庫NG/);
+ assert.match(wf,/利益NG/);
+ assert.match(wf,/次のアクション/);
+});

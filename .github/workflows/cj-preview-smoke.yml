@@ -61,6 +61,32 @@ jobs:
           printf '%s' "$BODY" | grep -Eq '"profitVerified"[[:space:]]*:[[:space:]]*(true|false)'
           printf '%s' "$BODY" | grep -Eq '"prelaunchAuditReady"[[:space:]]*:[[:space:]]*(true|false)'
 
+      - name: Write launch audit summary
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f launch-audit.json ]; then
+            echo "## ODDLY launch audit" >> "$GITHUB_STEP_SUMMARY"
+            echo "監査JSONは生成されませんでした。" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs=require('fs');
+          const j=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
+          const s=j.skuSummary||{};
+          const actions=Array.isArray(j.nextActions)?j.nextActions:[];
+          console.log('## ODDLY launch audit');
+          console.log('');
+          console.log('- READY: '+(j.ready===true?'YES':'NO'));
+          console.log('- 公開候補: '+Number(s.launchCandidates||0));
+          console.log('- 送料NG: '+Number(s.freightBlocked||0));
+          console.log('- 在庫NG: '+Number(s.stockBlocked||0));
+          console.log('- 利益NG: '+Number(s.profitBlocked||0));
+          console.log('');
+          console.log('### 次のアクション');
+          for(const a of actions) console.log('- '+a);
+          NODE
+
       - name: Upload launch audit artifact
         if: always()
         uses: actions/upload-artifact@v4
