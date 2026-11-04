@@ -106,3 +106,11 @@ test('consolidated launch audit rejects unexpected CJ SKUs in freight stock or p
  assert.match(block,/unexpectedSkus\.length===0/);
  assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus\}/);
 });
+
+
+test('preview diagnostics use one canonical managed CJ SKU list across freight stock and consolidated audit',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ assert.match(source,/const PREVIEW_MANAGED_CJ_VIDS=\[/);
+ assert.equal((source.match(/const vids=PREVIEW_MANAGED_CJ_VIDS;/g)||[]).length,2);
+ assert.match(source,/const expectedSkus=PREVIEW_MANAGED_CJ_VIDS;/);
+});

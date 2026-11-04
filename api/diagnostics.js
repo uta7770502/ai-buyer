@@ -14,6 +14,12 @@ import prelaunchProductAudit from '../lib/routes/prelaunch-product-audit.js';
 import prelaunchOneAction from '../lib/routes/prelaunch-one-action.js';
 import previewProfitAudit from '../lib/routes/preview-profit-audit.js';
 
+const PREVIEW_MANAGED_CJ_VIDS=[
+  '1421057421656330240','1657322876615274496','1641339380621119488',
+  '1637037130838978560','1380443011925807104','1443515898471256064',
+  '2408310600381614000','1416372414316679168','1763801727867822080'
+];
+
 function normalizeShopHost(v){return String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'')}
 function shopifyEnvCheck(req,res){
   res.setHeader('Cache-Control','no-store');
@@ -61,11 +67,7 @@ async function previewCjDraftAudit(req,res){
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
   const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
   if(!allowed)return res.status(404).json({ok:false});
-  const vids=[
-    '1421057421656330240','1657322876615274496','1641339380621119488',
-    '1637037130838978560','1380443011925807104','1443515898471256064',
-    '2408310600381614000','1416372414316679168','1763801727867822080'
-  ];
+  const vids=PREVIEW_MANAGED_CJ_VIDS;
   const rows=[];
   for(const vid of vids){
     const cap={code:200,headers:{},setHeader(k,v){this.headers[k]=v;return this},status(n){this.code=n;return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}};
@@ -92,11 +94,7 @@ async function previewCjStockAudit(req,res){
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
   const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
   if(!allowed)return res.status(404).json({ok:false});
-  const vids=[
-    '1421057421656330240','1657322876615274496','1641339380621119488',
-    '1637037130838978560','1380443011925807104','1443515898471256064',
-    '2408310600381614000','1416372414316679168','1763801727867822080'
-  ];
+  const vids=PREVIEW_MANAGED_CJ_VIDS;
   const BASE='https://developers.cjdropshipping.com/api2.0/v1';
   async function token(){
     if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
@@ -168,11 +166,7 @@ async function previewLaunchAuditSummary(req,res){
   await new Promise(r=>setTimeout(r,1500));
   await previewProfitAudit({method:'GET',headers:{},query:{}},profit);
   const f=freight.body||{},s=stock.body||{},p=profit.body||{},q=prelaunch.body||{};
-  const expectedSkus=[
-    '1421057421656330240','1657322876615274496','1641339380621119488',
-    '1637037130838978560','1380443011925807104','1443515898471256064',
-    '2408310600381614000','1416372414316679168','1763801727867822080'
-  ];
+  const expectedSkus=PREVIEW_MANAGED_CJ_VIDS;
   const freightRows=Array.isArray(f.rows)?f.rows:[];
   const stockRows=Array.isArray(s.rows)?s.rows:[];
   const profitRows=Array.isArray(p.rows)?p.rows:[];
