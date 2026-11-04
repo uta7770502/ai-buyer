@@ -158,11 +158,13 @@ async function previewLaunchAuditSummary(req,res){
   if(!allowed)return res.status(404).json({ok:false});
   const capture=()=>({code:200,status(n){this.code=n;return this},setHeader(){return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}});
   const stock=capture(),profit=capture(),prelaunch=capture();
-  await Promise.all([
-    previewCjStockAudit({method:'GET',headers:{},query:{}},stock),
-    previewProfitAudit({method:'GET',headers:{},query:{}},profit),
-    previewPrelaunchSummary({method:'GET',headers:{},query:{}},prelaunch)
-  ]);
+  // Run supplier-backed checks sequentially. CJ enforces a strict request rate and
+  // concurrent stock/profit audits can otherwise rate-limit each other.
+  await previewPrelaunchSummary({method:'GET',headers:{},query:{}},prelaunch);
+  await new Promise(r=>setTimeout(r,1500));
+  await previewCjStockAudit({method:'GET',headers:{},query:{}},stock);
+  await new Promise(r=>setTimeout(r,1500));
+  await previewProfitAudit({method:'GET',headers:{},query:{}},profit);
   const s=stock.body||{},p=profit.body||{},q=prelaunch.body||{};
   const checks={
     stockVerified:stock.code===200&&s.ok===true&&s.allVerified===true,

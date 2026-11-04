@@ -41,3 +41,15 @@ test('preview launch audit summary consolidates stock profit and prelaunch readi
  assert.match(source,/readOnly:true/);
  assert.match(vercel,/preview-launch-audit-summary/);
 });
+
+
+test('consolidated launch audit runs CJ-backed checks sequentially to avoid supplier rate-limit collisions',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.doesNotMatch(block,/Promise\.all\(\[/);
+ assert.match(block,/await previewCjStockAudit/);
+ assert.match(block,/await previewProfitAudit/);
+ assert.match(block,/setTimeout\(r,1500\)/);
+});
