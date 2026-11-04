@@ -65,6 +65,10 @@
       "destination": "/api/cj?action=freight"
     },
     {
+      "source": "/api/cj-variant-stock",
+      "destination": "/api/cj?action=variant-stock"
+    },
+    {
       "source": "/api/cj-monitor",
       "destination": "/api/cj?action=monitor"
     },

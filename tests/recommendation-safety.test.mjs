@@ -142,13 +142,30 @@ test('replacement recommendations exclude auto-blocked products and require veri
 });
 
 
-test('selected candidates with verified inventory below 21 are auto-removed before freight or Shopify draft work',()=>{
+test('selected candidates with verified variant inventory below 21 are auto-removed before Shopify draft creation',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/function excludeLowStockCandidateAndRefill\(x\)/);
+  assert.match(html,/variantInventoryVerified!==true/);
   assert.match(html,/inventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
   assert.match(html,/verified_inventory_below_launch_floor/);
   assert.match(html,/在庫ゲート除外/);
+  assert.match(html,/api\/cj-variant-stock\?vid=/);
+  assert.match(html,/variantInventoryVerified=true/);
   assert.match(html,/if\(excludeLowStockCandidateAndRefill\(x\)\)return/);
   assert.match(html,/在庫ゲートで除外された商品のため再選択できません/);
   assert.match(html,/runAutoScan\(true\)/);
+});
+
+
+test('variant-level CJ stock verification is read-only validated and launch-gated at 21 units',()=>{
+  const route=fs.readFileSync(new URL('../lib/routes/cj-variant-stock.js',import.meta.url),'utf8');
+  const api=fs.readFileSync(new URL('../api/cj.js',import.meta.url),'utf8');
+  const vercel=fs.readFileSync(new URL('../vercel.json',import.meta.url),'utf8');
+  assert.match(route,/validateCJStockResponse/);
+  assert.match(route,/req\.method!=='GET'/);
+  assert.match(route,/readOnly:true/);
+  assert.match(route,/launchEligible:checked\.total>=21/);
+  assert.match(route,/minimumLaunchInventory:21/);
+  assert.match(api,/'variant-stock':cjVariantStock/);
+  assert.match(vercel,/\/api\/cj-variant-stock/);
 });

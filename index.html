@@ -705,6 +705,7 @@ function plannedFinalProfit(x){
   return {ready:true,profitJpy:profit,marginPercent:unit.price>0?Math.round(profit/unit.price*1000)/10:null};
 }
 function excludeLowStockCandidateAndRefill(x){
+  if(x?.variantInventoryVerified!==true)return false;
   const inventory=Number(x?.verifiedInventory);
   if(!Number.isFinite(inventory)||inventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY)return false;
   cancelAutoPreparationRetry(x.id);
@@ -2644,7 +2645,6 @@ async function autoPrepareSelectedProduct(x,attempt=0){
   if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x)||x.shopifyPublishState==='publishing'||x.shopifyPublishState==='published'||x.shopifyPublished||x.autoSetupState==='ready')return;
   if(Number(x.autoSetupAttempts||0)>=3&&attempt>0)return;
   if(attempt>0&&x.autoSetupState==='needs_review'&&!autoPrepareRetryable(x.autoSetupLastError||x.autoSetupMessage))return;
-  if(excludeLowStockCandidateAndRefill(x))return;
   autoPreparationInFlight.add(x);
   cancelAutoPreparationRetry(x.id);
   x.autoSetupLastAttemptAt=new Date().toISOString();
@@ -2681,6 +2681,15 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(!quotedVid||(requestedVid&&quotedVid!==requestedVid))throw new Error('選択したCJバリエーションと送料見積の対象が一致しません');
     if(Array.isArray(data.variants)&&data.variants.length>1&&!requestedVid)throw new Error('バリエーションを選択してから送料を見積もってください');
     x.shippingVariantChoice=quotedVid;
+    const stockResponse=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(quotedVid),{signal:AbortSignal.timeout(12000)});
+    const stockData=await stockResponse.json();
+    if(!stockResponse.ok||stockData.ok!==true||stockData.readOnly!==true||stockData.vid!==quotedVid||!Number.isSafeInteger(stockData.verifiedInventory)||stockData.verifiedInventory<0)throw new Error(stockData.error||'CJ variant在庫を確認できません');
+    const stockVerifiedAt=Date.parse(stockData.verifiedAt||'');
+    if(!Number.isFinite(stockVerifiedAt)||stockVerifiedAt>Date.now()||Date.now()-stockVerifiedAt>15*60*1000)throw new Error('CJ variant在庫の確認期限が切れています');
+    x.verifiedInventory=stockData.verifiedInventory;
+    x.variantInventoryVerified=true;
+    x.variantInventoryVerifiedAt=stockData.verifiedAt;
+    if(excludeLowStockCandidateAndRefill(x))return;
     const option=options[0];
     x.shippingJpy=option.jpy;
     x.shippingSource='cj-server';

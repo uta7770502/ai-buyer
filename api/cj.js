@@ -8,6 +8,7 @@ import cjOrderTracking from '../lib/routes/cj-order-tracking.js';
 import cjTrackingSync from '../lib/routes/cj-tracking-sync.js';
 import cjReadiness from '../lib/routes/cj-readiness.js';
 import cjHealth from '../lib/routes/cj-health.js';
+import cjVariantStock from '../lib/routes/cj-variant-stock.js';
 
 import cjSandboxSimulate from '../lib/routes/cj-sandbox-simulate.js';
 import cjSandboxReconcile from '../lib/routes/cj-sandbox-reconcile.js';
@@ -23,6 +24,7 @@ const handlers={
   'order-tracking':cjOrderTracking,
   'tracking-sync':cjTrackingSync,
   'readiness':cjReadiness,
+  'variant-stock':cjVariantStock,
   'health':async(req,res)=>{
     const key=process.env.AI_BUYER_ADMIN_KEY;
     const supplied=String(req.headers?.authorization||'');
