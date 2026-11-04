@@ -127,3 +127,17 @@ test('consolidated launch audit rejects duplicate SKU rows instead of treating s
  assert.match(block,/duplicateSkus\.profit===0/);
  assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
+
+
+test('manual preview audit workflow remains read-only and cannot perform launch actions',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/workflow_dispatch:/);
+ assert.doesNotMatch(wf,/push:/);
+ assert.doesNotMatch(wf,/SHOPIFY_LIVE_PUBLISH_ENABLED/);
+ assert.doesNotMatch(wf,/ODDLY_CHECKOUT_ENABLED/);
+ assert.doesNotMatch(wf,/CJ_ALLOW_REAL_SHOPIFY_ORDERS_IN_SANDBOX/);
+ assert.doesNotMatch(wf,/ADS_LIVE_ENABLED/);
+ assert.doesNotMatch(wf,/removeStorefrontPassword|disablePasswordProtection/i);
+ assert.doesNotMatch(wf,/api\/shopify-publish|api\/shopify-order-webhook|api\/cj-sandbox-simulate/);
+ assert.match(wf,/api\/preview-launch-audit-summary/);
+});
