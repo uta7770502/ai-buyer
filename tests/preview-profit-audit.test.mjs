@@ -34,9 +34,9 @@ test('preview launch audit summary consolidates stock profit and prelaunch readi
  const vercel=fs.readFileSync(new URL('../vercel.json',import.meta.url),'utf8');
  assert.match(source,/async function previewLaunchAuditSummary/);
  assert.match(source,/stockVerified/);
- assert.match(source,/launchInventoryReady/);
+ assert.match(source,/catalogCoverageComplete/);
  assert.match(source,/profitVerified/);
- assert.match(source,/finalProfitReady/);
+ assert.match(source,/supplierLaunchCandidateReady/);
  assert.match(source,/prelaunchAuditReady/);
  assert.match(source,/readOnly:true/);
  assert.match(vercel,/preview-launch-audit-summary/);
