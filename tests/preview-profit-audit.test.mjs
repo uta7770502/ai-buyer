@@ -149,3 +149,18 @@ test('manual preview audit workflow has enough job time for preview verification
  assert.match(wf,/for i in \{1\.\.18\}/);
  assert.match(wf,/api\/preview-launch-audit-summary/);
 });
+
+
+test('consolidated launch audit returns a per-SKU freight stock profit matrix for all managed products',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/const skuMatrix=expectedSkus\.map/);
+ assert.match(block,/freightPass/);
+ assert.match(block,/stockPass/);
+ assert.match(block,/profitPass/);
+ assert.match(block,/launchCandidate:freightPass&&stockPass&&profitPass/);
+ assert.match(block,/在庫21未満または未確認/);
+ assert.match(block,/skuMatrix,/);
+});
