@@ -82,3 +82,15 @@ test('consolidated launch audit requires the same CJ SKU to pass freight stock a
  assert.match(block,/supplierLaunchCandidateReady:launchCandidateSkus\.length>0/);
  assert.match(block,/supplierLaunchCandidates:\{count:launchCandidateSkus\.length/);
 });
+
+
+test('consolidated launch audit fails closed when any of the nine managed CJ SKUs is missing from an audit',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/const expectedSkus=\[/);
+ assert.match(block,/const missingSkus=expectedSkus\.filter/);
+ assert.match(block,/catalogCoverageComplete:missingSkus\.length===0/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus\}/);
+});

@@ -168,11 +168,24 @@ async function previewLaunchAuditSummary(req,res){
   await new Promise(r=>setTimeout(r,1500));
   await previewProfitAudit({method:'GET',headers:{},query:{}},profit);
   const f=freight.body||{},s=stock.body||{},p=profit.body||{},q=prelaunch.body||{};
-  const freightOk=new Set((Array.isArray(f.rows)?f.rows:[]).filter(x=>x?.ok===true&&x?.shippingVerified===true).map(x=>String(x.vid||'')));
-  const stockOk=new Set((Array.isArray(s.rows)?s.rows:[]).filter(x=>x?.launchEligible===true).map(x=>String(x.vid||'')));
-  const profitOk=new Set((Array.isArray(p.rows)?p.rows:[]).filter(x=>x?.launchEconomicsEligible===true).map(x=>String(x.sku||'')));
+  const expectedSkus=[
+    '1421057421656330240','1657322876615274496','1641339380621119488',
+    '1637037130838978560','1380443011925807104','1443515898471256064',
+    '2408310600381614000','1416372414316679168','1763801727867822080'
+  ];
+  const freightRows=Array.isArray(f.rows)?f.rows:[];
+  const stockRows=Array.isArray(s.rows)?s.rows:[];
+  const profitRows=Array.isArray(p.rows)?p.rows:[];
+  const freightSeen=new Set(freightRows.map(x=>String(x?.vid||'')));
+  const stockSeen=new Set(stockRows.map(x=>String(x?.vid||'')));
+  const profitSeen=new Set(profitRows.map(x=>String(x?.sku||'')));
+  const missingSkus=expectedSkus.filter(vid=>!freightSeen.has(vid)||!stockSeen.has(vid)||!profitSeen.has(vid));
+  const freightOk=new Set(freightRows.filter(x=>x?.ok===true&&x?.shippingVerified===true).map(x=>String(x.vid||'')));
+  const stockOk=new Set(stockRows.filter(x=>x?.launchEligible===true).map(x=>String(x.vid||'')));
+  const profitOk=new Set(profitRows.filter(x=>x?.launchEconomicsEligible===true).map(x=>String(x.sku||'')));
   const launchCandidateSkus=[...stockOk].filter(vid=>vid&&freightOk.has(vid)&&profitOk.has(vid));
   const checks={
+    catalogCoverageComplete:missingSkus.length===0&&freightRows.length===expectedSkus.length&&stockRows.length===expectedSkus.length&&profitRows.length===expectedSkus.length,
     freightVerified:freight.code===200&&f.ok===true&&Number(f.failed)===0&&Number(f.passed)===Number(f.total)&&Number(f.total)>0,
     stockVerified:stock.code===200&&s.ok===true&&s.allVerified===true,
     profitVerified:profit.code===200&&p.ok===true&&Number(p.failed)===0,
@@ -187,6 +200,7 @@ async function previewLaunchAuditSummary(req,res){
     stock:{total:Number(s.total||0),allVerified:Boolean(s.allVerified),launchEligible:Number(s.launchEligible||0),minimumLaunchInventory:Number(s.minimumLaunchInventory||21)},
     profit:{total:Number(p.total||0),verified:Number(p.verified||0),failed:Number(p.failed||0),launchEconomicsEligible:Number(p.launchEconomicsEligible||0),minimumContributionMarginPercent:Number(p.minimumContributionMarginPercent||35)},
     supplierLaunchCandidates:{count:launchCandidateSkus.length,skus:launchCandidateSkus.slice(0,20)},
+    catalogCoverage:{expected:expectedSkus.length,missingSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
   });
 }
