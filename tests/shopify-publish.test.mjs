@@ -521,3 +521,11 @@ test('successful Shopify draft sends server-verified CJ inventory evidence as me
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj],['SHOPIFY_LIVE_PUBLISH_ENABLED',oldLive]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
 });
+
+
+test('successful Shopify draft response returns server-verified CJ stock evidence',()=>{
+  const src=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  assert.match(src,/verifiedInventory:stock\.total/);
+  assert.match(src,/inventoryVerifiedAt:p\.inventoryVerifiedAt/);
+  assert.match(src,/minimumLaunchInventory:MIN_LAUNCH_INVENTORY/);
+});
