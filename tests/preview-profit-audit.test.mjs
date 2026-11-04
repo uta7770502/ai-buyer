@@ -92,7 +92,7 @@ test('consolidated launch audit fails closed when any of the nine managed CJ SKU
  assert.match(block,/const expectedSkus=\[/);
  assert.match(block,/const missingSkus=expectedSkus\.filter/);
  assert.match(block,/catalogCoverageComplete:missingSkus\.length===0/);
- assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus\}/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus\}/);
 });
 
 
