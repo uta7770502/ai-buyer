@@ -56,6 +56,7 @@ jobs:
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
 
       - name: Read CJ profit audit
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
@@ -65,16 +66,17 @@ jobs:
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
           printf '%s' "$BODY" | grep -Eq '"verified"[[:space:]]*:[[:space:]]*9'
 
-      # CJ stock requests are rate-limited. Run this audit only on explicit manual dispatch,
-      # not on every development push. This avoids exhausting the CJ quota during iteration.
-      - name: Read CJ stock audit
-        # One-time, explicit opt-in via a marked development-branch commit.
-        # Regular pushes never request CJ inventory.
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[cj-stock-audit-once]'))
+      # Expensive supplier checks are intentionally manual-only.
+      # The consolidated endpoint performs stock, profit and prelaunch checks together.
+      - name: Read consolidated launch audit
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
-          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-stock-audit"
-          BODY="$(curl -fsS --max-time 180 "$URL")"
-          printf '%s\\n' "$BODY"
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/preview-launch-audit-summary"
+          BODY="$(curl -fsS --max-time 240 "$URL")"
+          printf '%s\n' "$BODY"
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+          printf '%s' "$BODY" | grep -Eq '"stockVerified"[[:space:]]*:[[:space:]]*(true|false)'
+          printf '%s' "$BODY" | grep -Eq '"profitVerified"[[:space:]]*:[[:space:]]*(true|false)'
+          printf '%s' "$BODY" | grep -Eq '"prelaunchAuditReady"[[:space:]]*:[[:space:]]*(true|false)'
