@@ -53,8 +53,18 @@ jobs:
           URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/preview-launch-audit-summary"
           BODY="$(curl -fsS --max-time 240 "$URL")"
           printf '%s\n' "$BODY"
+          printf '%s\n' "$BODY" > launch-audit.json
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
           printf '%s' "$BODY" | grep -Eq '"freightVerified"[[:space:]]*:[[:space:]]*(true|false)'
           printf '%s' "$BODY" | grep -Eq '"stockVerified"[[:space:]]*:[[:space:]]*(true|false)'
           printf '%s' "$BODY" | grep -Eq '"profitVerified"[[:space:]]*:[[:space:]]*(true|false)'
           printf '%s' "$BODY" | grep -Eq '"prelaunchAuditReady"[[:space:]]*:[[:space:]]*(true|false)'
+
+      - name: Upload launch audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddly-launch-audit
+          path: launch-audit.json
+          if-no-files-found: ignore
+          retention-days: 14

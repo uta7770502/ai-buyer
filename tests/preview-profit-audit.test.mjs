@@ -204,3 +204,12 @@ test('consolidated launch audit never reports manual approval as the only next a
  assert.match(block,/監査結果の不整合を再確認/);
  assert.match(block,/ready,inconsistentState/);
 });
+
+
+test('manual preview audit workflow persists the consolidated audit JSON as an artifact',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/launch-audit\.json/);
+ assert.match(wf,/actions\/upload-artifact@v4/);
+ assert.match(wf,/name: oddly-launch-audit/);
+ assert.match(wf,/retention-days: 14/);
+});
