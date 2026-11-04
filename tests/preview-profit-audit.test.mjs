@@ -258,3 +258,15 @@ test('manual preview audit failure diagnosis reports each guarded step outcome s
  assert.match(wf,/CJ接続確認/);
  assert.match(wf,/統合監査:/);
 });
+
+
+test('manual preview audit verifies the read-only variant stock endpoint before consolidated audit',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/Verify variant stock endpoint safety/);
+ assert.match(wf,/id: variant_stock/);
+ assert.match(wf,/api\/cj-variant-stock\?vid=1421057421656330240/);
+ assert.match(wf,/"readOnly"/);
+ assert.match(wf,/"minimumLaunchInventory"/);
+ assert.match(wf,/steps\.variant_stock\.outcome/);
+ assert.match(wf,/variant在庫API/);
+});
