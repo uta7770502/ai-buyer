@@ -242,7 +242,7 @@ test('manual preview audit writes failure diagnosis even when the workflow stops
  assert.match(wf,/Write failure diagnosis/);
  assert.match(wf,/if: failure\(\)/);
  assert.match(wf,/監査失敗診断/);
- assert.match(wf,/launch-audit\.json が存在する場合/);
+ assert.match(wf,/統合監査JSON: 生成済み/);
 });
 
 
