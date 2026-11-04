@@ -378,3 +378,15 @@ test('Shopify draft metadata supports bounded ad-cost and return-reserve assumpt
  assert.match(source,/adCost<=10000000/);
  assert.match(source,/returnReserve<=10000000/);
 });
+
+
+test('Shopify draft creation re-verifies CJ variant stock server-side and fails closed below 21',()=>{
+  const src=fs.readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
+  assert.match(src,/validateCJStockResponse/);
+  assert.match(src,/const MIN_LAUNCH_INVENTORY=21/);
+  assert.match(src,/function cjVariantStock\(vid\)/);
+  assert.match(src,/product\/stock\/queryByVid/);
+  assert.match(src,/const stock=await cjVariantStock\(cj\.vid\)/);
+  assert.match(src,/stock\.total<MIN_LAUNCH_INVENTORY/);
+  assert.match(src,/Shopify下書きを作成しません/);
+});

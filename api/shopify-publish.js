@@ -1,4 +1,5 @@
 import { getShopifyAuthContext } from '../lib/shopify-auth-context.js';
+import { validateCJStockResponse } from '../lib/cj-stock-validation.js';
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
@@ -65,6 +66,7 @@ function cjRateLimitedFetch(url,options){
  cjRequestQueue=request.then(()=>undefined,()=>undefined);
  return request;
 }
+const MIN_LAUNCH_INVENTORY=21;
 let cjCache={token:'',expiresAt:0};
 async function cjToken(){
   if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
@@ -73,6 +75,18 @@ async function cjToken(){
   const r=await cjRateLimitedFetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:process.env.CJ_API_KEY}),signal:AbortSignal.timeout(8000)});
   const j=await r.json();if(!r.ok||j.result!==true||!j.data?.accessToken)throw Error(j.message||'CJ authentication failed');
   cjCache={token:j.data.accessToken,expiresAt:Date.now()+12*60*60*1000};return cjCache.token;
+}
+async function cjVariantStock(vid){
+  const u=new URL('https://developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid');
+  u.searchParams.set('vid',String(vid));
+  const r=await cjRateLimitedFetch(u,{headers:{'CJ-Access-Token':await cjToken()},signal:AbortSignal.timeout(10000)});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===429)return {ok:false,reason:'cj-rate-limited'};
+  if(!r.ok)return {ok:false,reason:'cj-http-error'};
+  const checked=validateCJStockResponse(j);
+  if(!checked.ok)return checked;
+  if(!Number.isSafeInteger(checked.total)||checked.total<0||checked.total>1000000)return {ok:false,reason:'stock-out-of-safe-bounds'};
+  return {ok:true,total:checked.total};
 }
 async function cjVariant(productId,selectedVariantId){
   if(!productId)throw Error('CJ商品IDが不足しています');
@@ -542,6 +556,9 @@ export default async function handler(req,res){
     const vendor=clean('ODDLY',255),price=Number(p.price);
     if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id,p.cjVariantId||p.vid);
+    const stock=await cjVariantStock(cj.vid);
+    if(!stock.ok)return res.status(409).json({ok:false,error:'CJ variant在庫をサーバー確認できないためShopify下書きを作成しません',reason:stock.reason||'stock-unverified'});
+    if(stock.total<MIN_LAUNCH_INVENTORY)return res.status(409).json({ok:false,error:'CJ variant在庫が販売準備基準未満のためShopify下書きを作成しません',verifiedInventory:stock.total,minimumLaunchInventory:MIN_LAUNCH_INVENTORY});
     // Translate supplier facts, not only the generic frontend placeholder description.
     // Preserve a Japanese description deliberately written by the merchant.
     const hasJapanese=s=>/[ぁ-んァ-ヶ一-龠]/.test(String(s||''));
