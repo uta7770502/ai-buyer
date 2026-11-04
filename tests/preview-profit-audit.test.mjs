@@ -114,3 +114,16 @@ test('preview diagnostics use one canonical managed CJ SKU list across freight s
  assert.equal((source.match(/const vids=PREVIEW_MANAGED_CJ_VIDS;/g)||[]).length,2);
  assert.match(source,/const expectedSkus=PREVIEW_MANAGED_CJ_VIDS;/);
 });
+
+
+test('consolidated launch audit rejects duplicate SKU rows instead of treating set coverage as complete',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('async function previewLaunchAuditSummary');
+ const end=source.indexOf('function deploymentInfo',start);
+ const block=source.slice(start,end);
+ assert.match(block,/const duplicateSkus=\{/);
+ assert.match(block,/duplicateSkus\.freight===0/);
+ assert.match(block,/duplicateSkus\.stock===0/);
+ assert.match(block,/duplicateSkus\.profit===0/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus,duplicateSkus\}/);
+});
