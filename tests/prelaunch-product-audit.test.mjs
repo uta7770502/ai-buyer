@@ -149,3 +149,24 @@ test('prelaunch audit blocks duplicate CJ variant IDs across Shopify drafts',()=
  assert.match(source,/row\.ready=false/);
  assert.match(source,/CJバリエーションIDが他の商品と重複しています/);
 });
+
+
+test('duplicate CJ variant IDs block both otherwise-ready drafts',async t=>{
+ const prev={...process.env};
+ Object.assign(process.env,{AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token'});
+ t.after(()=>{for(const k of Object.keys(process.env))if(!(k in prev))delete process.env[k];Object.assign(process.env,prev)});
+ const product=id=>({
+  id:'gid://shopify/Product/'+id,title:'日本語商品'+id,description:'日本語の商品説明',handle:'product-'+id,status:'DRAFT',vendor:'ODDLY',tags:[],
+  variants:{nodes:[{sku:'1234567890123456',price:'2980',inventoryPolicy:'DENY',inventoryItem:{tracked:true}}],pageInfo:{hasNextPage:false}},
+  media:{nodes:[{image:{url:'https://example.com/item.jpg'}}],pageInfo:{hasNextPage:false}},
+  metafields:{nodes:[{key:'adps_audience',value:'一般消費者'},{key:'adps_summary',value:'商品要約'},{key:'adps_why',value:'選定理由'},{key:'shipping_price_jpy',value:'500'},{key:'shipping_country',value:'JP'},{key:'return_days',value:'7'},{key:'ad_cost_per_order_jpy',value:'800'},{key:'return_reserve_per_order_jpy',value:'200'}],pageInfo:{hasNextPage:false}}
+ });
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({data:{products:{nodes:[product(1),product(2)],pageInfo:{hasNextPage:false,endCursor:null}}}})}));
+ const response=res();await audit({method:'GET',headers:{authorization:'Bearer admin'}},response);
+ assert.equal(response.code,200);
+ assert.equal(response.body.readyDrafts,0);
+ assert.equal(response.body.blockedDrafts,2);
+ assert.equal(response.body.allDraftsReady,false);
+ assert.ok(response.body.products.every(p=>p.reasons.includes('CJバリエーションIDが他の商品と重複しています')));
+ assert.deepEqual(response.body.issueSummary,[{reason:'CJバリエーションIDが他の商品と重複しています',productCount:2}]);
+});
