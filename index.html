@@ -321,10 +321,16 @@ function oddlyCandidateNotice(x){
  if(/Shopify試験登録完了|下書きで公開待ち|下書き登録完了/i.test(message))return '<div role="status" class="candidateNotice success">Shopify下書き登録完了（非公開）</div>';
  return '<div role="alert" class="candidateNotice error">要確認：'+esc(message)+'</div>';
 }
+function oddlyFactoryOrderState(p){
+ const cjRaw=p?.cjStockQuantity??p?.cjInventoryNum, factoryRaw=p?.factoryStockQuantity??p?.factoryInventoryNum;
+ if(cjRaw==null||factoryRaw==null)return false;
+ const cj=Number(cjRaw),factory=Number(factoryRaw);
+ return Number.isSafeInteger(cj)&&cj>=0&&cj<5&&Number.isSafeInteger(factory)&&factory>0;
+}
 function oddlyFactoryStockBadge(p){
  const cj=Number(p.cjStockQuantity??p.cjInventoryNum),factory=Number(p.factoryStockQuantity??p.factoryInventoryNum);
  if(!Number.isSafeInteger(cj)||cj<0||!Number.isSafeInteger(factory)||factory<=0)return '';
- if(cj>=5)return '';
+ if(!oddlyFactoryOrderState(p))return '';
  return '<div class="tiny" role="status" style="margin:6px 0;padding:6px 8px;border:1px solid #c78b32;border-radius:7px;background:#fff5df;color:#704300;font-weight:700">工場取り寄せ｜工場在庫 '+factory+'個｜発送まで追加日数の可能性あり（納期未確定）</div>';
 }
 function recommendationCard(p,rank){
@@ -2695,6 +2701,13 @@ function cancelAutoPreparationRetry(id){const key=String(id);const timer=autoPre
 async function autoPrepareSelectedProduct(x,attempt=0){
   if(x?.uiSelected===false)return;
   if(!x||findActive(x.id)!==x||autoPreparationInFlight.has(x)||x.shopifyPublishState==='publishing'||x.shopifyPublishState==='published'||x.shopifyPublished||x.autoSetupState==='ready')return;
+  if(oddlyFactoryOrderState(x)){
+    cancelAutoPreparationRetry(x.id);
+    x.autoSetupState='needs_review';
+    x.autoSetupLastError='factory_order_lead_time_unverified';
+    x.autoSetupMessage='工場取り寄せを選択済み。補充日数・送料の確認後にShopify下書き登録できます';
+    save();renderAll();return;
+  }
   if(Number(x.autoSetupAttempts||0)>=3&&attempt>0)return;
   if(attempt>0&&x.autoSetupState==='needs_review'&&!autoPrepareRetryable(x.autoSetupLastError||x.autoSetupMessage))return;
   autoPreparationInFlight.add(x);
