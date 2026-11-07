@@ -232,7 +232,14 @@ async function previewLaunchAuditSummary(req,res){
     candidateTier:Number(x.contributionMarginPercent)>=30?'priority':Number(x.contributionMarginPercent)>=25?'conditional':'excluded',
     maxCombinedAdsReturnsForPositiveProfitJpy:Number(x.maxCombinedAdsReturnsForPositiveProfitJpy),
     maxCombinedAdsReturnsForFivePercentNetJpy:Number(x.maxCombinedAdsReturnsForFivePercentNetJpy),
-    assumptionsReady:x.assumptionsReady===true
+    assumptionsReady:x.assumptionsReady===true,
+    // Hypothetical combined per-order ads + returns; never stored or treated as verified.
+    hypotheticalCombinedCostScenariosJpy:[100,200,300].map(combinedCostJpy=>({
+      combinedCostJpy,
+      estimatedNetProfitJpy:Number(x.contributionBeforeAdsJpy)-combinedCostJpy,
+      fivePercentNetTargetPass:combinedCostJpy<=Number(x.maxCombinedAdsReturnsForFivePercentNetJpy),
+      positiveNetPass:Number(x.contributionBeforeAdsJpy)>combinedCostJpy
+    }))
   }));
   const nextActions=[];
   if(missingSkus.length||unexpectedSkus.length||duplicateSkus.freight||duplicateSkus.stock||duplicateSkus.profit)nextActions.push('監査対象SKUの不整合を解消');
