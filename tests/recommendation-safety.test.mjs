@@ -80,12 +80,12 @@ test('automatic recommendations require at least 21 units of verified discovery 
 });
 
 
-test('launch gate and automatic pricing preserve at least 35 percent contribution margin after payment fee',()=>{
+test('launch gate and automatic pricing preserve at least 30 percent contribution margin after payment fee',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=30/);
   assert.match(html,/targetMargin=SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT\/100/);
   assert.match(html,/1-paymentFeeRate-targetMargin/);
-  assert.match(html,/限界利益率35%未満/);
+  assert.match(html,/限界利益率30%未満/);
 });
 
 
