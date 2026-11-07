@@ -256,3 +256,11 @@ test('ADPS mobile viewport allows zoom and preserves iPhone safe areas',()=>{
  assert.match(html,/safe-area-inset-bottom/);
  assert.match(html,/\.nav button,\.nav button\.navFind\{box-sizing:border-box;flex:1 1 0/);
 });
+
+
+test('ADPS Shopify live publication stays disabled until explicit launch authorization',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/disabled aria-disabled="true" title="本番公開は承認まで停止中"/);
+ assert.match(html,/公開待ち（承認後）/);
+ assert.match(html,/showCandidateToast\('本番公開は承認まで停止しています'\);return;/);
+});
