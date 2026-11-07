@@ -15,3 +15,5 @@ test('standard 30 percent and exception 25/20 percent are separate, never launch
 test('audit counters never describe unverified provisional profits as verified',()=>{assert.match(source,/verified:0,costChecked:/);assert.match(source,/freightChecked:/);assert.match(source,/profitVerified:0/);assert.match(source,/launchEconomicsEligible:0/);});
 
 test('preview profit audit requires caller-provided admin bearer and never fabricates authorization',()=>{assert.match(source,/req\.headers\?\.authorization/);assert.match(source,/crypto\.timingSafeEqual/);assert.match(source,/getShopifyAuthContext\(req\)/);assert.doesNotMatch(source,/getShopifyAuthContext\(\{headers:\{authorization:'Bearer '\+admin\}\}\)/);});
+
+test('CJ freight must be positive and standard margin floor is 30 percent',()=>{assert.match(source,/filter\(x=>x!==null&&x>0\)/);assert.match(source,/const minimumContributionMarginPercent=30;/);assert.match(source,/minimumContributionMarginPercent:30/);});
