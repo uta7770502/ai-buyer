@@ -10,7 +10,7 @@ test('profit estimates require CJ freight and do not fall back to Shopify stored
 
 test('payment fee estimate requires explicit rate, fixed fee and platform fee',()=>{assert.match(source,/meta\.payment_fee_rate_percent/);assert.match(source,/meta\.payment_fixed_fee_jpy/);assert.match(source,/meta\.platform_fee_per_order_jpy/);assert.match(source,/paymentFeeAssumptionsReady\?/);assert.match(source,/paymentFeeSource:'shopify-metafield-assumptions-not-verified'/);assert.doesNotMatch(source,/Math\.round\(sale\*0\.045\)/);});
 
-test('standard 30 percent and exception 25/20 percent are separate, never launch authorization',()=>{assert.match(source,/estimatedEconomicsEligible:estimatedMarginTier===30/);assert.match(source,/estimatedExceptionReviewEligible:estimatedMarginTier===25\|\|estimatedMarginTier===20/);assert.match(source,/launchEconomicsEligible:false/);});
+test('standard 30 percent and exception 25/20 percent are separate, never launch authorization',()=>{assert.match(source,/estimatedEconomicsEligible:estimatedAuditStatus==='provisional-pass'/);assert.match(source,/estimatedExceptionReviewEligible:estimatedAuditStatus==='exception-review'/);assert.match(source,/launchEconomicsEligible:false/);});
 
 test('audit counters never describe unverified provisional profits as verified',()=>{assert.match(source,/verified:0,costChecked:/);assert.match(source,/freightChecked:/);assert.match(source,/profitVerified:0/);assert.match(source,/launchEconomicsEligible:0/);});
 
@@ -23,3 +23,5 @@ test('zero CJ supplier price is rejected before any profit estimate',()=>{assert
 test('read-only profit audit uses validated CJ-managed stock and requires five units',()=>{assert.match(source,/validateCJStockResponse\(sj\)/);assert.match(source,/stock\.total>=5/);assert.match(source,/cjStockVerified=false,cjStockAvailable=false/);assert.match(source,/stockChecked:/);assert.match(source,/stockAvailable:/);});
 
 test('combined audit triage holds unverified stock, freight, and cost assumptions',()=>{assert.match(source,/const estimatedAuditStatus=!cjStockVerified\|\|!cjStockAvailable\|\|!cjFreightVerified\|\|!assumptionsReady/);assert.match(source,/:estimatedMarginTier===30\?'provisional-pass'/);assert.match(source,/:'exception-review'/);assert.match(source,/:'exclude'/);assert.match(source,/provisionalPass:rows\.filter/);assert.match(source,/launchEconomicsEligible:false/);});
+
+test('provisional economics counts require combined stock freight and profit triage',()=>{assert.match(source,/estimatedEconomicsEligible:estimatedAuditStatus==='provisional-pass'/);assert.match(source,/estimatedExceptionReviewEligible:estimatedAuditStatus==='exception-review'/);});
