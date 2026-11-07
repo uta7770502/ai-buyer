@@ -21,3 +21,5 @@ test('CJ freight must be positive and standard margin floor is 30 percent',()=>{
 test('zero CJ supplier price is rejected before any profit estimate',()=>{assert.match(source,/usd===null\|\|usd<=0/);assert.match(source,/reason:'cj-cost-unverified'/);});
 
 test('read-only profit audit uses validated CJ-managed stock and requires five units',()=>{assert.match(source,/validateCJStockResponse\(sj\)/);assert.match(source,/stock\.total>=5/);assert.match(source,/cjStockVerified=false,cjStockAvailable=false/);assert.match(source,/stockChecked:/);assert.match(source,/stockAvailable:/);});
+
+test('combined audit triage holds unverified stock, freight, and cost assumptions',()=>{assert.match(source,/const estimatedAuditStatus=!cjStockVerified\|\|!cjStockAvailable\|\|!cjFreightVerified\|\|!assumptionsReady/);assert.match(source,/:estimatedMarginTier===30\?'provisional-pass'/);assert.match(source,/:'exception-review'/);assert.match(source,/:'exclude'/);assert.match(source,/provisionalPass:rows\.filter/);assert.match(source,/launchEconomicsEligible:false/);});
