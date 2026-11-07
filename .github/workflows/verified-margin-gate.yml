@@ -5,6 +5,7 @@ on:
     paths:
       - index.html
       - lib/routes/preview-profit-audit.js
+      - lib/cj-stock-validation.js
       - tests/preview-profit-audit-safety.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
@@ -16,6 +17,7 @@ on:
     paths:
       - index.html
       - lib/routes/preview-profit-audit.js
+      - lib/cj-stock-validation.js
       - tests/preview-profit-audit-safety.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
