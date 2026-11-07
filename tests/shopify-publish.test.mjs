@@ -575,3 +575,38 @@ test('client-supplied inventory cannot override server-verified CJ stock',async(
   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj],['SHOPIFY_LIVE_PUBLISH_ENABLED',oldLive]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
  }
 });
+
+
+test('CJ stock below five blocks Shopify draft creation before Shopify API calls',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN,previousFetch=globalThis.fetch,calls=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url)=>{
+  const u=String(url);calls.push(u);
+  if(u.includes('/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  if(u.includes('/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'4',factoryInventoryNum:'100',totalInventoryNum:'104'}]})};
+  throw Error('Shopify API must not be called for low stock');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.code,409);assert.equal(res.body.verifiedInventory,4);assert.equal(res.body.minimumLaunchInventory,5);
+  assert.ok(calls.every(u=>!u.includes('myshopify.com')));
+ }finally{globalThis.fetch=previousFetch;for(const [k,v] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(v===undefined)delete process.env[k];else process.env[k]=v}}
+});
+
+test('CJ rate limit blocks Shopify draft creation without supplier stock assumption',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN,previousFetch=globalThis.fetch,calls=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url)=>{
+  const u=String(url);calls.push(u);
+  if(u.includes('/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  if(u.includes('/product/stock/queryByVid'))return {ok:false,status:429,json:async()=>({result:false,message:'rate limit'})};
+  throw Error('Shopify API must not be called after CJ rate limit');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.code,409);assert.equal(res.body.reason,'cj-rate-limited');
+  assert.ok(calls.every(u=>!u.includes('myshopify.com')));
+ }finally{globalThis.fetch=previousFetch;for(const [k,v] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(v===undefined)delete process.env[k];else process.env[k]=v}}
+});
