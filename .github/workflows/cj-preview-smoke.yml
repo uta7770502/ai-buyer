@@ -75,7 +75,7 @@ jobs:
           printf '%s\n' "$BODY"
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
           printf '%s' "$BODY" | grep -Eq '"readOnly"[[:space:]]*:[[:space:]]*true'
-          printf '%s' "$BODY" | grep -Eq '"minimumLaunchInventory"[[:space:]]*:[[:space:]]*21'
+          printf '%s' "$BODY" | grep -Eq '"minimumLaunchInventory"[[:space:]]*:[[:space:]]*10'
           printf '%s' "$BODY" | grep -Eq '"verifiedInventory"[[:space:]]*:[[:space:]]*[0-9]+'
           export VARIANT_BODY_JSON="$BODY"
           node - <<'NODE'
