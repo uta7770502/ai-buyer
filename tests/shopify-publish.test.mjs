@@ -610,3 +610,38 @@ test('CJ rate limit blocks Shopify draft creation without supplier stock assumpt
   assert.ok(calls.every(u=>!u.includes('myshopify.com')));
  }finally{globalThis.fetch=previousFetch;for(const [k,v] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(v===undefined)delete process.env[k];else process.env[k]=v}}
 });
+
+
+test('CJ malformed stock response never creates a Shopify draft',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN,previousFetch=globalThis.fetch,calls=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url)=>{
+  const u=String(url);calls.push(u);
+  if(u.includes('/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  if(u.includes('/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:{unexpected:'not-a-warehouse-list'}})};
+  throw Error('Shopify API must not be called on malformed CJ stock');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.code,409);assert.equal(res.body.ok,false);
+  assert.ok(calls.every(u=>!u.includes('myshopify.com')));
+ }finally{globalThis.fetch=previousFetch;for(const [k,v] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(v===undefined)delete process.env[k];else process.env[k]=v}}
+});
+
+test('CJ stock timeout never creates a Shopify draft',async()=>{
+ const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN,oldCj=process.env.CJ_ACCESS_TOKEN,previousFetch=globalThis.fetch,calls=[];
+ process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';process.env.CJ_ACCESS_TOKEN='test-cj';
+ globalThis.fetch=async(url)=>{
+  const u=String(url);calls.push(u);
+  if(u.includes('/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
+  if(u.includes('/product/stock/queryByVid'))throw Error('CJ stock timeout');
+  throw Error('Shopify API must not be called after CJ timeout');
+ };
+ const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+ try{
+  await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test'}},res);
+  assert.equal(res.body.ok,false);assert.ok(res.code>=400);
+  assert.ok(calls.every(u=>!u.includes('myshopify.com')));
+ }finally{globalThis.fetch=previousFetch;for(const [k,v] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(v===undefined)delete process.env[k];else process.env[k]=v}}
+});
