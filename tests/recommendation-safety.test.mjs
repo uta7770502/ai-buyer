@@ -81,11 +81,12 @@ test('discovery allows factory-stock candidates but verified inventory is still 
 });
 
 
-test('launch gate and automatic pricing preserve at least 25 percent contribution margin after payment fee',()=>{
+test('automatic pricing uses target 30 percent net margin while launch retains its contribution gate',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=25/);
-  assert.match(html,/targetMargin=SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT\/100/);
-  assert.match(html,/1-paymentFeeRate-targetMargin/);
+  assert.match(html,/targetMarginPercent=30/);
+  assert.match(html,/calculateTargetSalePrice\(/);
+  assert.match(html,/priceEstimateOnly=true/);
   assert.match(html,/限界利益率25%未満/);
 });
 
@@ -109,7 +110,7 @@ test('automatic profit assumptions derive ad cost from CPA safety policy and ret
   assert.match(html,/function autoProfitAssumptions\(x\)/);
   assert.match(html,/plannedAdCostPerOrderJpy=ad/);
   assert.match(html,/returnReservePerOrderJpy=reserve/);
-  assert.match(html,/autoProfitAssumptions\(x\);/);
+  assert.match(html,/provisional:ad20pct-landed\+return15pct/);
   assert.match(html,/out\.adCostPerOrderJpy=adCost/);
   assert.match(html,/out\.returnReservePerOrderJpy=reserve/);
 });
