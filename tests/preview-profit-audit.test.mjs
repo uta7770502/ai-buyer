@@ -349,7 +349,7 @@ test('variant stock smoke evidence is tied to the workflow commit and run',()=>{
 
 
 test('profit audit rejects duplicate CJ variant IDs before CJ lookup',()=>{
- const source=readFileSync(new URL('../lib/routes/preview-profit-audit.js',import.meta.url),'utf8');
+ const source=fs.readFileSync(new URL('../lib/routes/preview-profit-audit.js',import.meta.url),'utf8');
  assert.match(source,/const skuCounts=new Map\(\)/);
  assert.match(source,/skuCounts\.get\(vid\)>1/);
  assert.match(source,/reason:'duplicate-cj-variant-id'/);
