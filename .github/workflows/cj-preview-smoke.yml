@@ -1,0 +1,154 @@
+name: CJ preview smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cj-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify Preview is serving this commit
+        id: verify_preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/deployment-info"
+          EXPECTED="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+          BODY=""
+          for i in {1..18}; do
+            BODY="$(curl -fsS --max-time 15 "$URL" 2>/dev/null || true)"
+            ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "Preview commit verified: $ACTUAL"
+              break
+            fi
+            sleep 10
+          done
+          ACTUAL="$(printf '%s' "$BODY" | sed -n 's/.*"commitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "Preview is stale. expected=$EXPECTED actual=${ACTUAL:-unknown}"
+            exit 1
+          fi
+
+      - name: Wait for Preview and verify CJ connectivity
+        id: cj_connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-health"
+          for i in {1..12}; do
+            BODY="$(curl -fsS --max-time 15 "$URL" 2>/dev/null || true)"
+            if printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
+              echo "CJ preview connectivity: OK"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "CJ preview connectivity: NG"
+          exit 1
+
+      - name: Read consolidated launch audit
+        id: consolidated_audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/preview-launch-audit-summary"
+          BODY="$(curl -fsS --max-time 240 "$URL")"
+          printf '%s\n' "$BODY"
+          export BODY_JSON="$BODY"
+          node -e 'const fs=require("fs");const body=JSON.parse(process.env.BODY_JSON);body.auditArtifact={commitSha:process.env.GITHUB_SHA,branch:process.env.GITHUB_REF_NAME,runId:process.env.GITHUB_RUN_ID,recordedAt:new Date().toISOString()};fs.writeFileSync("launch-audit.json",JSON.stringify(body,null,2)+"\n")' 
+          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+          printf '%s' "$BODY" | grep -Eq '"freightVerified"[[:space:]]*:[[:space:]]*(true|false)'
+          printf '%s' "$BODY" | grep -Eq '"stockVerified"[[:space:]]*:[[:space:]]*(true|false)'
+          printf '%s' "$BODY" | grep -Eq '"profitVerified"[[:space:]]*:[[:space:]]*(true|false)'
+          printf '%s' "$BODY" | grep -Eq '"prelaunchAuditReady"[[:space:]]*:[[:space:]]*(true|false)'
+
+      - name: Verify variant stock endpoint safety
+        id: variant_stock
+        shell: bash
+        run: |
+          set -euo pipefail
+          VID="$(node -e 'const j=require("./launch-audit.json");const sku=j?.catalogCoverage?.expectedSkus?.[0]||j?.skuMatrix?.[0]?.sku||j?.supplierLaunchCandidates?.skus?.[0];if(!sku)process.exit(2);process.stdout.write(String(sku))')"
+          URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/cj-variant-stock?vid=$VID"
+          BODY="$(curl -fsS --max-time 30 "$URL")"
+          printf '%s\n' "$BODY"
+          printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+          printf '%s' "$BODY" | grep -Eq '"readOnly"[[:space:]]*:[[:space:]]*true'
+          printf '%s' "$BODY" | grep -Eq '"minimumLaunchInventory"[[:space:]]*:[[:space:]]*21'
+          printf '%s' "$BODY" | grep -Eq '"verifiedInventory"[[:space:]]*:[[:space:]]*[0-9]+'
+          export VARIANT_BODY_JSON="$BODY"
+          node - <<'NODE'
+          const fs=require('fs');
+          const audit=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
+          const stock=JSON.parse(process.env.VARIANT_BODY_JSON);
+          audit.variantStockSmoke={
+            commitSha:String(process.env.GITHUB_SHA||''),
+            runId:String(process.env.GITHUB_RUN_ID||''),
+            vid:String(stock.vid||''),
+            verifiedInventory:Number(stock.verifiedInventory),
+            minimumLaunchInventory:Number(stock.minimumLaunchInventory),
+            launchEligible:stock.launchEligible===true,
+            verifiedAt:String(stock.verifiedAt||'')
+          };
+          fs.writeFileSync('launch-audit.json',JSON.stringify(audit,null,2)+'\n');
+          NODE
+
+      - name: Write launch audit summary
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f launch-audit.json ]; then
+            echo "## ODDLY launch audit" >> "$GITHUB_STEP_SUMMARY"
+            echo "監査JSONは生成されませんでした。" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs=require('fs');
+          const j=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
+          const s=j.skuSummary||{};
+          const actions=Array.isArray(j.nextActions)?j.nextActions:[];
+          console.log('## ODDLY launch audit');
+          console.log('');
+          console.log('- READY: '+(j.ready===true?'YES':'NO'));
+          console.log('- 公開候補: '+Number(s.launchCandidates||0));
+          console.log('- 送料NG: '+Number(s.freightBlocked||0));
+          console.log('- 在庫NG: '+Number(s.stockBlocked||0));
+          console.log('- 利益NG: '+Number(s.profitBlocked||0));
+          if(j.variantStockSmoke){
+            console.log('- variant在庫確認: '+j.variantStockSmoke.vid+' / '+j.variantStockSmoke.verifiedInventory+'個');
+          }
+          console.log('');
+          console.log('### 次のアクション');
+          for(const a of actions) console.log('- '+a);
+          NODE
+
+      - name: Upload launch audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddly-launch-audit
+          path: launch-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Write failure diagnosis
+        if: failure()
+        shell: bash
+        env:
+          VERIFY_OUTCOME: ${{ steps.verify_preview.outcome }}
+          CJ_OUTCOME: ${{ steps.cj_connectivity.outcome }}
+          VARIANT_STOCK_OUTCOME: ${{ steps.variant_stock.outcome }}
+          AUDIT_OUTCOME: ${{ steps.consolidated_audit.outcome }}
+        run: |
+          echo "## 監査失敗診断" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Preview一致確認: ${VERIFY_OUTCOME:-not-run}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CJ接続確認: ${CJ_OUTCOME:-not-run}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- variant在庫API: ${VARIANT_STOCK_OUTCOME:-not-run}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 統合監査: ${AUDIT_OUTCOME:-not-run}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f launch-audit.json ]; then
+            echo "- 統合監査JSON: 生成済み" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- 統合監査JSON: 未生成" >> "$GITHUB_STEP_SUMMARY"
+          fi
