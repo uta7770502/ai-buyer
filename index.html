@@ -2780,23 +2780,10 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     const reserve=Math.ceil(cost*SAFE_RETURN_RESERVE_RATE);
     const feeRate=4.5;
     const targetMarginPercent=30;
-    // CPA policy is a fraction of contribution; solve conservatively by iteration.
-    let adCost=0,proposal=null;
-    for(let i=0;i<12;i++){
-      proposal=calculateTargetSalePrice({
-        productCostJpy:cost-Number(x.shippingJpy),shippingCostJpy:Number(x.shippingJpy),
-        adCostPerOrderJpy:adCost,returnReserveJpy:reserve,
-        paymentFixedFeeJpy:0,paymentFeeRatePercent:feeRate,
-        targetMarginPercent,shippingVerified:true
-      });
-      if(!proposal.ready)throw new Error('販売価格の逆算に必要な費用が未確認です');
-      const contribution=proposal.priceJpy*(1-feeRate/100)-cost;
-      const nextAd=Math.max(0,Math.round(contribution*(Number(growthSettings.cpaSafetyPct||70)/100)));
-      if(nextAd<=adCost)break;
-      adCost=nextAd;
-    }
-    // Verify the final policy assumptions against the final calculated price.
-    proposal=calculateTargetSalePrice({
+    // Provisional per-order ad budget: 20% of landed cost. This is an assumption,
+    // not observed CPA; never authorize ads or publication from this estimate.
+    const adCost=Math.ceil(cost*0.20);
+    const proposal=calculateTargetSalePrice({
       productCostJpy:cost-Number(x.shippingJpy),shippingCostJpy:Number(x.shippingJpy),
       adCostPerOrderJpy:adCost,returnReserveJpy:reserve,
       paymentFixedFeeJpy:0,paymentFeeRatePercent:feeRate,
@@ -2806,11 +2793,11 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     x.price=proposal.priceJpy;
     x.plannedAdCostPerOrderJpy=adCost;
     x.returnReservePerOrderJpy=reserve;
-    x.profitAssumptionSource='policy:target30+cpaSafetyPct+return15pct';
+    x.profitAssumptionSource='provisional:ad20pct-landed+return15pct';
     x.profitAssumptionUpdatedAt=new Date().toISOString();
-    const verifiedPolicyAd=Math.max(0,Math.round((x.price*(1-feeRate/100)-cost)*(Number(growthSettings.cpaSafetyPct||70)/100)));
-    const finalMargin=(x.price*(1-feeRate/100)-cost-verifiedPolicyAd-reserve)/x.price*100;
-    if(verifiedPolicyAd>adCost||finalMargin<targetMarginPercent)throw new Error('広告費・返品引当後の利益率30%を満たせません。価格確定とShopify下書きを保留します');
+    x.priceEstimateOnly=true;
+    const finalMargin=(x.price*(1-feeRate/100)-cost-adCost-reserve)/x.price*100;
+    if(finalMargin+0.00001<targetMarginPercent)throw new Error('広告費・返品引当後の利益率30%を満たせません');
     if(excludeUnprofitableCandidateAndRefill(x))return;
     x.autoSetupState='draft';
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
