@@ -17,3 +17,5 @@ test('audit counters never describe unverified provisional profits as verified',
 test('preview profit audit requires caller-provided admin bearer and never fabricates authorization',()=>{assert.match(source,/req\.headers\?\.authorization/);assert.match(source,/crypto\.timingSafeEqual/);assert.match(source,/getShopifyAuthContext\(req\)/);assert.doesNotMatch(source,/getShopifyAuthContext\(\{headers:\{authorization:'Bearer '\+admin\}\}\)/);});
 
 test('CJ freight must be positive and standard margin floor is 30 percent',()=>{assert.match(source,/filter\(x=>x!==null&&x>0\)/);assert.match(source,/const minimumContributionMarginPercent=30;/);assert.match(source,/minimumContributionMarginPercent:30/);});
+
+test('zero CJ supplier price is rejected before any profit estimate',()=>{assert.match(source,/usd===null\|\|usd<=0/);assert.match(source,/reason:'cj-cost-unverified'/);});
