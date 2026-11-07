@@ -3137,25 +3137,11 @@ function closeModal(){detailRequestVersion++;modal.classList.remove('on');docume
 if(typeof document.addEventListener==='function')document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('on')){e.preventDefault();closeModal()}if(e.key==='Tab'&&modal.classList.contains('on')){const controls=[...modal.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]')].filter(x=>x.getClientRects().length);if(!controls.length)return;const first=controls[0],last=controls[controls.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
 function showPage(id,btn){const currentPage=document.querySelector('.page.on')?.id||'';if(id!==currentPage){active=active.filter(x=>x.uiSelected!==false);save()}document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('.nav button')[id==='recommend'||id==='favorites'?1:id==='operations'?2:id==='profit'?3:id==='settings'?4:0].classList.add('on');if(id==='recommend'){renderRecommendTop();ensureRecommendations()}renderAll();if(id==='operations')syncAdpsOperations();if(id==='favorites')renderAdpsFavorites();requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}))}
 document.addEventListener('click',e=>{const btn=e.target.closest('[data-publish-id]');if(!btn)return;e.preventDefault();e.stopPropagation();const id=btn.getAttribute('data-publish-id');btn.disabled=true;btn.textContent='確認中…';publishById(id)});
-document.addEventListener('click',async e=>{
+document.addEventListener('click',e=>{
   const btn=e.target.closest('[data-live-publish-id]');if(!btn)return;
   e.preventDefault();e.stopPropagation();
-  showCandidateToast('本番公開は承認まで停止しています');return;
-  const id=btn.getAttribute('data-live-publish-id')||'';
-  const title=btn.getAttribute('data-live-publish-title')||'この商品';
-  if(!confirm(title+' をShopifyのオンラインストアで公開します。続行しますか？'))return;
-  btn.disabled=true;btn.textContent='公開処理中…';
-  try{
-    const r=await fetch('/api/shopify-publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({syncAction:'resume',productId:id,resumeApproved:true})});
-    const j=await r.json();
-    if(!r.ok||!j.ok)throw new Error(j.error||'Shopify公開に失敗しました');
-    btn.textContent='公開済み';
-    showCandidateToast('Shopifyで公開しました');
-    setTimeout(checkShopifyDuplicates,800);
-  }catch(err){
-    btn.disabled=false;btn.textContent='Shopifyで公開';
-    showCandidateToast('公開できません: '+(err?.message||err));
-  }
+  showCandidateToast('本番公開は承認まで停止しています');
+
 });
 
 document.addEventListener('click',e=>{
