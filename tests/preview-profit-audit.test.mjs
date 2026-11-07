@@ -216,6 +216,8 @@ test('consolidated audit reports read-only budget ceilings for stock and freight
  assert.match(block,/profitBudgetCandidates,/);
  assert.match(block,/candidateTier:/);
  assert.match(block,/hypotheticalCombinedCostScenariosJpy/);
+ assert.match(block,/requiredCostMetafieldsMissing/);
+ assert.match(block,/saleReady:/);
  assert.match(block,/\[100,200,300\]/);
  assert.match(block,/fivePercentNetTargetPass/);
  assert.match(block,/'priority'/);

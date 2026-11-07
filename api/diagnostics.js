@@ -233,6 +233,8 @@ async function previewLaunchAuditSummary(req,res){
     maxCombinedAdsReturnsForPositiveProfitJpy:Number(x.maxCombinedAdsReturnsForPositiveProfitJpy),
     maxCombinedAdsReturnsForFivePercentNetJpy:Number(x.maxCombinedAdsReturnsForFivePercentNetJpy),
     assumptionsReady:x.assumptionsReady===true,
+    requiredCostMetafieldsMissing:[...(x.plannedAdCostPerOrderJpy===null?['custom.ad_cost_per_order_jpy']:[]),...(x.returnReservePerOrderJpy===null?['custom.return_reserve_per_order_jpy']:[])],
+    saleReady:x.assumptionsReady===true&&Number(x.finalProfitJpy)>0&&Number(x.contributionMarginPercent)>=25,
     // Hypothetical combined per-order ads + returns; never stored or treated as verified.
     hypotheticalCombinedCostScenariosJpy:[100,200,300].map(combinedCostJpy=>({
       combinedCostJpy,
