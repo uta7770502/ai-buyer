@@ -208,3 +208,12 @@ test('variant stock launch floor is defined once and returned with every verifie
   assert.match(route,/launchEligible:checked\.total>=MIN_LAUNCH_INVENTORY/);
   assert.match(route,/minimumLaunchInventory:MIN_LAUNCH_INVENTORY/);
 });
+
+test('ADPS reference navigation keeps five distinct destinations and preserves launch safety',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ for(const id of ['home','recommend','operations','profit','settings'])assert.match(html,new RegExp('<section id="'+id+'" class="page(?: on)?"'));
+ assert.match(html,/showPage\('operations',this\)/);
+ assert.match(html,/showPage\('settings',this\)/);
+ assert.match(html,/function syncAdpsHomeSummary\(/);
+ assert.match(html,/priceEstimateOnly===true/);
+});
