@@ -201,6 +201,20 @@ async function previewLaunchAuditSummary(req,res){
     if(!profitPass)reasons.push('最終利益条件未達');
     return {sku:vid,freightPass,stockPass,profitPass,launchCandidate:freightPass&&stockPass&&profitPass,reasons};
   });
+  // Every existing SKU remains visible, including unavailable inventory; never auto-publish.
+  const catalogTriage=expectedSkus.map(vid=>{
+    const stockRow=stockRows.find(x=>String(x?.vid||'')===vid);
+    const profitRow=profitRows.find(x=>String(x?.sku||'')===vid);
+    const freightRow=freightRows.find(x=>String(x?.vid||'')===vid);
+    const stockEligible=stockRow?.launchEligible===true;
+    const freightVerified=freightRow?.ok===true&&freightRow?.shippingVerified===true;
+    const margin=profitRow?.ok===true?Number(profitRow.contributionMarginPercent):null;
+    const marginVerified=margin!==null&&Number.isFinite(margin);
+    const status=!stockEligible?'inventory_hold':!freightVerified?'freight_hold':!marginVerified?'cost_verification':margin<25?'margin_reprice':profitRow?.assumptionsReady!==true?'cost_assumptions_required':profitRow?.launchEconomicsEligible===true?'economics_pass':'final_profit_review';
+    return {sku:vid,status,stockEligible,freightVerified,contributionMarginPercent:marginVerified?margin:null,
+      targetMargin30Pass:marginVerified&&margin>=30,
+      nextAction:status==='inventory_hold'?'monitor_inventory_and_find_replacement':status==='freight_hold'?'verify_japan_shipping':status==='cost_verification'?'verify_cj_cost':status==='margin_reprice'?'review_price_or_supplier':status==='cost_assumptions_required'?'set_verified_ad_and_return_costs':status==='final_profit_review'?'review_final_profit':'complete_prelaunch_safety_checks'};
+  });
   const skuSummary={
     total:skuMatrix.length,
     launchCandidates:skuMatrix.filter(x=>x.launchCandidate).length,
@@ -285,6 +299,7 @@ async function previewLaunchAuditSummary(req,res){
     profitDiagnosis,
     margin30Scenario,
     profitBudgetCandidates,
+    catalogTriage,
     nextActions,
     catalogCoverage:{expected:expectedSkus.length,missingSkus,unexpectedSkus,duplicateSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
