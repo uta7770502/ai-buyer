@@ -1,6 +1,30 @@
 {
   "rewrites": [
     {
+      "source": "/api/cj-stock-sync",
+      "destination": "/api/diagnostics?action=cj-shopify-stock-sync"
+    },
+    {
+      "source": "/api/cj-stock-audit",
+      "destination": "/api/diagnostics?action=preview-cj-stock-audit"
+    },
+    {
+      "source": "/api/cj-draft-audit",
+      "destination": "/api/diagnostics?action=preview-cj-draft-audit"
+    },
+    {
+      "source": "/api/cj-profit-audit",
+      "destination": "/api/diagnostics?action=preview-profit-audit"
+    },
+    {
+      "source": "/api/prelaunch-preview-summary",
+      "destination": "/api/diagnostics?action=preview-prelaunch-summary"
+    },
+    {
+      "source": "/cj-status",
+      "destination": "/cj-status.html"
+    },
+    {
       "source": "/policies",
       "destination": "/policies.html"
     },
@@ -39,6 +63,10 @@
     {
       "source": "/api/cj-freight",
       "destination": "/api/cj?action=freight"
+    },
+    {
+      "source": "/api/cj-variant-stock",
+      "destination": "/api/cj?action=variant-stock"
     },
     {
       "source": "/api/cj-monitor",
@@ -91,6 +119,14 @@
     {
       "source": "/api/prelaunch-one-action",
       "destination": "/api/diagnostics?action=prelaunch-one-action"
+    },
+    {
+      "source": "/api/deployment-info",
+      "destination": "/api/diagnostics?action=deployment-info"
+    },
+    {
+      "source": "/api/preview-launch-audit-summary",
+      "destination": "/api/diagnostics?action=preview-launch-audit-summary"
     }
   ]
 }
