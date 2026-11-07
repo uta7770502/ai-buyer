@@ -217,3 +217,33 @@ test('ADPS reference navigation keeps five distinct destinations and preserves l
  assert.match(html,/function syncAdpsHomeSummary\(/);
  assert.match(html,/priceEstimateOnly===true/);
 });
+
+
+test('ADPS prelaunch UI does not misrepresent production automation as active',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/AI運用の準備・検証中/);
+ assert.doesNotMatch(html,/<b>AI自動運用中<\/b>/);
+ assert.match(html,/本番公開・広告配信・実発注は承認まで停止/);
+});
+
+test('ADPS operations details expand in place and mobile layouts wrap',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('function syncAdpsOperations()');
+ const end=html.indexOf('</script>',start);
+ const operations=html.slice(start,end);
+ assert.match(operations,/<details class="adpsOpDetails">/);
+ assert.match(operations,/<summary>運用詳細<\/summary>/);
+ assert.match(operations,/shopifyPublishState/);
+ assert.match(operations,/autoSetupState/);
+ assert.doesNotMatch(operations,/showPage\(\\'profit\\'\)/);
+ assert.match(html,/@media\(max-width:380px\)\{\.adpsOpRowFoot\{align-items:flex-start;flex-wrap:wrap/);
+});
+
+test('ADPS product detail keeps modal accessible and fails closed on mismatched products',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/id="modal" role="dialog" aria-modal="true"/);
+ assert.match(html,/requestVersion!==detailRequestVersion/);
+ assert.match(html,/String\(j\.product\.id\)!==String\(id\)/);
+ assert.match(html,/if\(typeof document\.addEventListener==='function'\)/);
+ assert.match(html,/typeof HTMLElement!=='undefined'/);
+});
