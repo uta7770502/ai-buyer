@@ -396,7 +396,7 @@ function setRecentlyRemovedCandidate(product,removed){
 const oddlyMarginOverrides=(()=>{try{return JSON.parse(localStorage.getItem('oddlyMarginOverrides')||'{}')}catch{return {}}})();
 function verifiedMarginRecommendation(p){
  // CJ discovery estimates must never be mistaken for verified final profit.
- if(p?.contributionMarginVerified!==true)return true; // Preserve existing discovery gates; not launch approval.
+ if(p?.contributionMarginVerified!==true)return false; // Unverified CJ estimates must never appear as approved recommendations.
  const margin=Number(p?.verifiedContributionMarginPercent);
  if(!Number.isFinite(margin)||margin<20)return false;
  const threshold=Number(oddlyMarginOverrides[String(p.id)]||30);
@@ -407,7 +407,7 @@ function setProductMarginThreshold(id,value){
  const threshold=Number(value);
  if(![20,25,30].includes(threshold))return;
  const p=[...(today?.products||[]),...results,...active].find(x=>String(x.id)===String(id));
- if(!p||p.contributionMarginVerified!==true)return;
+ if(!p||p.contributionMarginVerified!==true||p.finalProfitVerified!==true||!Number.isFinite(Number(p.finalProfitJpy))||Number(p.finalProfitJpy)<=0)return;
  const margin=Number(p.verifiedContributionMarginPercent);
  if(!Number.isFinite(margin)||threshold>30||threshold<20||margin<threshold)return;
  oddlyMarginOverrides[String(id)]=threshold;
@@ -523,7 +523,7 @@ function renderMarginReview(){
  container.innerHTML=rows.length?'<div class="tiny" style="margin:12px 0 6px">利益率の個別審査（30%未満・販売承認ではありません）</div>'+rows.map(p=>{
  const m=Number(p.verifiedContributionMarginPercent),selected=Number(oddlyMarginOverrides[String(p.id)]||30),id=js(p.id);
  const options=[30,...(m>=25?[25]:[]),20].map(v=>'<option value="'+v+'"'+(selected===v?' selected':'')+'>'+v+'%</option>').join('');
- const profitOk=p.finalProfitVerified===true&&Number(p.finalProfitJpy)>0;
+ const profitOk=p.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0;
  return '<div class="card" style="margin:6px 0;padding:10px"><div class="tiny">'+esc(japaneseProductName(p))+' / 検証済み利益率 '+m.toFixed(1)+'%</div><label class="tiny">最低利益率 <select onchange="setProductMarginThreshold(\''+id+'\',this.value)">'+options+'</select></label><div class="tiny">'+(profitOk?'最終利益確認済み':'最終利益未確認：おすすめには追加不可')+'</div></div>';
  }).join(''):'';
 }
