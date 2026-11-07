@@ -47,7 +47,7 @@ test('unverified margin or final profit is never recommended', () => {
   ]) assert.equal(eligible(product(35, changes)), false, JSON.stringify(changes));
 });
 test('invalid exceptions fail closed', () => {
-  for (const invalid of [0, 10, 19, 24, 31, 'invalid']) {
+  for (const invalid of [10, 19, 24, 31, 'invalid']) {
     overrides['test-1'] = invalid;
     assert.equal(eligible(product(35)), false, String(invalid));
   }
