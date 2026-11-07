@@ -2273,7 +2273,7 @@ async function checkShopifyDuplicates(){
     if(!j.duplicateGroups&&Array.isArray(j.drafts)&&j.drafts.length){
       const card=state?.closest('.connection');if(card){
         const box=document.createElement('div');box.id='shopifyDuplicateDetail';box.style.cssText='grid-column:1/-1;width:100%;margin-top:8px;font-size:12px;line-height:1.5;color:#444';
-        box.innerHTML=j.drafts.map((d,i)=>'<div style="padding:8px 0;border-top:1px solid #eee;display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:start">'+(d.image?'<img src="'+esc(d.image)+'" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:10px">':'<div></div>')+'<div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>下書き'+(i+1)+'：</b><span class="'+(d.ready?'ok':'err')+'">'+(d.ready?'公開準備OK':'要修正')+'</span></div>'+esc(d.title||'')+'<div class="muted">'+(d.skus?.length?'SKU '+esc(d.skus.join(', '))+' / ':'')+(d.prices?.length?'価格 '+esc(d.prices.join(', '))+' / ':'')+'カテゴリ '+esc(d.productType||'未設定')+'</div>'+(d.issues?.length?'<div style="margin-top:4px;color:#b42318">'+esc(d.issues.join(' / '))+'</div>':'')+(!d.ready?'<button type="button" class="secondary" style="margin-top:8px;width:100%" data-repair-shopify-title="'+esc(d.title||'')+'">この下書きを再同期</button>':'<button type="button" style="margin-top:8px;width:100%" data-live-publish-id="'+esc(d.id||'')+'" data-live-publish-title="'+esc(d.title||'')+'">Shopifyで公開</button>')+'</div></div>').join('');
+        box.innerHTML=j.drafts.map((d,i)=>'<div style="padding:8px 0;border-top:1px solid #eee;display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:start">'+(d.image?'<img src="'+esc(d.image)+'" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:10px">':'<div></div>')+'<div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>下書き'+(i+1)+'：</b><span class="'+(d.ready?'ok':'err')+'">'+(d.ready?'公開準備OK':'要修正')+'</span></div>'+esc(d.title||'')+'<div class="muted">'+(d.skus?.length?'SKU '+esc(d.skus.join(', '))+' / ':'')+(d.prices?.length?'価格 '+esc(d.prices.join(', '))+' / ':'')+'カテゴリ '+esc(d.productType||'未設定')+'</div>'+(d.issues?.length?'<div style="margin-top:4px;color:#b42318">'+esc(d.issues.join(' / '))+'</div>':'')+(!d.ready?'<button type="button" class="secondary" style="margin-top:8px;width:100%" data-repair-shopify-title="'+esc(d.title||'')+'">この下書きを再同期</button>':'<button type="button" disabled aria-disabled="true" title="本番公開は承認まで停止中" style="margin-top:8px;width:100%" data-live-publish-id="'+esc(d.id||'')+'" data-live-publish-title="'+esc(d.title||'')+'">公開待ち（承認後）</button>')+'</div></div>').join('');
         card.appendChild(box);
       }
     }
@@ -3140,6 +3140,7 @@ document.addEventListener('click',e=>{const btn=e.target.closest('[data-publish-
 document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-live-publish-id]');if(!btn)return;
   e.preventDefault();e.stopPropagation();
+  showCandidateToast('本番公開は承認まで停止しています');return;
   const id=btn.getAttribute('data-live-publish-id')||'';
   const title=btn.getAttribute('data-live-publish-title')||'この商品';
   if(!confirm(title+' をShopifyのオンラインストアで公開します。続行しますか？'))return;
