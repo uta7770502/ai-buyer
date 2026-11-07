@@ -234,6 +234,7 @@ function launchEligibility(x){
   if(!x.growthPageOptimized)reasons.push('商品ページ最適化未完了');
   if(risk.exclude||x.monitorRisk!=='ok'||x.monitorStopCandidate||x.stopCandidate)reasons.push(x.monitorRisk==='unknown'||!x.monitorRisk?'最新CJ監視未確認':'販売リスクあり');
   if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
+  if(x.priceEstimateOnly===true)reasons.push('広告費が暫定値のため公開承認不可（実績または承認済み予算の検証待ち）');
   if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
   else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT)reasons.push('限界利益率25%未満');
   const plannedAds=Number(x.plannedAdCostPerOrderJpy),returnReserve=Number(x.returnReservePerOrderJpy);
