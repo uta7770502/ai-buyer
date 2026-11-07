@@ -5,3 +5,5 @@ test('tier checks raw ratio, not rounded display margin',()=>{assert.match(sourc
 test('estimate tiers cannot authorize launch',()=>{assert.match(source,/const estimatedMarginTier=/);assert.match(source,/launchEconomicsEligible:false/);assert.match(source,/launchEconomicsEligible:0/);assert.match(source,/estimatedEconomicsEligible:/);assert.doesNotMatch(source,/recommendedMarginTier/);});
 
 test('CJ freight quote is scoped to exact variant and Japan and remains informational',()=>{assert.match(source,/logistic\/freightCalculate/);assert.match(source,/endCountryCode:'JP'/);assert.match(source,/products:\[\{quantity:1,vid\}\]/);assert.match(source,/cjFreightVerified/);assert.match(source,/launchEconomicsEligible:false/);});
+
+test('profit estimates require CJ freight and do not fall back to Shopify stored shipping',()=>{assert.match(source,/const auditShippingJpy=cjFreightVerified\?cjFreightJpy:null/);assert.match(source,/const assumptionsReady=auditShippingJpy!==null/);assert.match(source,/const grossProfit=auditShippingJpy===null\?null/);assert.match(source,/launchEconomicsEligible:false/);});
