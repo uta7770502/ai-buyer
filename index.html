@@ -462,6 +462,7 @@ function addCandidateToShopify(id){
  if(x.shopifyPublished||x.shopifyPublishState==='published')return showCandidateToast('公開済みです');
  if(x.shopifyPublishState==='publishing'||autoPreparationInFlight.has(x))return showCandidateToast('登録処理中です');
  if(catalogRisk(x).exclude)return showCandidateToast('安全性の確認が必要です');
+ if(oddlyFactoryOrderState(x))return showCandidateToast('工場取り寄せ：補充日数を確認するまでShopify登録は保留します');
  x.autoSetupAttempts=0;x.autoSetupLastError='';x.shopifyPublishError='';x.autoSetupState='queued';x.autoSetupMessage='Shopify下書き登録を開始';x.shopifyPublishState='';
  save();renderAll();autoPrepareSelectedProduct(x,0);
 }
@@ -472,6 +473,7 @@ function retryShopifyDraft(id){
   if(x.shopifyPublishState==='publishing'||autoPreparationInFlight.has(x))return showCandidateToast('自動登録を処理中です');
   if(x.shopifyProductId&&x.shopifyPublishState==='created')return showCandidateToast('Shopify下書き登録済みです');
   if(catalogRisk(x).exclude)return showCandidateToast('高リスク商品のため登録停止中です');
+  if(oddlyFactoryOrderState(x))return showCandidateToast('工場取り寄せ：補充日数の確認待ちです');
   cancelAutoPreparationRetry(id);
   x.autoSetupAttempts=0;x.autoSetupState='queued';x.autoSetupLastError='';x.autoSetupMessage='Shopify試験登録を再開します';x.shopifyPublishState='';x.shopifyPublishError='';
   save();renderAll();autoPrepareSelectedProduct(x);
