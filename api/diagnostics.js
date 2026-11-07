@@ -224,6 +224,15 @@ async function previewLaunchAuditSummary(req,res){
     finalProfitReady:profitRows.filter(x=>x?.ok===true&&x.assumptionsReady===true&&Number.isFinite(x.finalProfitJpy)&&x.finalProfitJpy>0&&x.contributionMarginPercent>=30&&stockOk.has(String(x.sku||''))&&freightOk.has(String(x.sku||''))).length,
     assumptionsMissing:profitRows.filter(x=>x?.ok===true&&x.assumptionsReady!==true).length
   };
+  // Budget guidance is read-only and does not fabricate missing ad or return assumptions.
+  const profitBudgetCandidates=profitRows.filter(x=>x?.ok===true&&stockOk.has(String(x.sku||''))&&freightOk.has(String(x.sku||''))).map(x=>({
+    sku:String(x.sku||''),
+    contributionMarginPercent:Number(x.contributionMarginPercent),
+    targetMargin30Pass:Number(x.contributionMarginPercent)>=30,
+    maxCombinedAdsReturnsForPositiveProfitJpy:Number(x.maxCombinedAdsReturnsForPositiveProfitJpy),
+    maxCombinedAdsReturnsForFivePercentNetJpy:Number(x.maxCombinedAdsReturnsForFivePercentNetJpy),
+    assumptionsReady:x.assumptionsReady===true
+  }));
   const nextActions=[];
   if(missingSkus.length||unexpectedSkus.length||duplicateSkus.freight||duplicateSkus.stock||duplicateSkus.profit)nextActions.push('監査対象SKUの不整合を解消');
   if(skuSummary.freightBlocked>0)nextActions.push('送料未確認SKUを再取得');
@@ -259,6 +268,7 @@ async function previewLaunchAuditSummary(req,res){
     skuSummary,
     profitDiagnosis,
     margin30Scenario,
+    profitBudgetCandidates,
     nextActions,
     catalogCoverage:{expected:expectedSkus.length,missingSkus,unexpectedSkus,duplicateSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}

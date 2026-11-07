@@ -205,6 +205,17 @@ test('read-only 30 percent margin scenario preserves the 25 percent active gate'
  assert.match(block,/minimumContributionMarginPercent:Number\(p\.minimumContributionMarginPercent\|\|25\)/);
 });
 
+test('consolidated audit reports read-only budget ceilings for stock and freight qualified SKUs',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const block=source.slice(source.indexOf('async function previewLaunchAuditSummary'),source.indexOf('function deploymentInfo'));
+ assert.match(block,/const profitBudgetCandidates=profitRows\.filter/);
+ assert.match(block,/stockOk\.has/);
+ assert.match(block,/freightOk\.has/);
+ assert.match(block,/maxCombinedAdsReturnsForPositiveProfitJpy/);
+ assert.match(block,/maxCombinedAdsReturnsForFivePercentNetJpy/);
+ assert.match(block,/profitBudgetCandidates,/);
+});
+
 test('consolidated launch audit returns prioritized next actions for blocker resolution',()=>{
  const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
  const start=source.indexOf('async function previewLaunchAuditSummary');
