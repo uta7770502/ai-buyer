@@ -1,0 +1,26 @@
+name: Verified margin gate tests
+on:
+  push:
+    branches: [safety-gate-20261024]
+    paths:
+      - index.html
+      - tests/verified-margin-gate.test.cjs
+      - .github/workflows/verified-margin-gate.yml
+  pull_request:
+    paths:
+      - index.html
+      - tests/verified-margin-gate.test.cjs
+      - .github/workflows/verified-margin-gate.yml
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify recommendation profit safety gate
+        run: node --test tests/verified-margin-gate.test.cjs
