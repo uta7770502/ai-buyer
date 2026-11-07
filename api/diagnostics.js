@@ -235,6 +235,12 @@ async function previewLaunchAuditSummary(req,res){
     assumptionsReady:x.assumptionsReady===true,
     requiredCostMetafieldsMissing:[...(x.plannedAdCostPerOrderJpy===null?['custom.ad_cost_per_order_jpy']:[]),...(x.returnReservePerOrderJpy===null?['custom.return_reserve_per_order_jpy']:[])],
     saleReady:x.assumptionsReady===true&&Number(x.finalProfitJpy)>0&&Number(x.contributionMarginPercent)>=25,
+    readinessBlockers:[
+      ...(Number(x.contributionMarginPercent)<25?['CONTRIBUTION_MARGIN_BELOW_25_PERCENT']:[]),
+      ...(x.plannedAdCostPerOrderJpy===null?['AD_COST_UNSET']:[]),
+      ...(x.returnReservePerOrderJpy===null?['RETURN_RESERVE_UNSET']:[]),
+      ...(x.assumptionsReady===true&&!(Number(x.finalProfitJpy)>0)?['FINAL_PROFIT_NOT_POSITIVE']:[])
+    ],
     // Hypothetical combined per-order ads + returns; never stored or treated as verified.
     hypotheticalCombinedCostScenariosJpy:[100,200,300].map(combinedCostJpy=>({
       combinedCostJpy,
