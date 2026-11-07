@@ -208,11 +208,21 @@ async function previewLaunchAuditSummary(req,res){
     stockBlocked:skuMatrix.filter(x=>!x.stockPass).length,
     profitBlocked:skuMatrix.filter(x=>!x.profitPass).length
   };
+  const profitDiagnosis={
+    verified:profitRows.filter(x=>x?.ok===true).length,
+    assumptionsMissing:profitRows.filter(x=>x?.ok===true&&x.assumptionsReady!==true).length,
+    belowContributionFloor:profitRows.filter(x=>x?.ok===true&&Number.isFinite(x.contributionMarginPercent)&&x.contributionMarginPercent<25).length,
+    finalProfitNonPositive:profitRows.filter(x=>x?.ok===true&&x.assumptionsReady===true&&Number.isFinite(x.finalProfitJpy)&&x.finalProfitJpy<=0).length,
+    eligible:profitRows.filter(x=>x?.launchEconomicsEligible===true).length
+  };
   const nextActions=[];
   if(missingSkus.length||unexpectedSkus.length||duplicateSkus.freight||duplicateSkus.stock||duplicateSkus.profit)nextActions.push('監査対象SKUの不整合を解消');
   if(skuSummary.freightBlocked>0)nextActions.push('送料未確認SKUを再取得');
   if(skuSummary.stockBlocked>0)nextActions.push('在庫5未満SKUを販売候補から外し代替候補を補充');
-  if(skuSummary.profitBlocked>0)nextActions.push('最終利益条件未達SKUを価格調整または候補除外');
+  if(profitDiagnosis.assumptionsMissing>0)nextActions.push('広告費・返品引当の未設定を確認');
+  if(profitDiagnosis.belowContributionFloor>0)nextActions.push('限界利益率25%未満SKUの価格・仕入原価を見直す');
+  if(profitDiagnosis.finalProfitNonPositive>0)nextActions.push('最終利益が黒字でないSKUの広告費・価格を見直す');
+  if(skuSummary.profitBlocked>0&&profitDiagnosis.assumptionsMissing===0&&profitDiagnosis.belowContributionFloor===0&&profitDiagnosis.finalProfitNonPositive===0)nextActions.push('最終利益条件未達SKUを価格調整または候補除外');
   if(!q.readyToFinalManualStep)nextActions.push('公開前監査blockersを解消');
   if(nextActions.length===0)nextActions.push('最終手動承認待ち');
   const checks={
@@ -238,6 +248,7 @@ async function previewLaunchAuditSummary(req,res){
     supplierLaunchCandidates:{count:launchCandidateSkus.length,skus:launchCandidateSkus.slice(0,20)},
     skuMatrix,
     skuSummary,
+    profitDiagnosis,
     nextActions,
     catalogCoverage:{expected:expectedSkus.length,missingSkus,unexpectedSkus,duplicateSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}

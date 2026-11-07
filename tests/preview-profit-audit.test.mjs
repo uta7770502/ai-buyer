@@ -180,6 +180,17 @@ test('consolidated launch audit summarizes per-SKU blockers for fast diagnosis',
 });
 
 
+test('consolidated audit distinguishes missing cost assumptions from actual negative economics without exposing per-SKU costs',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const block=source.slice(source.indexOf('async function previewLaunchAuditSummary'),source.indexOf('function deploymentInfo'));
+ assert.match(block,/const profitDiagnosis=\{/);
+ assert.match(block,/assumptionsMissing:profitRows\.filter/);
+ assert.match(block,/belowContributionFloor:profitRows\.filter/);
+ assert.match(block,/finalProfitNonPositive:profitRows\.filter/);
+ assert.match(block,/profitDiagnosis,/);
+ assert.match(block,/広告費・返品引当の未設定を確認/);
+});
+
 test('consolidated launch audit returns prioritized next actions for blocker resolution',()=>{
  const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
  const start=source.indexOf('async function previewLaunchAuditSummary');
