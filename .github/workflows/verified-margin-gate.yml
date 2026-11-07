@@ -4,6 +4,8 @@ on:
     branches: [safety-gate-20261024]
     paths:
       - index.html
+      - lib/routes/preview-profit-audit.js
+      - tests/preview-profit-audit-safety.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
       - tests/verified-margin-gate.test.cjs
@@ -13,6 +15,8 @@ on:
   pull_request:
     paths:
       - index.html
+      - lib/routes/preview-profit-audit.js
+      - tests/preview-profit-audit-safety.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
       - tests/verified-margin-gate.test.cjs
@@ -31,4 +35,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify recommendation profit safety gate
-        run: node --test tests/verified-margin-gate.test.cjs tests/verified-profit.test.cjs tests/verified-profit-adapter.test.cjs
+        run: node --test tests/verified-margin-gate.test.cjs tests/verified-profit.test.cjs tests/verified-profit-adapter.test.cjs tests/preview-profit-audit-safety.test.cjs
