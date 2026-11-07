@@ -20,3 +20,18 @@ test('only approved margin thresholds can be selected',()=>{
  assert.equal(calculateTargetSalePrice({...base,targetMarginPercent:10}).ready,false);
  assert.equal(calculateTargetSalePrice({...base,targetMarginPercent:25}).ready,true);
 });
+
+import fs from 'node:fs';
+test('provisional ad-budget pricing blocks launch even when draft is prepared',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('function launchEligibility(');
+ const end=html.indexOf('function scaleEligibility(',start);
+ const gate=html.slice(start,end);
+ assert.match(gate,/priceEstimateOnly===true/);
+ assert.match(gate,/広告費が暫定値のため公開承認不可/);
+ assert.match(html,/x\.priceEstimateOnly=true/);
+});
+test('floating-point boundary never adds an unnecessary 100 yen',()=>{
+ const r=calculateTargetSalePrice(base);
+ assert.equal(r.priceJpy,3000);
+});
