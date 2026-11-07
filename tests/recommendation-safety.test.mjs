@@ -247,3 +247,12 @@ test('ADPS product detail keeps modal accessible and fails closed on mismatched 
  assert.match(html,/if\(typeof document\.addEventListener==='function'\)/);
  assert.match(html,/typeof HTMLElement!=='undefined'/);
 });
+
+
+test('ADPS mobile viewport allows zoom and preserves iPhone safe areas',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(html,/<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/);
+ assert.doesNotMatch(html,/maximum-scale=1|user-scalable=no/);
+ assert.match(html,/safe-area-inset-bottom/);
+ assert.match(html,/\.nav button,\.nav button\.navFind\{box-sizing:border-box;flex:1 1 0/);
+});
