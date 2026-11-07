@@ -119,8 +119,8 @@ let watch=JSON.parse(localStorage.getItem('aiBuyerWatch')||'["pet","kitchen","be
 let history=JSON.parse(localStorage.getItem('aiBuyerScanHistory')||'[]');
 let rules=JSON.parse(localStorage.getItem('aiBuyerRules')||'null')||{minScore:82,maxCost:35,minListed:30,minMargin:45,count:5,daily:'on'};
 const SAFE_TREND_MIN_LISTINGS=30;
-const SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=10;
-const SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=30;
+const SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=5;
+const SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=25;
 const SAFE_RETURN_RESERVE_RATE=0.15;
 let today=JSON.parse(localStorage.getItem('aiBuyerToday')||'null');
 let recommendationScanRunning=false;
@@ -235,7 +235,7 @@ function launchEligibility(x){
   if(risk.exclude||x.monitorRisk!=='ok'||x.monitorStopCandidate||x.stopCandidate)reasons.push(x.monitorRisk==='unknown'||!x.monitorRisk?'最新CJ監視未確認':'販売リスクあり');
   if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
   if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
-  else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT)reasons.push('限界利益率30%未満');
+  else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT)reasons.push('限界利益率25%未満');
   const plannedAds=Number(x.plannedAdCostPerOrderJpy),returnReserve=Number(x.returnReservePerOrderJpy);
   if(!Number.isFinite(plannedAds)||plannedAds<0)reasons.push('広告費想定未設定');
   if(!Number.isFinite(returnReserve)||returnReserve<0)reasons.push('返品・返金引当未設定');

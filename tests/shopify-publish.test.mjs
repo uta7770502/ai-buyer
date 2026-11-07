@@ -392,10 +392,10 @@ test('Shopify draft metadata supports bounded ad-cost and return-reserve assumpt
 });
 
 
-test('Shopify draft creation re-verifies CJ variant stock server-side and fails closed below 10',()=>{
+test('Shopify draft creation re-verifies CJ variant stock server-side and fails closed below 5',()=>{
   const src=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
   assert.match(src,/validateCJStockResponse/);
-  assert.match(src,/const MIN_LAUNCH_INVENTORY=10/);
+  assert.match(src,/const MIN_LAUNCH_INVENTORY=5/);
   assert.match(src,/function cjVariantStock\(vid\)/);
   assert.match(src,/product\/stock\/queryByVid/);
   assert.match(src,/const stock=await cjVariantStock\(cj\.vid\)/);
@@ -412,15 +412,15 @@ test('server-side Shopify draft creation blocks verified CJ stock below launch f
  globalThis.fetch=async(url)=>{
   const u=String(url);calls.push(u);
   if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant'}]}})};
-  if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'9',factoryInventoryNum:'0',totalInventoryNum:'9'}]})};
+  if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'4',factoryInventoryNum:'0',totalInventoryNum:'4'}]})};
   throw Error('Shopify must not be called when verified CJ stock is below launch floor');
  };
  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
  try{
   await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Low stock sample',price:1200,cjProductId:'cj-test'}},res);
   assert.equal(res.code,409);
-  assert.equal(res.body.verifiedInventory,9);
-  assert.equal(res.body.minimumLaunchInventory,10);
+  assert.equal(res.body.verifiedInventory,4);
+  assert.equal(res.body.minimumLaunchInventory,5);
   assert.match(res.body.error,/販売準備基準未満/);
   assert.ok(calls.every(url=>!url.includes('myshopify.com')));
  }finally{

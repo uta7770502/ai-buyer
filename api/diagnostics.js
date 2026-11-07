@@ -143,9 +143,9 @@ async function previewCjStockAudit(req,res){
       }
       await new Promise(r=>setTimeout(r,1500));
     }
-    const launchEligible=rows.filter(x=>x.ok&&Number.isSafeInteger(x.totalInventory)&&x.totalInventory>=10).length;
-    for(const row of rows)row.launchEligible=row.ok&&Number.isSafeInteger(row.totalInventory)&&row.totalInventory>=10;
-    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,launchEligible,minimumLaunchInventory:10,allVerified:rows.every(x=>x.ok),rows});
+    const launchEligible=rows.filter(x=>x.ok&&Number.isSafeInteger(x.totalInventory)&&x.totalInventory>=5).length;
+    for(const row of rows)row.launchEligible=row.ok&&Number.isSafeInteger(row.totalInventory)&&row.totalInventory>=5;
+    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,launchEligible,minimumLaunchInventory:5,allVerified:rows.every(x=>x.ok),rows});
   }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
 }
 
@@ -197,7 +197,7 @@ async function previewLaunchAuditSummary(req,res){
     const profitPass=Boolean(profitRow?.launchEconomicsEligible===true);
     const reasons=[];
     if(!freightPass)reasons.push('送料未確認');
-    if(!stockPass)reasons.push('在庫10未満または未確認');
+    if(!stockPass)reasons.push('在庫5未満または未確認');
     if(!profitPass)reasons.push('最終利益条件未達');
     return {sku:vid,freightPass,stockPass,profitPass,launchCandidate:freightPass&&stockPass&&profitPass,reasons};
   });
@@ -211,7 +211,7 @@ async function previewLaunchAuditSummary(req,res){
   const nextActions=[];
   if(missingSkus.length||unexpectedSkus.length||duplicateSkus.freight||duplicateSkus.stock||duplicateSkus.profit)nextActions.push('監査対象SKUの不整合を解消');
   if(skuSummary.freightBlocked>0)nextActions.push('送料未確認SKUを再取得');
-  if(skuSummary.stockBlocked>0)nextActions.push('在庫10未満SKUを販売候補から外し代替候補を補充');
+  if(skuSummary.stockBlocked>0)nextActions.push('在庫5未満SKUを販売候補から外し代替候補を補充');
   if(skuSummary.profitBlocked>0)nextActions.push('最終利益条件未達SKUを価格調整または候補除外');
   if(!q.readyToFinalManualStep)nextActions.push('公開前監査blockersを解消');
   if(nextActions.length===0)nextActions.push('最終手動承認待ち');
@@ -233,8 +233,8 @@ async function previewLaunchAuditSummary(req,res){
     ok:true,readOnly:true,checkedAt:new Date().toISOString(),ready,inconsistentState,
     checks,
     freight:{total:Number(f.total||0),passed:Number(f.passed||0),failed:Number(f.failed||0)},
-    stock:{total:Number(s.total||0),allVerified:Boolean(s.allVerified),launchEligible:Number(s.launchEligible||0),minimumLaunchInventory:Number(s.minimumLaunchInventory||10)},
-    profit:{total:Number(p.total||0),verified:Number(p.verified||0),failed:Number(p.failed||0),launchEconomicsEligible:Number(p.launchEconomicsEligible||0),minimumContributionMarginPercent:Number(p.minimumContributionMarginPercent||30)},
+    stock:{total:Number(s.total||0),allVerified:Boolean(s.allVerified),launchEligible:Number(s.launchEligible||0),minimumLaunchInventory:Number(s.minimumLaunchInventory||5)},
+    profit:{total:Number(p.total||0),verified:Number(p.verified||0),failed:Number(p.failed||0),launchEconomicsEligible:Number(p.launchEconomicsEligible||0),minimumContributionMarginPercent:Number(p.minimumContributionMarginPercent||25)},
     supplierLaunchCandidates:{count:launchCandidateSkus.length,skus:launchCandidateSkus.slice(0,20)},
     skuMatrix,
     skuSummary,

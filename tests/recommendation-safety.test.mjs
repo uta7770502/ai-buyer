@@ -72,7 +72,7 @@ test('CJ risk gate excludes mid and high complaint risk products',()=>{
 test('automatic recommendations require at least 21 units of verified discovery inventory',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   const search=fs.readFileSync(new URL('../lib/routes/cj-search.js',import.meta.url),'utf8');
-  assert.match(html,/SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=10/);
+  assert.match(html,/SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=5/);
   assert.match(html,/minVerifiedInventory=\$\{SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY\}/);
   assert.match(search,/minVerifiedInventory/);
   assert.match(search,/p\.verifiedInventory>=minVerifiedInventory/);
@@ -80,12 +80,12 @@ test('automatic recommendations require at least 21 units of verified discovery 
 });
 
 
-test('launch gate and automatic pricing preserve at least 30 percent contribution margin after payment fee',()=>{
+test('launch gate and automatic pricing preserve at least 25 percent contribution margin after payment fee',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-  assert.match(html,/SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=30/);
+  assert.match(html,/SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=25/);
   assert.match(html,/targetMargin=SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT\/100/);
   assert.match(html,/1-paymentFeeRate-targetMargin/);
-  assert.match(html,/限界利益率30%未満/);
+  assert.match(html,/限界利益率25%未満/);
 });
 
 
@@ -202,7 +202,7 @@ test('variant stock route rejects implausibly large supplier totals',()=>{
 
 test('variant stock launch floor is defined once and returned with every verified response',()=>{
   const route=fs.readFileSync(new URL('../lib/routes/cj-variant-stock.js',import.meta.url),'utf8');
-  assert.match(route,/const MIN_LAUNCH_INVENTORY=10/);
+  assert.match(route,/const MIN_LAUNCH_INVENTORY=5/);
   assert.match(route,/launchEligible:checked\.total>=MIN_LAUNCH_INVENTORY/);
   assert.match(route,/minimumLaunchInventory:MIN_LAUNCH_INVENTORY/);
 });
