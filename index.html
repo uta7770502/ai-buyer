@@ -766,6 +766,13 @@ function excludeLowStockCandidateAndRefill(x){
   if(x?.variantInventoryVerified!==true)return false;
   const inventory=Number(x?.verifiedInventory);
   if(!Number.isFinite(inventory)||inventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY)return false;
+  if(oddlyFactoryOrderState(x)){
+    cancelAutoPreparationRetry(x.id);
+    x.autoSetupState='needs_review';
+    x.autoSetupLastError='factory_order_lead_time_unverified';
+    x.autoSetupMessage='工場取り寄せ：工場在庫あり。補充日数の確認待ち（Shopify登録保留）';
+    save();renderAll();renderToday();return true;
+  }
   cancelAutoPreparationRetry(x.id);
   x.uiSelected=false;
   x.autoSetupState='needs_review';
@@ -2754,6 +2761,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     const stockVerifiedAt=Date.parse(stockData.verifiedAt||'');
     if(!Number.isFinite(stockVerifiedAt)||stockVerifiedAt>Date.now()||Date.now()-stockVerifiedAt>15*60*1000)throw new Error('CJ variant在庫の確認期限が切れています');
     x.verifiedInventory=stockData.verifiedInventory;
+    if(Number.isSafeInteger(stockData.factoryStockQuantity)&&stockData.factoryStockQuantity>=0){x.cjStockQuantity=stockData.verifiedInventory;x.factoryStockQuantity=stockData.factoryStockQuantity;}
     x.variantInventoryVerified=true;
     x.variantInventoryVerifiedAt=stockData.verifiedAt;
     if(excludeLowStockCandidateAndRefill(x))return;
