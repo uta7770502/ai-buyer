@@ -24,7 +24,7 @@ test('failed refresh invalidates stale positive evidence',async()=>{
  const c=setup();const p=good();p.complaintRisk.checkedAt='2020-01-01';await c.enrichRiskList([p]);assert.equal(p.complaintRisk.exclude,true);assert.equal(c.recommendationReviewReady(p),false);
 });
 test('saved recommendations and recently removed items cannot bypass review gate',()=>{
- const c=setup();c.today={products:[good(),{id:'unchecked'}]};c.recentlyRemovedCandidates=()=>[{product:{id:'removed'}}];c.findActive=()=>null;c.catalogRisk=()=>({exclude:false});
+ const c=setup();c.today={products:[good(),{id:'unchecked'}]};c.verifiedMarginRecommendation=()=>true;c.recentlyRemovedCandidates=()=>[{product:{id:'removed'}}];c.findActive=()=>null;c.catalogRisk=()=>({exclude:false});
  vm.runInContext(html.slice(html.indexOf('function orderedRecommendedProducts('),html.indexOf('function toggleCandidate(')),c);
  assert.deepEqual(Array.from(c.orderedRecommendedProducts(),p=>p.id),['p1']);
 });
