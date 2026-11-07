@@ -210,9 +210,15 @@ async function previewLaunchAuditSummary(req,res){
     const freightVerified=freightRow?.ok===true&&freightRow?.shippingVerified===true;
     const margin=profitRow?.ok===true?Number(profitRow.contributionMarginPercent):null;
     const marginVerified=margin!==null&&Number.isFinite(margin);
+    // Read-only per-SKU margin choices. 30% is default; lower thresholds require explicit selection.
+    const marginChoices=marginVerified?(margin>=30?[30]:margin>=25?[25]:margin>=20?[20]:[]):[];
+    const recommendedByMargin=marginVerified&&margin>=30;
+    const recommendationExcludedByMargin=marginVerified&&margin<20;
+    const requiresManualMarginOverride=marginChoices.length>0&&!recommendedByMargin;
     const status=!stockEligible?'inventory_hold':!freightVerified?'freight_hold':!marginVerified?'cost_verification':margin<25?'margin_reprice':profitRow?.assumptionsReady!==true?'cost_assumptions_required':profitRow?.launchEconomicsEligible===true?'economics_pass':'final_profit_review';
     return {sku:vid,status,stockEligible,freightVerified,contributionMarginPercent:marginVerified?margin:null,
       targetMargin30Pass:marginVerified&&margin>=30,
+      marginChoices,defaultMinimumMarginPercent:30,recommendedByMargin,recommendationExcludedByMargin,requiresManualMarginOverride,
       nextAction:status==='inventory_hold'?'monitor_inventory_and_find_replacement':status==='freight_hold'?'verify_japan_shipping':status==='cost_verification'?'verify_cj_cost':status==='margin_reprice'?'review_price_or_supplier':status==='cost_assumptions_required'?'set_verified_ad_and_return_costs':status==='final_profit_review'?'review_final_profit':'complete_prelaunch_safety_checks'};
   });
   const skuSummary={
