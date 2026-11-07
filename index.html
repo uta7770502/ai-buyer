@@ -3114,6 +3114,7 @@ async function openDetail(id){
     if(sheet)sheet.scrollTop=0;
   }catch(e){
     if(requestVersion!==detailRequestVersion)return;
+    if(typeof console!=='undefined'&&typeof console.warn==='function')console.warn('ADPS detail display failed:',e?.name||'Error',e?.message||'unknown');
     detail.innerHTML=`<div class="error">商品詳細を取得できませんでした。時間をおいて開き直してください。</div>`;
   }
 }
