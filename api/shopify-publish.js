@@ -70,7 +70,7 @@ function cjRateLimitedFetch(url,options){
  cjRequestQueue=request.then(()=>undefined,()=>undefined);
  return request;
 }
-const MIN_LAUNCH_INVENTORY=21;
+const MIN_LAUNCH_INVENTORY=10;
 let cjCache={token:'',expiresAt:0};
 async function cjToken(){
   if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;

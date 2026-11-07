@@ -11,7 +11,7 @@ test('preview profit audit stays read-only and fails closed on unverified suppli
  assert.match(source,/paymentFeeJpy/);
  assert.match(source,/contributionBeforeAdsJpy/);
  assert.match(source,/launchEconomicsEligible/);
- assert.match(source,/minimumContributionMarginPercent=35/);
+ assert.match(source,/minimumContributionMarginPercent=30/);
  assert.match(source,/contributionMarginPercent>=minimumContributionMarginPercent/);
  assert.match(source,/ad_cost_per_order_jpy/);
  assert.match(source,/return_reserve_per_order_jpy/);
@@ -21,10 +21,10 @@ test('preview profit audit stays read-only and fails closed on unverified suppli
 });
 
 
-test('server stock audit enforces the same 21-unit launch floor as the UI gate',()=>{
+test('server stock audit enforces the same 10-unit launch floor as the UI gate',()=>{
  const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
- assert.match(source,/minimumLaunchInventory:21/);
- assert.match(source,/totalInventory>20/);
+ assert.match(source,/minimumLaunchInventory:10/);
+ assert.match(source,/totalInventory>=10/);
  assert.match(source,/launchEligible/);
 });
 
@@ -161,7 +161,7 @@ test('consolidated launch audit returns a per-SKU freight stock profit matrix fo
  assert.match(block,/stockPass/);
  assert.match(block,/profitPass/);
  assert.match(block,/launchCandidate:freightPass&&stockPass&&profitPass/);
- assert.match(block,/在庫21未満または未確認/);
+ assert.match(block,/在庫10未満または未確認/);
  assert.match(block,/skuMatrix,/);
 });
 
@@ -188,7 +188,7 @@ test('consolidated launch audit returns prioritized next actions for blocker res
  assert.match(block,/const nextActions=\[\]/);
  assert.match(block,/監査対象SKUの不整合を解消/);
  assert.match(block,/送料未確認SKUを再取得/);
- assert.match(block,/在庫21未満SKUを販売候補から外し代替候補を補充/);
+ assert.match(block,/在庫10未満SKUを販売候補から外し代替候補を補充/);
  assert.match(block,/最終利益条件未達SKUを価格調整または候補除外/);
  assert.match(block,/最終手動承認待ち/);
  assert.match(block,/nextActions,/);

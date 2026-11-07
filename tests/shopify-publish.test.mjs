@@ -392,10 +392,10 @@ test('Shopify draft metadata supports bounded ad-cost and return-reserve assumpt
 });
 
 
-test('Shopify draft creation re-verifies CJ variant stock server-side and fails closed below 21',()=>{
+test('Shopify draft creation re-verifies CJ variant stock server-side and fails closed below 10',()=>{
   const src=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
   assert.match(src,/validateCJStockResponse/);
-  assert.match(src,/const MIN_LAUNCH_INVENTORY=21/);
+  assert.match(src,/const MIN_LAUNCH_INVENTORY=10/);
   assert.match(src,/function cjVariantStock\(vid\)/);
   assert.match(src,/product\/stock\/queryByVid/);
   assert.match(src,/const stock=await cjVariantStock\(cj\.vid\)/);
@@ -420,7 +420,7 @@ test('server-side Shopify draft creation blocks verified CJ stock below launch f
   await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Low stock sample',price:1200,cjProductId:'cj-test'}},res);
   assert.equal(res.code,409);
   assert.equal(res.body.verifiedInventory,20);
-  assert.equal(res.body.minimumLaunchInventory,21);
+  assert.equal(res.body.minimumLaunchInventory,10);
   assert.match(res.body.error,/販売準備基準未満/);
   assert.ok(calls.every(url=>!url.includes('myshopify.com')));
  }finally{
