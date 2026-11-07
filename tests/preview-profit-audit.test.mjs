@@ -214,6 +214,10 @@ test('consolidated audit reports read-only budget ceilings for stock and freight
  assert.match(block,/maxCombinedAdsReturnsForPositiveProfitJpy/);
  assert.match(block,/maxCombinedAdsReturnsForFivePercentNetJpy/);
  assert.match(block,/profitBudgetCandidates,/);
+ assert.match(block,/candidateTier:/);
+ assert.match(block,/'priority'/);
+ assert.match(block,/'conditional'/);
+ assert.match(block,/'excluded'/);
 });
 
 test('consolidated launch audit returns prioritized next actions for blocker resolution',()=>{

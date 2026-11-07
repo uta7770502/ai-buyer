@@ -229,6 +229,7 @@ async function previewLaunchAuditSummary(req,res){
     sku:String(x.sku||''),
     contributionMarginPercent:Number(x.contributionMarginPercent),
     targetMargin30Pass:Number(x.contributionMarginPercent)>=30,
+    candidateTier:Number(x.contributionMarginPercent)>=30?'priority':Number(x.contributionMarginPercent)>=25?'conditional':'excluded',
     maxCombinedAdsReturnsForPositiveProfitJpy:Number(x.maxCombinedAdsReturnsForPositiveProfitJpy),
     maxCombinedAdsReturnsForFivePercentNetJpy:Number(x.maxCombinedAdsReturnsForFivePercentNetJpy),
     assumptionsReady:x.assumptionsReady===true
