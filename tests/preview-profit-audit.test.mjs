@@ -194,6 +194,17 @@ test('consolidated audit distinguishes missing cost assumptions from actual nega
  assert.match(block,/広告費・返品引当の未設定を確認/);
 });
 
+test('read-only 30 percent margin scenario preserves the 25 percent active gate',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const block=source.slice(source.indexOf('async function previewLaunchAuditSummary'),source.indexOf('function deploymentInfo'));
+ assert.match(block,/const margin30Scenario=\{/);
+ assert.match(block,/minimumContributionMarginPercent:30/);
+ assert.match(block,/x\.contributionMarginPercent>=30/);
+ assert.match(block,/stockAndMarginPass/);
+ assert.match(block,/margin30Scenario,/);
+ assert.match(block,/minimumContributionMarginPercent:Number\(p\.minimumContributionMarginPercent\|\|25\)/);
+});
+
 test('consolidated launch audit returns prioritized next actions for blocker resolution',()=>{
  const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
  const start=source.indexOf('async function previewLaunchAuditSummary');

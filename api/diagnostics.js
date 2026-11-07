@@ -215,6 +215,15 @@ async function previewLaunchAuditSummary(req,res){
     finalProfitNonPositive:profitRows.filter(x=>x?.ok===true&&x.assumptionsReady===true&&Number.isFinite(x.finalProfitJpy)&&x.finalProfitJpy<=0).length,
     eligible:profitRows.filter(x=>x?.launchEconomicsEligible===true).length
   };
+  // Read-only 30% scenario; do not change the active 25% launch gate.
+  const margin30Scenario={
+    minimumContributionMarginPercent:30,
+    verified:profitRows.filter(x=>x?.ok===true&&Number.isFinite(x.contributionMarginPercent)).length,
+    marginPass:profitRows.filter(x=>x?.ok===true&&Number.isFinite(x.contributionMarginPercent)&&x.contributionMarginPercent>=30).length,
+    stockAndMarginPass:profitRows.filter(x=>x?.ok===true&&Number.isFinite(x.contributionMarginPercent)&&x.contributionMarginPercent>=30&&stockOk.has(String(x.sku||''))&&freightOk.has(String(x.sku||''))).length,
+    finalProfitReady:profitRows.filter(x=>x?.ok===true&&x.assumptionsReady===true&&Number.isFinite(x.finalProfitJpy)&&x.finalProfitJpy>0&&x.contributionMarginPercent>=30&&stockOk.has(String(x.sku||''))&&freightOk.has(String(x.sku||''))).length,
+    assumptionsMissing:profitRows.filter(x=>x?.ok===true&&x.assumptionsReady!==true).length
+  };
   const nextActions=[];
   if(missingSkus.length||unexpectedSkus.length||duplicateSkus.freight||duplicateSkus.stock||duplicateSkus.profit)nextActions.push('監査対象SKUの不整合を解消');
   if(skuSummary.freightBlocked>0)nextActions.push('送料未確認SKUを再取得');
@@ -249,6 +258,7 @@ async function previewLaunchAuditSummary(req,res){
     skuMatrix,
     skuSummary,
     profitDiagnosis,
+    margin30Scenario,
     nextActions,
     catalogCoverage:{expected:expectedSkus.length,missingSkus,unexpectedSkus,duplicateSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
