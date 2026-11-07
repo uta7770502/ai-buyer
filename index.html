@@ -3081,7 +3081,7 @@ async function openDetail(id){
     detail.innerHTML=`${p.image?`<img class="detailHero" src="${esc(p.image)}" alt="">`:''}
       <div class="detailTitle">${esc(japaneseProductName(p))}</div>
       <div class="adpsDetailSummary">販売判断前に、在庫・送料・最終利益・安全性を確認してください。</div>
-      <button type="button" class="adpsFavoriteButton" id="adpsDetailFavorite" onclick="toggleAdpsFavorite('${js(p.id)}');this.textContent=isAdpsFavorite('${js(p.id)}')?'♥ 保存済み':'♡ お気に入り'">${isAdpsFavorite(p.id)?'♥ 保存済み':'♡ お気に入り'}</button>
+      <button type="button" class="adpsFavoriteButton" id="adpsDetailFavorite" onclick="toggleAdpsFavorite('${js(p.id)}');this.textContent=isAdpsFavorite('${js(p.id)}')?'♥ 保存済み':'♡ お気に入り'">${typeof isAdpsFavorite==='function'&&isAdpsFavorite(p.id)?'♥ 保存済み':'♡ お気に入り'}</button>
       <div class="kv">
         <b>AIスコア</b><span>${m.score}/100（暫定）</span>
         <b>評価理由</b><span>${esc(m.reasons.join(' / '))}</span>
