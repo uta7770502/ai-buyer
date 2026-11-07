@@ -2776,15 +2776,38 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(data.usdJpyRate))||Number(data.usdJpyRate)<=0)throw new Error('商品原価または為替レートが不正です');
     const cost=Math.ceil(unitCost*Number(data.usdJpyRate))+Number(x.shippingJpy||0);
     if(!Number.isFinite(cost)||cost<0)throw new Error('商品原価と送料を確認できません');
-    const paymentFeeRate=.045;
-    const targetMargin=SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT/100;
-    const denominator=1-paymentFeeRate-targetMargin;
-    if(!(denominator>0))throw new Error('最低利益率設定が不正です');
-    const minPrice=Math.ceil((cost/denominator)/100)*100;
-    const existingPrice=Number(x.price);
-    x.price=Math.max(Number.isFinite(existingPrice)?existingPrice:0,minPrice,980);
-    if(!Number.isSafeInteger(x.price)||x.price<=0||x.price>10000000)throw new Error('販売価格が安全な範囲を超えています。原価・送料・為替を確認してください');
-    autoProfitAssumptions(x);
+    const {calculateTargetSalePrice}=await import('./lib/target-price.js');
+    const reserve=Math.ceil(cost*SAFE_RETURN_RESERVE_RATE);
+    const feeRate=4.5;
+    const targetMarginPercent=30;
+    // CPA policy is a fraction of contribution; solve conservatively by iteration.
+    let adCost=0,proposal=null;
+    for(let i=0;i<12;i++){
+      proposal=calculateTargetSalePrice({
+        productCostJpy:cost-Number(x.shippingJpy),shippingCostJpy:Number(x.shippingJpy),
+        adCostPerOrderJpy:adCost,returnReserveJpy:reserve,
+        paymentFixedFeeJpy:0,paymentFeeRatePercent:feeRate,
+        targetMarginPercent,shippingVerified:true
+      });
+      if(!proposal.ready)throw new Error('販売価格の逆算に必要な費用が未確認です');
+      const contribution=proposal.priceJpy*(1-feeRate/100)-cost;
+      const nextAd=Math.max(0,Math.round(contribution*(Number(growthSettings.cpaSafetyPct||70)/100)));
+      if(nextAd<=adCost)break;
+      adCost=nextAd;
+    }
+    // Verify the final policy assumptions against the final calculated price.
+    proposal=calculateTargetSalePrice({
+      productCostJpy:cost-Number(x.shippingJpy),shippingCostJpy:Number(x.shippingJpy),
+      adCostPerOrderJpy:adCost,returnReserveJpy:reserve,
+      paymentFixedFeeJpy:0,paymentFeeRatePercent:feeRate,
+      targetMarginPercent,shippingVerified:true
+    });
+    if(!proposal.ready||proposal.priceJpy>10000000)throw new Error('利益率30%を満たす販売価格を算出できません');
+    x.price=proposal.priceJpy;
+    x.plannedAdCostPerOrderJpy=adCost;
+    x.returnReservePerOrderJpy=reserve;
+    x.profitAssumptionSource='policy:target30+cpaSafetyPct+return15pct';
+    x.profitAssumptionUpdatedAt=new Date().toISOString();
     if(excludeUnprofitableCandidateAndRefill(x))return;
     x.autoSetupState='draft';
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
