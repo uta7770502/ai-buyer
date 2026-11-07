@@ -4,18 +4,20 @@ on:
     branches: [safety-gate-20261024]
     paths:
       - index.html
-      - tests/verified-margin-gate.test.cjs
-      - tests/verified-profit.test.cjs
-      - lib/verified-profit-adapter.cjs
-      - tests/verified-profit-adapter.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
+      - tests/verified-margin-gate.test.cjs
+      - tests/verified-profit.test.cjs
       - tests/verified-profit-adapter.test.cjs
       - .github/workflows/verified-margin-gate.yml
   pull_request:
     paths:
       - index.html
+      - lib/verified-profit.cjs
+      - lib/verified-profit-adapter.cjs
       - tests/verified-margin-gate.test.cjs
+      - tests/verified-profit.test.cjs
+      - tests/verified-profit-adapter.test.cjs
       - .github/workflows/verified-margin-gate.yml
   workflow_dispatch:
 jobs:
