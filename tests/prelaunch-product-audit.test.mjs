@@ -139,3 +139,13 @@ test('prelaunch audit requires bounded ad-cost and return-reserve assumptions',(
  assert.match(source,/ad_cost_per_order_jpy/);
  assert.match(source,/return_reserve_per_order_jpy/);
 });
+
+
+test('prelaunch audit blocks duplicate CJ variant IDs across Shopify drafts',()=>{
+ const source=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
+ assert.match(source,/const bySku=new Map\(\)/);
+ assert.match(source,/row\.status!=='DRAFT'/);
+ assert.match(source,/group\.length<2/);
+ assert.match(source,/row\.ready=false/);
+ assert.match(source,/CJバリエーションIDが他の商品と重複しています/);
+});
