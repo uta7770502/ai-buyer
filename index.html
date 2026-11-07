@@ -3260,8 +3260,9 @@ function isAdpsFavorite(id){return getAdpsFavoriteIds().includes(String(id))}
 function toggleAdpsFavorite(id){
  const ids=getAdpsFavoriteIds(),key=String(id);
  const next=ids.includes(key)?ids.filter(x=>x!==key):[...ids,key];
- localStorage.setItem(ADPS_FAVORITES_KEY,JSON.stringify(next));
+ try{localStorage.setItem(ADPS_FAVORITES_KEY,JSON.stringify(next))}catch(e){if(typeof showCandidateToast==='function')showCandidateToast('お気に入りを保存できませんでした。端末の保存設定をご確認ください。');return false}
  renderRecommendTop();renderAll();renderAdpsFavorites();
+ return true;
 }
 function renderAdpsFavorites(){
  const box=document.getElementById('adpsFavoritesList');if(!box)return;
