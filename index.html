@@ -2808,6 +2808,9 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     x.returnReservePerOrderJpy=reserve;
     x.profitAssumptionSource='policy:target30+cpaSafetyPct+return15pct';
     x.profitAssumptionUpdatedAt=new Date().toISOString();
+    const verifiedPolicyAd=Math.max(0,Math.round((x.price*(1-feeRate/100)-cost)*(Number(growthSettings.cpaSafetyPct||70)/100)));
+    const finalMargin=(x.price*(1-feeRate/100)-cost-verifiedPolicyAd-reserve)/x.price*100;
+    if(verifiedPolicyAd>adCost||finalMargin<targetMarginPercent)throw new Error('広告費・返品引当後の利益率30%を満たせません。価格確定とShopify下書きを保留します');
     if(excludeUnprofitableCandidateAndRefill(x))return;
     x.autoSetupState='draft';
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
