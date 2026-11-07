@@ -3238,7 +3238,7 @@ function syncAdpsOperations(){
  const box=document.getElementById('adpsOperationsProducts');if(!box)return;
  const items=(Array.isArray(active)?active:[]).filter(x=>x&&x.uiSelected!==false);
  const filtered=items.filter(x=>{const state=simpleProductState(x).key;if(adpsOpFilter==='all')return true;if(adpsOpFilter==='live')return state==='live';if(adpsOpFilter==='draft')return x.autoSetupState==='draft'||x.shopifyPublishState==='draft';return ['prepare','test','ready','review'].includes(state)});
- box.innerHTML=filtered.length?filtered.map(x=>{const state=simpleProductState(x);return '<div class="adpsOpRow"><div class="adpsOpRowTitle">'+esc(japaneseProductName(x))+'</div><div class="adpsOpRowFoot"><span>'+esc(state.label)+'</span><button type="button" class="secondary" onclick="showPage(\'profit\')">運用詳細</button></div></div>'}).join(''):'<div class="empty">'+(items.length?'該当する商品はありません。':'販売候補はまだありません。')+'</div>';
+ box.innerHTML=filtered.length?filtered.map(x=>{const state=simpleProductState(x);return '<div class="adpsOpRow"><div class="adpsOpRowTitle">'+esc(japaneseProductName(x))+'</div><div class="adpsOpRowFoot"><span>'+esc(state.label)+'</span><details class="adpsOpDetails"><summary>運用詳細</summary><span class="tiny">Shopify：'+esc(String(x.shopifyPublishState||'未確認'))+' / 下書き：'+esc(String(x.autoSetupState||'未確認'))+'</span></details></div></div>'}).join(''):'<div class="empty">'+(items.length?'該当する商品はありません。':'販売候補はまだありません。')+'</div>';
 }</script><script id="adps-ui-data-sync">
 function syncAdpsHomeSummary(){
  const ids=[['sales','adpsSummaryDaily'],['heroProfit','adpsSummaryProfit'],['activeCount','adpsSummaryCandidates']];
