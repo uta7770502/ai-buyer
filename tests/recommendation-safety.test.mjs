@@ -264,7 +264,7 @@ test('ADPS Shopify live publication stays disabled until explicit launch authori
  assert.match(html,/公開待ち（承認後）/);
  assert.match(html,/showCandidateToast\('本番公開は承認まで停止しています'\);/);
  const start=html.indexOf("document.addEventListener('click',e=>{\\n  const btn=e.target.closest('[data-live-publish-id]')");
- const handler=html.slice(start,html.indexOf('\\n});',start)+4);
  assert.ok(start>=0,'live publish guard handler must exist');
- assert.doesNotMatch(handler,/fetch\\(|resumeApproved|syncAction/);
+ const handler=html.slice(start,html.indexOf('\\n});',start)+4);
+ assert.doesNotMatch(handler,/fetch\(|resumeApproved|syncAction/);
 });
