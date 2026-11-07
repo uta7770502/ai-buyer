@@ -395,10 +395,13 @@ function setRecentlyRemovedCandidate(product,removed){
 // Per-product margin exceptions apply only to verified contribution margin, never CJ discovery estimates.
 const oddlyMarginOverrides=(()=>{try{return JSON.parse(localStorage.getItem('oddlyMarginOverrides')||'{}')}catch{return {}}})();
 function verifiedMarginRecommendation(p){
+ // CJ discovery estimates must never be mistaken for verified final profit.
+ if(p?.contributionMarginVerified!==true)return true; // Preserve existing discovery gates; not launch approval.
  const margin=Number(p?.verifiedContributionMarginPercent);
- if(p?.contributionMarginVerified!==true||!Number.isFinite(margin))return true; // Existing discovery safety gates remain in force.
+ if(!Number.isFinite(margin)||margin<20)return false;
  const threshold=Number(oddlyMarginOverrides[String(p.id)]||30);
- return [20,25,30].includes(threshold)&&margin>=threshold;
+ // An exception cannot override missing or non-positive final-profit evidence.
+ return [20,25,30].includes(threshold)&&margin>=threshold&&p?.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0;
 }
 function setProductMarginThreshold(id,value){
  const threshold=Number(value);
@@ -409,6 +412,7 @@ function setProductMarginThreshold(id,value){
  if(!Number.isFinite(margin)||threshold>30||threshold<20||margin<threshold)return;
  oddlyMarginOverrides[String(id)]=threshold;
  localStorage.setItem('oddlyMarginOverrides',JSON.stringify(oddlyMarginOverrides));
+ renderMarginReview();
  renderRecommendTop();
 }
 function orderedRecommendedProducts(){
@@ -512,12 +516,25 @@ async function addTestCatalogProducts(){
     if(status)status.textContent='テスト商品の追加に失敗しました: '+String(e?.message||e);
   }
 }
+function renderMarginReview(){
+ const container=document.getElementById('oddlyMarginReview');
+ if(!container)return;
+ const rows=[...(today?.products||[]),...results].filter((p,i,all)=>all.findIndex(x=>String(x.id)===String(p.id))===i).filter(p=>p.contributionMarginVerified===true&&Number.isFinite(Number(p.verifiedContributionMarginPercent))&&Number(p.verifiedContributionMarginPercent)>=20&&Number(p.verifiedContributionMarginPercent)<30);
+ container.innerHTML=rows.length?'<div class="tiny" style="margin:12px 0 6px">利益率の個別審査（30%未満・販売承認ではありません）</div>'+rows.map(p=>{
+ const m=Number(p.verifiedContributionMarginPercent),selected=Number(oddlyMarginOverrides[String(p.id)]||30),id=js(p.id);
+ const options=[30,...(m>=25?[25]:[]),20].map(v=>'<option value="'+v+'"'+(selected===v?' selected':'')+'>'+v+'%</option>').join('');
+ const profitOk=p.finalProfitVerified===true&&Number(p.finalProfitJpy)>0;
+ return '<div class="card" style="margin:6px 0;padding:10px"><div class="tiny">'+esc(japaneseProductName(p))+' / 検証済み利益率 '+m.toFixed(1)+'%</div><label class="tiny">最低利益率 <select onchange="setProductMarginThreshold(\''+id+'\',this.value)">'+options+'</select></label><div class="tiny">'+(profitOk?'最終利益確認済み':'最終利益未確認：おすすめには追加不可')+'</div></div>';
+ }).join(''):'';
+}
 function renderRecommendTop(){
   const box=document.getElementById('recommendTopPicks'),stamp=document.getElementById('recommendTopStamp');
   if(!box)return;
   const picks=orderedRecommendedProducts();
   if(stamp)stamp.textContent=today?.at?'更新 '+new Date(today.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'AIが毎日3〜5商品に絞ります';
   box.innerHTML=picks.length?picks.map((p,i)=>recommendationCard(p,i+1)).join(''):'<div class="empty">レビューなどの推薦条件を確認できた商品がまだありません。未確認の商品はおすすめに表示しません。</div>';
+  if(!document.getElementById('oddlyMarginReview'))box.insertAdjacentHTML('afterend','<div id="oddlyMarginReview"></div>');
+  renderMarginReview();
 }
 function renderToday(){renderRecommendTop()}
 function renderScanSummary(){if(!today){scanSummary.innerHTML='<div class="tiny">まだスキャン結果はありません。</div>';return}const s=today.summary||{};scanSummary.innerHTML=`<div class="summary"><div><span class="tiny">取得</span><b>${s.fetched||0}</b></div><div><span class="tiny">条件通過</span><b>${s.passed||0}</b></div><div><span class="tiny">採用</span><b>${today.products?.length||0}</b></div></div><div class="explain">除外: スコア ${s.failScore||0} / 価格 ${s.failCost||0} / 売れ筋不足 ${s.failTrend||0} / 商品タイプ ${s.failType||0} / 安全性 ${s.failRisk||0} / 粗利 ${s.failMargin||0}</div><div class="tiny" style="margin-top:7px">${esc(new Date(today.at).toLocaleString('ja-JP'))}</div>`}
