@@ -7,6 +7,7 @@ on:
       - lib/adps-net-margin.mjs
       - tests/adps-draft-pipeline-gates.test.mjs
       - tests/adps-net-margin.test.mjs
+      - tests/adps-profit-audit-readonly.test.mjs
       - .github/workflows/adps-draft-net-margin.yml
   pull_request:
     paths:
@@ -31,4 +32,4 @@ jobs:
           node --check api/shopify-publish.js
           node --check lib/adps-net-margin.mjs
       - name: Run ADPS regression tests
-        run: node --test tests/adps-draft-pipeline-gates.test.mjs tests/adps-net-margin.test.mjs
+        run: node --test tests/adps-draft-pipeline-gates.test.mjs tests/adps-net-margin.test.mjs tests/adps-profit-audit-readonly.test.mjs
