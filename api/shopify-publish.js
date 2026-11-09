@@ -711,6 +711,17 @@ export default async function handler(req,res){
     // AIO/GEO metadata is part of the publication gate. Keep the product draft
     // if Shopify rejected the metadata instead of publishing incomplete content.
     if(!metadataReady){if(formPublish)return res.redirect(303,'/?publish=error&reason=metadata');return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});}
+    // Verify persisted Shopify state, not just mutation acknowledgements.
+    // A failed read-back leaves the product in review rather than claiming success.
+    const persisted=await gql(shop,token,'query VerifyDraftPersisted($id:ID!){product(id:$id){id status variants(first:100){nodes{id sku price}pageInfo{hasNextPage}}}}',{id:ce.product.id});
+    const savedProduct=persisted?.product;
+    const savedVariants=savedProduct?.variants;
+    const savedVariant=Array.isArray(savedVariants?.nodes)?savedVariants.nodes.find(v=>v.id===variantId):null;
+    if(!savedProduct||savedProduct.status!=='DRAFT'||savedVariants?.pageInfo?.hasNextPage!==false||
+       !savedVariant||String(savedVariant.sku)!==String(cj.vid)||
+       !Number.isFinite(Number(savedVariant.price))||Number(savedVariant.price)!==price)
+      return res.status(409).json({ok:false,productId:ce.product.id,status:'UNVERIFIED',
+        error:'Shopify保存後のDRAFT・SKU・価格を照合できません。管理画面で確認してください'});
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
     if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',recommendationToDraft,metadataReady:true,safetyReady,safetyReasons,reviewEvidenceVerified:reviewsVerified,japanShippingVerified,draftProfitVerified,draftRecommendationEligible,draftProfitVerificationReason,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId,verifiedInventory:stock.total,inventoryVerifiedAt:p.inventoryVerifiedAt,minimumLaunchInventory:MIN_LAUNCH_INVENTORY});}
