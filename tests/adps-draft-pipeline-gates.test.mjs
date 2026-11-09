@@ -130,3 +130,8 @@ test('price sync verifies Shopify mutation and persisted variant before success'
  assert.match(source,/confirmed\.productVariant\.product\?\.status!==targetProduct\.status/);
  assert.match(source,/Number\(confirmed\.productVariant\.price\)!==syncPrice/);
 });
+
+test('Shopify sync refuses missing variant nodes or pagination metadata',()=>{
+ assert.match(source,/!Array\.isArray\(targetProduct\.variants\?\.nodes\)/);
+ assert.match(source,/targetProduct\.variants\?\.pageInfo\?\.hasNextPage!==false/);
+});
