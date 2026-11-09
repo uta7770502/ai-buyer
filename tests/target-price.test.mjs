@@ -58,3 +58,11 @@ test('selected-product Shopify draft preparation reconciles rounded JPY fees',()
  assert.match(block,/await autoPublishCandidate\(x\)/);
  assert.ok(block.indexOf('actualProvisionalFee!==proposal.paymentFeeJpy')<block.indexOf('await autoPublishCandidate(x)'));
 });
+
+test('draft price proposal rejects fractional or unsafe yen amounts',()=>{
+ for(const field of ['productCostJpy','shippingCostJpy','adCostPerOrderJpy','returnReserveJpy','paymentFixedFeeJpy']){
+  assert.equal(calculateTargetSalePrice({...base,[field]:1.5}).ready,false,field);
+  assert.equal(calculateTargetSalePrice({...base,[field]:Number.MAX_SAFE_INTEGER+1}).ready,false,field);
+ }
+ assert.equal(calculateTargetSalePrice({...base,productCostJpy:100000001}).ready,false);
+});
