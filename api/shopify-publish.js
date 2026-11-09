@@ -527,7 +527,7 @@ export default async function handler(req,res){
       const verified=await gql(shop,token,'query SyncTarget($id:ID!){product(id:$id){id status vendor variants(first:100){nodes{id sku} pageInfo{hasNextPage}}}}',{id:productId});
       const targetProduct=verified.product;
       if(!targetProduct||!['ODDLY','AI BUYER'].includes(String(targetProduct.vendor||'')))return res.status(403).json({ok:false,error:'ODDLY管理対象の商品ではありません'});
-      if(targetProduct.variants?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'バリエーション照合が不完全なため同期を停止します'});
+      if(!Array.isArray(targetProduct.variants?.nodes)||targetProduct.variants?.pageInfo?.hasNextPage!==false)return res.status(409).json({ok:false,error:'バリエーション照合が不完全なため同期を停止します'});
       if(syncAction==='stop'&&targetProduct.status==='DRAFT')return res.status(200).json({ok:true,sync:true,action:'stop',status:'DRAFT',alreadyStopped:true});
       if(syncAction==='price'){
         if(!/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(variantId)||!Number.isSafeInteger(syncPrice)||syncPrice<=0||syncPrice>10000000)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
