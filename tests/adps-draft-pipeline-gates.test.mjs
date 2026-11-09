@@ -32,3 +32,10 @@ test('Shopify variant price is checked after writing and draft retained on misma
   assert.match(source, /const confirmedPrice=Number\(updatedVariant\?\.price\)/);
   assert.match(source, /Shopify価格の反映確認に失敗しました。下書きを保持します。/);
 });
+
+test('DRAFT profit gate remains false until server-side settlement evidence exists',()=>{
+ assert.match(source,/const draftProfitVerified=false;/);
+ assert.match(source,/const draftRecommendationEligible=false;/);
+ assert.match(source,/if\(!draftProfitVerified\)safetyReasons\.push/);
+ assert.match(source,/draftProfitVerified,draftRecommendationEligible,draftProfitVerificationReason,livePublishEnabled/);
+});
