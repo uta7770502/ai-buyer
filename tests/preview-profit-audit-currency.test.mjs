@@ -36,3 +36,11 @@ test('payment assumptions reject unsafe rates and non-integer fee budgets',()=>{
  for(const fragment of ['configuredFeeRate<70','Number.isSafeInteger(configuredFixedFee)','Number.isSafeInteger(configuredPlatformFee)','Number.isSafeInteger(plannedAds)','Number.isSafeInteger(returnReserve)','Number.isSafeInteger(auditShippingJpy)'])assert.ok(route.includes(fragment),fragment);
  assert.ok(route.includes("paymentFeeSource:'shopify-metafield-assumptions-not-verified'"));
 });
+
+test('preflight checks authenticated Shopify shop currency without claiming fee verification',()=>{
+ assert.ok(route.includes("shopData?.shop?.currencyCode==='JPY'"));
+ assert.ok(route.includes("shopData?.shop?.myshopifyDomain===auth.shop"));
+ assert.ok(route.includes('checks.shopifyCurrencyJpyVerified=false'));
+ assert.ok(route.includes('shopifyPaymentFeeSourceConfigured:false'));
+ assert.ok(route.includes('readyForVerifiedProfit:false'));
+});
