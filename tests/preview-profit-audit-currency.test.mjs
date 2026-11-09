@@ -31,3 +31,8 @@ test('audit reads approved margin exception from server Redis but never marks fi
 test('profit audit exposes fee-inclusive 30/25/20 price scenarios without launch approval',()=>{
  for(const fragment of ['requiredSalePriceByMargin','scenarioInputsReady','configuredFeeRate/100-target/100','plannedAds+returnReserve','Math.ceil(price*configuredFeeRate/100+configuredFixedFee+configuredPlatformFee)','launchEconomicsEligible:false'])assert.ok(route.includes(fragment),fragment);
 });
+
+test('payment assumptions reject unsafe rates and non-integer fee budgets',()=>{
+ for(const fragment of ['configuredFeeRate<70','Number.isSafeInteger(configuredFixedFee)','Number.isSafeInteger(configuredPlatformFee)','Number.isSafeInteger(plannedAds)','Number.isSafeInteger(returnReserve)','Number.isSafeInteger(auditShippingJpy)'])assert.ok(route.includes(fragment),fragment);
+ assert.ok(route.includes("paymentFeeSource:'shopify-metafield-assumptions-not-verified'"));
+});
