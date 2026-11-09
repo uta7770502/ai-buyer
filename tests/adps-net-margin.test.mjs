@@ -34,7 +34,7 @@ test('unsafe payment fee totals fail closed',()=>{
 
 test('every monetary field rejects missing, negative, fractional and unsafe values',()=>{
  for(const field of ['priceYen','costYen','shippingYen','advertisingYen','returnsReserveYen','fixedFeeYen']){
-  for(const value of [undefined,null,-1,0.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1]){
+  for(const value of (['priceYen','costYen','shippingYen'].includes(field) ? [undefined,null,-1,0.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1] : [null,-1,0.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1])){
    const input={...costs,advertisingYen:0,returnsReserveYen:0,fixedFeeYen:0,[field]:value};
    assert.equal(calculateNetMargin(input).ok,false,`${field}=${String(value)}`);
    assert.equal(evaluateMarginTiers(input,verified).eligible,false,`${field}=${String(value)}`);
@@ -42,7 +42,7 @@ test('every monetary field rejects missing, negative, fractional and unsafe valu
  }
 });
 test('fee rate cannot be missing, negative, nonfinite or 100 percent',()=>{
- for(const percentageFee of [undefined,null,-0.01,1,Infinity,NaN]){
+ for(const percentageFee of [null,-0.01,1,Infinity,NaN]){
   assert.equal(calculateNetMargin({...costs,percentageFee}).ok,false,String(percentageFee));
  }
 });
@@ -53,4 +53,12 @@ test('fee rounding at 30 percent boundary never inflates margin',()=>{
  assert.equal(r.netProfitYen,31);
  assert.equal(evaluateMarginTiers(input,verified).tier,0.30);
  assert.equal(evaluateMarginTiers({...input,costYen:67},verified).tier,0.25);
+});
+
+test('omitted optional reserves and fee use zero, but never prove fee or freight evidence',()=>{
+ const minimal={priceYen:2000,costYen:1000,shippingYen:200};
+ assert.equal(calculateNetMargin(minimal).ok,true);
+ assert.equal(evaluateMarginTiers(minimal).eligible,false);
+ assert.equal(evaluateMarginTiers(minimal,{shippingEvidenceVerified:true}).eligible,false);
+ assert.equal(evaluateMarginTiers(minimal,{feeEvidenceVerified:true}).eligible,false);
 });
