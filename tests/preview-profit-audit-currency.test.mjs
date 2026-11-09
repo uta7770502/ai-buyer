@@ -44,3 +44,10 @@ test('preflight checks authenticated Shopify shop currency without claiming fee 
  assert.ok(route.includes('shopifyPaymentFeeSourceConfigured:false'));
  assert.ok(route.includes('readyForVerifiedProfit:false'));
 });
+
+test('full draft profit audit refuses foreign-currency or mismatched shops before querying products',()=>{
+ const guard=route.indexOf("if(shopInfo?.shop?.currencyCode!=='JPY'||shopInfo?.shop?.myshopifyDomain!==auth.shop)");
+ const query=route.indexOf('const data=await gql(endpoint,auth.token,query,{first:100})');
+ assert.ok(guard>0&&query>guard);
+ assert.ok(route.includes("Shopify店舗または通貨が一致しないため利益監査を停止しました"));
+});
