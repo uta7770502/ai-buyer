@@ -602,7 +602,7 @@ async function runAutoScan(silent=false){if(recommendationScanRunning)return;rec
 function recommendationsNeedRefresh(){
   const picks=Array.isArray(today?.products)?today.products:[];
   const last=today?.at?new Date(today.at).getTime():0;
-  if(today?.reviewCheckCompleted&&Number.isFinite(last)&&Date.now()-last<15*60*1000)return false;
+  if(picks.length>0&&today?.reviewCheckCompleted&&Number.isFinite(last)&&Date.now()-last<15*60*1000)return false;
   return picks.length<3||picks.some(p=>!oddlyPetRelevant(p)||!recommendationReviewReady(p))||!Number.isFinite(last)||Date.now()-last>12*60*60*1000;
 }
 function ensureRecommendations(){
