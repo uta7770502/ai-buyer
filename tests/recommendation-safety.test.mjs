@@ -75,7 +75,7 @@ test('discovery allows factory-stock candidates but verified inventory is still 
   assert.match(html,/SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=5/);
   assert.match(html,/minVerifiedInventory=0/);
   assert.match(html,/function recommendationStockReady\(p/);
-  assert.match(html,/p\.verifiedInventory\)>=5/);
+  assert.match(html,/Number\(p\.verifiedInventory\)>=5/);
   assert.match(search,/minVerifiedInventory/);
   assert.match(search,/p\.verifiedInventory>=minVerifiedInventory/);
   assert.match(search,/Variant-level CJ stock is reverified before launch/);
@@ -141,7 +141,7 @@ test('auto-excluded unprofitable products cannot re-enter recommendations throug
 test('replacement recommendations exclude auto-blocked products and require verified inventory before refill',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/function recommendationStockReady\(p/);
-  assert.match(html,/p\.verifiedInventory\)>=5/);
+  assert.match(html,/Number\(p\.verifiedInventory\)>=5/);
   assert.match(html,/const refillSafe=safe\.filter\(x=>\{const a=findActive\(x\.id\);return \(!a\|\|!a\.autoExcludedReason\)&&verifiedMarginRecommendation\(x\)\}\)/);
   assert.match(html,/在庫・レビュー・利益安全ゲート通過/);
 });
