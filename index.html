@@ -3194,11 +3194,14 @@ setTimeout(async()=>{
   const r=await fetch('/api/deployment-info',{cache:'no-store'});
   if(!r.ok)throw Error('unavailable');
   const data=await r.json();
-  if(!data.deployedAt)throw Error('missing');
+  if(!data.deployedAt){
+   el.textContent=data.commitSha?'反映版 '+data.commitSha:'更新日時は未提供';
+   return;
+  }
   const date=new Date(data.deployedAt);
   if(!Number.isFinite(date.getTime()))throw Error('invalid');
   el.textContent=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(date)+'（日本時間）';
- }catch{el.textContent='日時を取得できません'}
+ }catch{el.textContent='更新情報を確認できません'}
 })();
 
 // 利益ページの数値は自動計算のまま、手動設定のみ明示的な編集操作で解除する。
