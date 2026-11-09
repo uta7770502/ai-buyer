@@ -40,3 +40,15 @@ test('margin exception requires fresh dated traceable owner approval',()=>{
  assert.equal(assessVerifiedProductMargin({...data,marginException:{...approval,approvedAt:undefined}},{now}).approved,false);
  assert.equal(assessVerifiedProductMargin({...data,marginException:{...approval,approvedAt:new Date(now-31*86400000).toISOString()}},{now}).approved,false);
 });
+
+test('20 percent exception is SKU-scoped and cannot be reused at 25 percent',()=>{
+ const data={...input,advertising:{...input.advertising,costPerOrderJpy:850}};
+ const approval={approved:true,source:'product-specific-owner-approval',vid:input.expectedVid,threshold:20,approvedAt:at,approvalId:'approval-test-20'};
+ assert.equal(assessVerifiedProductMargin({...data,threshold:30},{now}).approved,false);
+ assert.equal(assessVerifiedProductMargin({...data,threshold:20},{now}).approved,false);
+ assert.equal(assessVerifiedProductMargin({...data,threshold:20,marginException:approval},{now}).approved,true);
+ assert.equal(assessVerifiedProductMargin({...data,threshold:25,marginException:approval},{now}).approved,false);
+ assert.equal(assessVerifiedProductMargin({...data,threshold:20,marginException:{...approval,vid:'other-variant'}},{now}).approved,false);
+ assert.equal(assessVerifiedProductMargin({...data,threshold:20,marginException:{...approval,source:'browser-approval'}},{now}).approved,false);
+ assert.equal(assessVerifiedProductMargin({...data,threshold:20,marginException:{...approval,approvedAt:new Date(now+1000).toISOString()}},{now}).approved,false);
+});
