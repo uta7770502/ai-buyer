@@ -74,7 +74,7 @@ test('freight supplier quote belongs to selected CJ variant and is never asserte
 test('explicitly non-USD CJ supplier quotes cannot be treated as USD draft cost',()=>{
  const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
  assert.match(route,/declaredPriceCurrency=String\(v\.currency\|\|v\.currencyCode\|\|v\.priceCurrency\|\|p\.currency\|\|p\.currencyCode/);
- assert.match(route,/\(!declaredPriceCurrency\|\|declaredPriceCurrency==='USD'\)/);
+ assert.match(route,/declaredPriceCurrency==='USD'/);
 });
 
 test('discovery simulation requires fresh CJ server freight and verified FX',()=>{
@@ -88,4 +88,10 @@ test('discovery simulation requires fresh CJ server freight and verified FX',()=
  assert.match(block,/freight\.shippingJpyVerified===true/);
  assert.match(block,/Date\.now\(\)-Date\.parse\(freight\.fetchedAt\)<=15\*60\*1000/);
  assert.match(block,/p\.discoveryPriceLabel='CJ選択SKU原価を使用/);
+});
+
+test('missing CJ supplier currency must not be treated as USD',()=>{
+ const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.match(route,/supplierPriceUsdVerified=typeof rawSupplierPrice!=='object'&&declaredPriceCurrency==='USD'/);
+ assert.doesNotMatch(route,/!declaredPriceCurrency\|\|declaredPriceCurrency==='USD'/);
 });
