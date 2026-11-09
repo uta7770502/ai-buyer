@@ -45,3 +45,30 @@ test('net margin is calculated after all deductions, not gross product margin', 
   assert.equal(result.verifiedContributionMarginPercent, 25);
   assert.equal(result.finalProfitVerified, true);
 });
+
+test('30/25/20 percent margin boundaries are derived from verified net costs', () => {
+  for (const [productCostJpy, expectedMargin] of [[700, 30], [800, 25], [900, 20]]) {
+    const result = verifiedProfit({ ...baseline, productCostJpy });
+    assert.equal(result.finalProfitVerified, true);
+    assert.equal(result.verifiedContributionMarginPercent, expectedMargin);
+    assert.equal(result.finalProfitJpy, 2000 * expectedMargin / 100);
+  }
+});
+
+test('a mathematically sufficient margin never overrides missing evidence', () => {
+  const highMargin = { ...baseline, productCostJpy: 0, shippingJpy: 0 };
+  for (const missing of ['costSourceVerified', 'jpShippingVerified', 'feesVerified']) {
+    const result = verifiedProfit({ ...highMargin, [missing]: false });
+    assert.equal(result.finalProfitVerified, false);
+    assert.equal(result.reason, 'verification_missing');
+  }
+});
+
+test('negative and zero net profit are never reported as positive profit', () => {
+  const zero = verifiedProfit({ ...baseline, productCostJpy: 1300 });
+  const negative = verifiedProfit({ ...baseline, productCostJpy: 1301 });
+  assert.equal(zero.finalProfitJpy, 0);
+  assert.equal(zero.reason, 'non_positive_profit');
+  assert.equal(negative.finalProfitJpy, -1);
+  assert.equal(negative.reason, 'non_positive_profit');
+});
