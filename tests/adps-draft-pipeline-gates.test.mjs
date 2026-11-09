@@ -135,3 +135,12 @@ test('Shopify sync refuses missing variant nodes or pagination metadata',()=>{
  assert.match(source,/!Array\.isArray\(targetProduct\.variants\?\.nodes\)/);
  assert.match(source,/targetProduct\.variants\?\.pageInfo\?\.hasNextPage!==false/);
 });
+
+test('stop sync requires persisted Shopify DRAFT and matching product ID',()=>{
+ const mutation=source.indexOf("'mutation UpdateProduct");
+ const readback=source.indexOf('query VerifyStoppedProduct',mutation);
+ const success=source.indexOf("action:syncAction,status",readback);
+ assert.ok(mutation>=0&&readback>mutation&&success>readback);
+ assert.match(source,/d\.productUpdate\?\.product\?\.id!==productId/);
+ assert.match(source,/statusReadback\?\.product\?\.id!==productId\|\|statusReadback\.product\.status!==status/);
+});
