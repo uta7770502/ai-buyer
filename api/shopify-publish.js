@@ -537,6 +537,13 @@ export default async function handler(req,res){
         const errs=d.productVariantsBulkUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
         return res.status(200).json({ok:true,sync:true,action:'price',price:Math.round(syncPrice)});
       }
+      // Resume must never bypass the independent review, Japan freight and
+      // settled-cost/payment-fee gates used by new product publication.
+      // No server-verified readiness record is wired to this endpoint yet.
+      if(syncAction==='resume')return res.status(409).json({
+        ok:false,publicationBlocked:true,status:targetProduct.status,
+        error:'再公開にはサーバー検証済みの安全・送料・実利益データが必要です。現在は再公開を停止しています。'
+      });
       if(syncAction==='resume'&&(!livePublishEnabled||p.resumeApproved!==true)){
         return res.status(403).json({ok:false,error:'Shopify live publishing is locked; explicit server opt-in and resume approval are required'});
       }
