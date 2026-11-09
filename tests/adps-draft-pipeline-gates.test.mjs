@@ -79,3 +79,13 @@ test('Shopify returned product must be DRAFT before variant price updates',()=>{
  const variant=source.indexOf("const variantId=ce.product.variants?.nodes?.[0]?.id");
  assert.ok(check>=0&&variant>check);
 });
+
+test('Shopify DRAFT registration performs persisted status SKU and price read-back',()=>{
+ assert.match(source,/query VerifyDraftPersisted\(\$id:ID!\)/);
+ assert.match(source,/savedProduct\.status!=='DRAFT'/);
+ assert.match(source,/String\(savedVariant\.sku\)!==String\(cj\.vid\)/);
+ assert.match(source,/Number\(savedVariant\.price\)!==price/);
+ const readBack=source.indexOf('query VerifyDraftPersisted');
+ const success=source.indexOf("published:false,status:'DRAFT',recommendationToDraft");
+ assert.ok(readBack>=0&&success>readBack);
+});
