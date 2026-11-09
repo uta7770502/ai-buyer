@@ -2894,8 +2894,12 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     x.profitAssumptionSource='provisional:ad20pct-landed+return15pct';
     x.profitAssumptionUpdatedAt=new Date().toISOString();
     x.priceEstimateOnly=true;
-    const finalMargin=(x.price*(1-feeRate/100)-cost-adCost-reserve)/x.price*100;
-    if(finalMargin+0.00001<targetMarginPercent)throw new Error('広告費・返品引当後の利益率30%を満たせません');
+    // Reconcile against the rounded-JPY payment fee used by the shared pricing engine.
+    // A floating-point fee estimate could otherwise approve a marginally underpriced draft.
+    const actualProvisionalFee=Math.ceil(x.price*feeRate/100);
+    const finalProfit=x.price-cost-adCost-reserve-actualProvisionalFee;
+    const finalMargin=finalProfit/x.price*100;
+    if(!Number.isSafeInteger(actualProvisionalFee)||finalProfit<=0||finalMargin+0.000000001<targetMarginPercent||actualProvisionalFee!==proposal.paymentFeeJpy)throw new Error('決済手数料の円単位端数を含めた利益率30%を満たせません');
     if(excludeUnprofitableCandidateAndRefill(x))return;
     x.autoSetupState='draft';
     x.autoSetupMessage='送料・売価確定。Shopify下書きを作成中';
