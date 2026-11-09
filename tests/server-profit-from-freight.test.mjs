@@ -37,3 +37,12 @@ test('20, 25 and 30 percent gates cannot be passed by rounding up',()=>{
   assert.equal(result.profitJpy,threshold*10-1);
  }
 });
+
+test('fractional payment fee is conservatively displayed as whole yen',()=>{
+ const zeroFreight={...freight,shippingCostJpy:0,options:[{name:'CJ',usd:0,jpy:0}]};
+ const input={salePriceJpy:101,productCostJpy:0,paymentFeeRatePercent:0.5,paymentFixedFeeJpy:0,adCostPerOrderJpy:0,returnReservePerOrderJpy:0};
+ const result=estimateProfitFromServerFreight(zeroFreight,input,{now,expectedVid:'v1'});
+ assert.equal(result.ready,true);
+ assert.equal(result.breakdown.paymentFeeJpy,1);
+ assert.equal(result.profitJpy,100);
+});
