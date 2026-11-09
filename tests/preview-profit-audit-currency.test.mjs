@@ -27,3 +27,7 @@ test('preflight is read-only and does not claim profit evidence readiness',()=>{
 test('audit reads approved margin exception from server Redis but never marks final economics verified',()=>{
  for(const fragment of ["import {loadMarginException} from '../server-margin-exception.js'","await loadMarginException(vid)","storedMarginException.threshold===estimatedMarginTier","marginExceptionApproved","launchEconomicsEligible:false","contributionMarginVerified=false,finalProfitVerified=false"])assert.ok(route.includes(fragment),fragment);
 });
+
+test('profit audit exposes fee-inclusive 30/25/20 price scenarios without launch approval',()=>{
+ for(const fragment of ['requiredSalePriceByMargin','scenarioInputsReady','configuredFeeRate/100-target/100','plannedAds+returnReserve','Math.ceil(price*configuredFeeRate/100+configuredFixedFee+configuredPlatformFee)','launchEconomicsEligible:false'])assert.ok(route.includes(fragment),fragment);
+});
