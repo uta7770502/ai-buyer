@@ -39,9 +39,9 @@ test('publication gate rechecks demand, product type and verified inventory',()=
   assert.match(block,/x\.trending!==true/);
   assert.match(block,/listed<SAFE_TREND_MIN_LISTINGS/);
   assert.match(block,/\['1','3','5'\]\.includes/);
-  assert.match(block,/inventory<=20/);
+  assert.match(block,/inventory<5/);
   assert.match(block,/CJ Trending未確認/);
-  assert.match(block,/検証済み在庫が少ない/);
+  assert.match(block,/検証済み在庫が5件未満/);
 });
 
 test('market monitor blocks launch on supplier suspension price spike delay and unknown state',()=>{
@@ -74,7 +74,8 @@ test('discovery allows factory-stock candidates but verified inventory is still 
   const search=fs.readFileSync(new URL('../lib/routes/cj-search.js',import.meta.url),'utf8');
   assert.match(html,/SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=5/);
   assert.match(html,/minVerifiedInventory=0/);
-  assert.match(html,/oddlyFactoryOrderState\(x\)\|\|Number\(x\.verifiedInventory\)>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
+  assert.match(html,/function recommendationStockReady\(p/);
+  assert.match(html,/p\.verifiedInventory\)>=5/);
   assert.match(search,/minVerifiedInventory/);
   assert.match(search,/p\.verifiedInventory>=minVerifiedInventory/);
   assert.match(search,/Variant-level CJ stock is reverified before launch/);
@@ -87,7 +88,8 @@ test('automatic pricing uses target 30 percent net margin while launch retains i
   assert.match(html,/targetMarginPercent=30/);
   assert.match(html,/calculateTargetSalePrice\(/);
   assert.match(html,/priceEstimateOnly=true/);
-  assert.match(html,/限界利益率25%未満/);
+  assert.match(html,/限界利益率が商品別の基準未満/);
+  assert.match(html,/if\(!verifiedMarginRecommendation\(x\)\)/);
 });
 
 
@@ -138,7 +140,8 @@ test('auto-excluded unprofitable products cannot re-enter recommendations throug
 
 test('replacement recommendations exclude auto-blocked products and require verified inventory before refill',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-  assert.match(html,/Number\(x\.verifiedInventory\)>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
+  assert.match(html,/function recommendationStockReady\(p/);
+  assert.match(html,/p\.verifiedInventory\)>=5/);
   assert.match(html,/const refillSafe=safe\.filter\(x=>\{const a=findActive\(x\.id\);return \(!a\|\|!a\.autoExcludedReason\)&&verifiedMarginRecommendation\(x\)\}\)/);
   assert.match(html,/在庫・レビュー・利益安全ゲート通過/);
 });
