@@ -42,7 +42,7 @@ test('margin exception requires fresh dated traceable owner approval',()=>{
 });
 
 test('20 percent exception is SKU-scoped and cannot be reused at 25 percent',()=>{
- const data={...input,advertising:{...input.advertising,costPerOrderJpy:850}};
+ const data={...input,advertising:{...input.advertising,costPerOrderJpy:750}};
  const approval={approved:true,source:'product-specific-owner-approval',vid:input.expectedVid,threshold:20,approvedAt:at,approvalId:'approval-test-20'};
  assert.equal(assessVerifiedProductMargin({...data,threshold:30},{now}).approved,false);
  assert.equal(assessVerifiedProductMargin({...data,threshold:20},{now}).approved,false);
