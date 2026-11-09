@@ -46,3 +46,15 @@ test('fractional JPY payment fees are rounded up before verifying target margin'
 test('price proposal rejects impossible combined payment fee and margin',()=>{
  assert.equal(calculateTargetSalePrice({...base,paymentFeeRatePercent:75,targetMarginPercent:30}).ready,false);
 });
+
+test('selected-product Shopify draft preparation reconciles rounded JPY fees',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('async function autoPrepareSelectedProduct(');
+ const end=html.indexOf('function resumeAutoPreparation(',start);
+ const block=html.slice(start,end);
+ assert.match(block,/Math\.ceil\(x\.price\*feeRate\/100\)/);
+ assert.match(block,/actualProvisionalFee!==proposal\.paymentFeeJpy/);
+ assert.match(block,/finalProfit<=0/);
+ assert.match(block,/await autoPublishCandidate\(x\)/);
+ assert.ok(block.indexOf('actualProvisionalFee!==proposal.paymentFeeJpy')<block.indexOf('await autoPublishCandidate(x)'));
+});
