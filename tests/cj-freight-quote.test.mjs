@@ -112,6 +112,6 @@ test('server profit preview never accepts browser-submitted supplier cost',()=>{
 
 test('browser-supplied cost can only yield an unverified profit preview',()=>{
  const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
- assert.match(route,/profitPreview:\{\.\.\.profit,estimateOnly:true,finalProfitVerified:false,productCostVerified:false\}/);
+ assert.match(route,/profitPreview:\{\.\.\.profit,estimateOnly:true,finalProfitVerified:false,contributionMarginVerified:false,productCostVerified:false,approvalEligible:false\}/);
  assert.doesNotMatch(route,/finalProfitVerified:true/);
 });
