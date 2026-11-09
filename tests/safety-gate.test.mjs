@@ -48,6 +48,7 @@ test('multivariant CJ products require an explicit exact variant ID',()=>{
 
 test('Shopify stop and resume verify returned product status',()=>{
  const source=readFileSync(new URL('../api/shopify-publish.js',import.meta.url),'utf8');
- assert.match(source,/d\.productUpdate\?\.product\?\.status!==status/);
- assert.match(source,/Shopify商品ステータスの反映確認に失敗しました/);
+ assert.match(source,/d\.productUpdate\?\.product\?\.id!==productId\|\|d\.productUpdate\.product\.status!==status/);
+ assert.match(source,/statusReadback\?\.product\?\.id!==productId\|\|statusReadback\.product\.status!==status/);
+ assert.match(source,/Shopify商品ID・ステータスの反映確認に失敗しました/);
 });
