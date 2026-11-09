@@ -530,8 +530,11 @@ export default async function handler(req,res){
       if(targetProduct.variants?.pageInfo?.hasNextPage)return res.status(409).json({ok:false,error:'バリエーション照合が不完全なため同期を停止します'});
       if(syncAction==='stop'&&targetProduct.status==='DRAFT')return res.status(200).json({ok:true,sync:true,action:'stop',status:'DRAFT',alreadyStopped:true});
       if(syncAction==='price'){
-        if(!/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(variantId)||!Number.isFinite(syncPrice)||syncPrice<=0)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
+        if(!/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(variantId)||!Number.isSafeInteger(syncPrice)||syncPrice<=0||syncPrice>10000000)return res.status(400).json({ok:false,error:'価格同期に必要な情報が不足しています'});
         if(!(targetProduct.variants?.nodes||[]).some(v=>v.id===variantId))return res.status(403).json({ok:false,error:'商品とバリエーションIDが一致しません'});
+        const priceShop=await gql(shop,token,'query VerifyPriceCurrency { shop { currencyCode myshopifyDomain } }');
+        if(priceShop?.shop?.currencyCode!=='JPY'||priceShop?.shop?.myshopifyDomain!==shop)
+          return res.status(409).json({ok:false,error:'Shopify店舗またはJPY通貨の検証に失敗したため価格変更を停止します'});
         if(targetProduct.status!=='DRAFT'&&(!livePublishEnabled||p.priceChangeApproved!==true))return res.status(403).json({ok:false,error:'公開中商品の価格変更にはサーバー許可と明示承認が必要です'});
         const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
         const errs=d.productVariantsBulkUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
