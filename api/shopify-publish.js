@@ -716,8 +716,9 @@ export default async function handler(req,res){
     const persisted=await gql(shop,token,'query VerifyDraftPersisted($id:ID!){product(id:$id){id status variants(first:100){nodes{id sku price}pageInfo{hasNextPage}}}}',{id:ce.product.id});
     const savedProduct=persisted?.product;
     const savedVariants=savedProduct?.variants;
-    const savedVariant=Array.isArray(savedVariants?.nodes)?savedVariants.nodes.find(v=>v.id===variantId):null;
-    if(!savedProduct||savedProduct.status!=='DRAFT'||savedVariants?.pageInfo?.hasNextPage!==false||
+    const savedMatches=Array.isArray(savedVariants?.nodes)?savedVariants.nodes.filter(v=>v?.id===variantId):[];
+    const savedVariant=savedMatches.length===1?savedMatches[0]:null;
+    if(!savedProduct||savedProduct.id!==ce.product.id||savedProduct.status!=='DRAFT'||savedVariants?.pageInfo?.hasNextPage!==false||
        !savedVariant||String(savedVariant.sku)!==String(cj.vid)||
        !Number.isFinite(Number(savedVariant.price))||Number(savedVariant.price)!==price)
       return res.status(409).json({ok:false,productId:ce.product.id,status:'UNVERIFIED',
