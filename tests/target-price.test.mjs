@@ -35,3 +35,14 @@ test('floating-point boundary never adds an unnecessary 100 yen',()=>{
  const r=calculateTargetSalePrice(base);
  assert.equal(r.priceJpy,3000);
 });
+
+test('fractional JPY payment fees are rounded up before verifying target margin',()=>{
+ const r=calculateTargetSalePrice({...base,productCostJpy:1101,paymentFixedFeeJpy:13,paymentFeeRatePercent:3.6});
+ assert.equal(r.ready,true);
+ assert.equal(r.paymentFeeJpy,Math.ceil(r.priceJpy*0.036+13));
+ assert.ok((r.priceJpy-1101-base.shippingCostJpy-base.adCostPerOrderJpy-base.returnReserveJpy-r.paymentFeeJpy)/r.priceJpy>=0.30-1e-12);
+ assert.equal(r.verifiedForPublication,false);
+});
+test('price proposal rejects impossible combined payment fee and margin',()=>{
+ assert.equal(calculateTargetSalePrice({...base,paymentFeeRatePercent:75,targetMarginPercent:30}).ready,false);
+});
