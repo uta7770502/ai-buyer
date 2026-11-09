@@ -18,3 +18,8 @@ test('audit exposes per-SKU source evidence and never promotes quotes to final p
 test('aggregate audit never labels supplier quotes as settled costs',()=>{
  for(const fragment of ['supplierQuoteChecked:','settledSupplierCostVerified:0','shopifyPaymentFeesVerified:0','finalProfitEvidenceReady:false','supplierQuoteVerified:true'])assert.ok(route.includes(fragment),fragment);
 });
+
+test('preflight is read-only and does not claim profit evidence readiness',()=>{
+ for(const fragment of ["req.query?.preflight==='1'","shopifyDraftQueryVerified:false","cjAuthenticationVerified:false","readyForVerifiedProfit:false"])assert.ok(route.includes(fragment),fragment);
+ assert.ok(route.indexOf("req.query?.preflight==='1'")>route.indexOf("Admin authorization required"));
+});
