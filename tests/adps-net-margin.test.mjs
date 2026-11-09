@@ -62,3 +62,11 @@ test('omitted optional reserves and fee use zero, but never prove fee or freight
  assert.equal(evaluateMarginTiers(minimal,{shippingEvidenceVerified:true}).eligible,false);
  assert.equal(evaluateMarginTiers(minimal,{feeEvidenceVerified:true}).eligible,false);
 });
+
+test('evidence must be explicit booleans, never truthy strings or numbers',()=>{
+ for(const value of ['true','verified',1,{},[]]){
+  assert.equal(evaluateMarginTiers(costs,{feeEvidenceVerified:value,shippingEvidenceVerified:true}).eligible,false);
+  assert.equal(evaluateMarginTiers(costs,{feeEvidenceVerified:true,shippingEvidenceVerified:value}).eligible,false);
+ }
+ assert.equal(evaluateMarginTiers(costs,{feeEvidenceVerified:true,shippingEvidenceVerified:true}).eligible,true);
+});
