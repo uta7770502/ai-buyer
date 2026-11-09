@@ -127,5 +127,6 @@ test('price sync verifies Shopify mutation and persisted variant before success'
  assert.ok(sync>=0&&mutation>sync&&readBack>mutation&&success>readBack);
  assert.match(source,/updated\.length!==1\|\|updated\[0\]\?\.id!==variantId/);
  assert.match(source,/confirmed\.productVariant\.product\?\.id!==productId/);
+ assert.match(source,/confirmed\.productVariant\.product\?\.status!==targetProduct\.status/);
  assert.match(source,/Number\(confirmed\.productVariant\.price\)!==syncPrice/);
 });
