@@ -97,3 +97,8 @@ test('persisted Shopify DRAFT must match requested product and exactly one varia
  assert.match(source,/savedVariants\?\.pageInfo\?\.hasNextPage!==false/);
  assert.match(source,/status:'UNVERIFIED'/);
 });
+
+test('single-CJ-variant draft refuses unexpected additional persisted Shopify variants',()=>{
+ assert.match(source,/const singleVariantPersisted=Array\.isArray\(savedVariants\?\.nodes\)&&savedVariants\.nodes\.length===1/);
+ assert.match(source,/!savedVariant\|\|!singleVariantPersisted\|\|String\(savedVariant\.sku\)/);
+});
