@@ -718,8 +718,9 @@ export default async function handler(req,res){
     const savedVariants=savedProduct?.variants;
     const savedMatches=Array.isArray(savedVariants?.nodes)?savedVariants.nodes.filter(v=>v?.id===variantId):[];
     const savedVariant=savedMatches.length===1?savedMatches[0]:null;
+    const singleVariantPersisted=Array.isArray(savedVariants?.nodes)&&savedVariants.nodes.length===1;
     if(!savedProduct||savedProduct.id!==ce.product.id||savedProduct.status!=='DRAFT'||savedVariants?.pageInfo?.hasNextPage!==false||
-       !savedVariant||String(savedVariant.sku)!==String(cj.vid)||
+       !savedVariant||!singleVariantPersisted||String(savedVariant.sku)!==String(cj.vid)||
        !Number.isFinite(Number(savedVariant.price))||Number(savedVariant.price)!==price)
       return res.status(409).json({ok:false,productId:ce.product.id,status:'UNVERIFIED',
         error:'Shopify保存後のDRAFT・SKU・価格を照合できません。管理画面で確認してください'});
