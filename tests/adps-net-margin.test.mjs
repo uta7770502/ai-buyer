@@ -31,3 +31,26 @@ test('unsafe payment fee totals fail closed',()=>{
  assert.equal(calculateNetMargin(huge).ok,false);
  assert.equal(evaluateMarginTiers(huge,verified).eligible,false);
 });
+
+test('every monetary field rejects missing, negative, fractional and unsafe values',()=>{
+ for(const field of ['priceYen','costYen','shippingYen','advertisingYen','returnsReserveYen','fixedFeeYen']){
+  for(const value of [undefined,null,-1,0.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1]){
+   const input={...costs,advertisingYen:0,returnsReserveYen:0,fixedFeeYen:0,[field]:value};
+   assert.equal(calculateNetMargin(input).ok,false,`${field}=${String(value)}`);
+   assert.equal(evaluateMarginTiers(input,verified).eligible,false,`${field}=${String(value)}`);
+  }
+ }
+});
+test('fee rate cannot be missing, negative, nonfinite or 100 percent',()=>{
+ for(const percentageFee of [undefined,null,-0.01,1,Infinity,NaN]){
+  assert.equal(calculateNetMargin({...costs,percentageFee}).ok,false,String(percentageFee));
+ }
+});
+test('fee rounding at 30 percent boundary never inflates margin',()=>{
+ const input={priceYen:101,costYen:66,shippingYen:0,percentageFee:0.035,fixedFeeYen:0};
+ const r=calculateNetMargin(input);
+ assert.equal(r.paymentFeeYen,4);
+ assert.equal(r.netProfitYen,31);
+ assert.equal(evaluateMarginTiers(input,verified).tier,0.30);
+ assert.equal(evaluateMarginTiers({...input,costYen:67},verified).tier,0.25);
+});
