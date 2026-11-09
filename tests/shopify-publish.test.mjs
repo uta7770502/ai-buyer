@@ -86,6 +86,7 @@ test('valid CJ product creates Shopify draft but never publishes without approva
   if(data.query.includes('ExistingProductsBySku'))return {ok:true,json:async()=>({data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}})};
   if(data.query.includes('CreateProduct'))return {ok:true,json:async()=>({data:{productCreate:{product:{id:'gid://shopify/Product/1',title:'Sample',handle:'sample',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2'}]}},userErrors:[]}}})};
   if(data.query.includes('SetAioMetafields'))return {ok:true,json:async()=>({data:{metafieldsSet:{metafields:[],userErrors:[]}}})};
+  if(data.query.includes('VerifyDraftPersisted'))return {ok:true,json:async()=>({data:{product:{id:'gid://shopify/Product/1',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2',sku:'cj-variant',price:'1200'}],pageInfo:{hasNextPage:false}}}}})};
   if(data.query.includes('UpdateVariant'))return {ok:true,json:async()=>({data:{productVariantsBulkUpdate:{productVariants:[{id:'gid://shopify/ProductVariant/2',price:'1200'}],userErrors:[]}}})};
   throw Error('Unexpected Shopify mutation');
  };
@@ -143,6 +144,7 @@ test('single matching CJ SKU draft is updated rather than creating a duplicate',
   if(req.query.includes('ExistingProductsBySku'))return {ok:true,json:async()=>({data:{products:{nodes:[{id:'gid://shopify/Product/1',status:'DRAFT',vendor:'AI BUYER',variants:{nodes:[{sku:'cj-variant'}],pageInfo:{hasNextPage:false}}}],pageInfo:{hasNextPage:false}}}})};
   if(req.query.includes('RefreshDraft'))return {ok:true,json:async()=>({data:{productUpdate:{product:{id:'gid://shopify/Product/1',title:'Updated',handle:'updated',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2'}]}},userErrors:[]}}})};
   if(req.query.includes('SetAioMetafields'))return {ok:true,json:async()=>({data:{metafieldsSet:{metafields:[],userErrors:[]}}})};
+  if(req.query.includes('VerifyDraftPersisted'))return {ok:true,json:async()=>({data:{product:{id:'gid://shopify/Product/1',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2',sku:'cj-variant',price:'1200'}],pageInfo:{hasNextPage:false}}}}})};
   if(req.query.includes('UpdateVariant'))return {ok:true,json:async()=>({data:{productVariantsBulkUpdate:{productVariants:[{id:'gid://shopify/ProductVariant/2',price:'1200'}],userErrors:[]}}})};
   throw Error('Unexpected Shopify request');
  };
@@ -501,6 +503,7 @@ test('successful Shopify draft sends server-verified CJ inventory evidence as me
   const data=JSON.parse(opts.body);
   if(data.query.includes('ExistingProductsBySku'))return {ok:true,json:async()=>({data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}})};
   if(data.query.includes('CreateProduct'))return {ok:true,json:async()=>({data:{productCreate:{product:{id:'gid://shopify/Product/1',title:'Sample',handle:'sample',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2'}]}},userErrors:[]}}})};
+  if(data.query.includes('VerifyDraftPersisted'))return {ok:true,json:async()=>({data:{product:{id:'gid://shopify/Product/1',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2',sku:'cj-variant',price:'1200'}],pageInfo:{hasNextPage:false}}}}})};
   if(data.query.includes('UpdateVariant'))return {ok:true,json:async()=>({data:{productVariantsBulkUpdate:{productVariants:[{id:'gid://shopify/ProductVariant/2',price:'1200'}],userErrors:[]}}})};
   if(data.query.includes('SetAioMetafields')){
     metafields.push(...data.variables.metafields);
@@ -552,6 +555,7 @@ test('client-supplied inventory cannot override server-verified CJ stock',async(
   const data=JSON.parse(opts.body);
   if(data.query.includes('ExistingProductsBySku'))return {ok:true,json:async()=>({data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}})};
   if(data.query.includes('CreateProduct'))return {ok:true,json:async()=>({data:{productCreate:{product:{id:'gid://shopify/Product/1',title:'Sample',handle:'sample',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2'}]}},userErrors:[]}}})};
+  if(data.query.includes('VerifyDraftPersisted'))return {ok:true,json:async()=>({data:{product:{id:'gid://shopify/Product/1',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2',sku:'cj-variant',price:'1200'}],pageInfo:{hasNextPage:false}}}}})};
   if(data.query.includes('UpdateVariant'))return {ok:true,json:async()=>({data:{productVariantsBulkUpdate:{productVariants:[{id:'gid://shopify/ProductVariant/2',price:'1200'}],userErrors:[]}}})};
   if(data.query.includes('SetAioMetafields')){
     metafields.push(...data.variables.metafields);
