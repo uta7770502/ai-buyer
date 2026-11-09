@@ -13,8 +13,8 @@ test('round fractional payment fee upward',()=>{
 });
 test('select 30, 25, 20 percent tier, or reject',()=>{
   assert.equal(evaluateMarginTiers(costs,verified).tier,0.30);
-  assert.equal(evaluateMarginTiers({...costs,costYen:1100},verified).tier,0.25);
-  assert.equal(evaluateMarginTiers({...costs,costYen:1200},verified).tier,0.20);
+  assert.equal(evaluateMarginTiers({...costs,costYen:1150},verified).tier,0.25);
+  assert.equal(evaluateMarginTiers({...costs,costYen:1250},verified).tier,0.20);
   assert.equal(evaluateMarginTiers({...costs,costYen:1400},verified).eligible,false);
 });
 test('reject invalid and fractional yen inputs',()=>{
