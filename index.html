@@ -593,6 +593,10 @@ async function inspectDiscoveryVariantStock(pool){
    const variants=detail?.product?.variants;
    if(!detailResponse.ok||!detail.ok||!Array.isArray(variants)||variants.length!==1){p.discoveryStockLabel='バリエーション確認が必要';continue;}
    const vid=String(variants[0].id||'');
+   const supplierQuote=Array.isArray(detail.product.quoteEvidence)?detail.product.quoteEvidence.find(q=>String(q?.vid)===vid):null;
+   p.discoverySupplierQuote=supplierQuote?.quoteCurrencyVerified===true&&supplierQuote.currency==='USD'&&Number.isFinite(supplierQuote.quotedAmount)&&supplierQuote.quotedAmount>0?supplierQuote:null;
+   p.discoveryPriceLabel=p.discoverySupplierQuote?'CJ仕入見積 '+p.discoverySupplierQuote.quotedAmount.toFixed(2)+' USD（確定原価ではありません）':'CJ仕入見積の通貨・金額未確認';
+
    if(!/^\d{10,25}$/.test(vid)){p.discoveryStockLabel='在庫確認対象外';continue;}
    const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(vid),{signal:AbortSignal.timeout(12000)});
    const stock=await response.json();
@@ -613,7 +617,7 @@ async function inspectDiscoveryVariantStock(pool){
       p.discoveryVerificationLabel=freight.supplierPriceUsdVerified===true?'CJ選択SKU見積あり（確定原価ではありません）':'CJ選択SKUの通貨・原価未確認';
       // Show a transparent pricing simulation only. CJ search prices and assumed fees
       // are not verified final contribution margins and must not pass the safety gate.
-      const supplierUsd=freight.supplierPriceUsdVerified===true&&freight.supplierPriceSource==='cj-selected-variant'?Number(freight.supplierPriceUsd):NaN;
+      const supplierUsd=freight.supplierPriceUsdVerified===true&&freight.supplierPriceSource==='cj-selected-variant'&&p.discoverySupplierQuote&&Math.abs(Number(freight.supplierPriceUsd)-p.discoverySupplierQuote.quotedAmount)<0.000001?Number(freight.supplierPriceUsd):NaN;
       const fx=Number(freight.usdJpyRate);
       if(Number.isFinite(supplierUsd)&&supplierUsd>0&&Number.isFinite(fx)&&fx>0){
        const productCostJpy=Math.ceil(supplierUsd*fx);
@@ -623,8 +627,9 @@ async function inspectDiscoveryVariantStock(pool){
        const {calculateTargetSalePrice}=await import('./lib/target-price.js');
        const proposal=calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent:30,shippingVerified:true});
        if(proposal.ready&&Number.isSafeInteger(proposal.priceJpy)&&proposal.priceJpy>0&&proposal.priceJpy<=10000000){
-        p.discoveryPriceLabel='CJ選択SKU原価を使用・利益率30%想定の試算売価 '+proposal.priceJpy.toLocaleString('ja-JP')+'円（原価・広告費など未確定）';
+        p.discoveryPriceLabel='CJ見積と送料を照合・利益率30%想定の試算売価 '+proposal.priceJpy.toLocaleString('ja-JP')+'円（原価・広告費など未確定）';
        }
+      }else if(freight.supplierPriceUsdVerified===true)p.discoveryPriceLabel='CJ商品詳細と送料見積の仕入価格が一致しません。価格試算を保留';
       }
      }else p.discoveryFreightLabel='送料確認待ち';
     }catch{p.discoveryFreightLabel='送料確認失敗';}
