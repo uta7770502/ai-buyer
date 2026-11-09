@@ -271,3 +271,16 @@ test('ADPS Shopify live publication stays disabled until explicit launch authori
  const handler=html.slice(start,html.indexOf('\n});',start)+4);
  assert.doesNotMatch(handler,/fetch\(|resumeApproved|syncAction/);
 });
+
+test('recommendation preview reconciles matching CJ SKU quotes and remains non-publishable',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('async function inspectDiscoveryVariantStock');
+ const end=html.indexOf('function renderDiscoveryPreview',start);
+ const block=html.slice(start,end);
+ assert.match(block,/detail\.product\.quoteEvidence/);
+ assert.match(block,/String\(q\?\.vid\)===vid/);
+ assert.match(block,/quoteCurrencyVerified===true/);
+ assert.match(block,/Math\.abs\(Number\(freight\.supplierPriceUsd\)-p\.discoverySupplierQuote\.quotedAmount\)<0\.000001/);
+ assert.match(block,/価格試算を保留/);
+ assert.match(html,/販売候補への追加・公開はできません/);
+});
