@@ -682,6 +682,8 @@ export default async function handler(req,res){
     const petType=category||(/\b(cat|dog|pet|puppy|kitten|carrier)\b/i.test(title)?'Pet Supplies':'');
     let ce;
     if(existing){
+      if(existing.variants.nodes.length!==1||String(existing.variants.nodes[0]?.sku)!==String(cj.vid))
+        return res.status(409).json({ok:false,error:'既存DRAFTに想定外のバリエーションがあります。変更せずShopifyで確認してください。'});
       ce={product:existing,userErrors:[]};
       // Existing draft media is preserved: re-submitting the same images creates duplicates.
       const media=[];
