@@ -595,13 +595,14 @@ async function inspectDiscoveryVariantStock(pool){
    if(!/^\d{10,25}$/.test(vid)){p.discoveryStockLabel='在庫確認対象外';continue;}
    const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(vid),{signal:AbortSignal.timeout(12000)});
    const stock=await response.json();
-   if(!response.ok||stock.ok!==true||String(stock.vid)!==vid||!Number.isSafeInteger(stock.verifiedInventory)||stock.verifiedInventory<0){p.discoveryStockLabel='在庫確認失敗';continue;}
+   const stockCheckedAt=Date.parse(stock?.verifiedAt||'');
+   if(!response.ok||stock.ok!==true||stock.readOnly!==true||String(stock.vid)!==vid||!Number.isSafeInteger(stock.verifiedInventory)||stock.verifiedInventory<0||!Number.isFinite(stockCheckedAt)||stockCheckedAt>Date.now()||Date.now()-stockCheckedAt>15*60*1000){p.discoveryStockLabel='在庫確認失敗・再検証が必要';continue;}
    p.verifiedInventory=stock.verifiedInventory;
    p.variantInventoryVerified=true;
    p.variantInventoryVerifiedAt=String(stock.verifiedAt||'');
    p.verifiedVariantId=vid;
    p.discoveryStockLabel='CJ在庫 '+stock.verifiedInventory+'件（'+(stock.launchEligible?'在庫基準達成':'在庫不足')+'）';
-   if(stock.launchEligible){
+   if(stock.launchEligible===true&&stock.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY){
     p.discoveryFreightLabel='送料未確認';
     try{
      const freightResponse=await fetch('/api/cj-freight?id='+encodeURIComponent(p.id)+'&vid='+encodeURIComponent(vid)+'&destination=JP',{signal:AbortSignal.timeout(20000)});
