@@ -95,3 +95,11 @@ test('missing CJ supplier currency must not be treated as USD',()=>{
  assert.match(route,/supplierPriceUsdVerified=typeof rawSupplierPrice!=='object'&&declaredPriceCurrency==='USD'/);
  assert.doesNotMatch(route,/!declaredPriceCurrency\|\|declaredPriceCurrency==='USD'/);
 });
+
+
+test('CJ freight options with explicit non-USD currency cannot be converted as USD',()=>{
+ const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.match(route,/declaredCurrency=String\(x\.currency\|\|x\.currencyCode\|\|x\.priceCurrency\|\|''\)/);
+ assert.match(route,/currencyCompatible:!declaredCurrency\|\|declaredCurrency==='USD'/);
+ assert.match(route,/\.filter\(x=>x\.currencyCompatible&&Number\.isFinite\(x\.usd\)/);
+});
