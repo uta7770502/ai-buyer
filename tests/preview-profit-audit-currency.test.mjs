@@ -12,7 +12,7 @@ test('read-only CJ freight audit accepts only explicit USD quote options',()=>{
 });
 
 test('audit exposes per-SKU source evidence and never promotes quotes to final profit',()=>{
- for(const fragment of ["settledCostVerified:false","paymentFees:{source:'shopify-metafield-assumptions',verified:false}","recommendationEligible:false","finalProfitEvidenceReady:false","profitEvidence,salePriceJpy:"])assert.ok(route.includes(fragment),fragment);
+ for(const fragment of ["settledCostVerified:false","paymentFees:{source:'shopify-metafield-assumptions',verified:false}","recommendationEligible:false","finalProfitEvidenceReady:false","profitEvidence,supplierQuoteVerified:true"])assert.ok(route.includes(fragment),fragment);
 });
 
 test('aggregate audit never labels supplier quotes as settled costs',()=>{
