@@ -16,3 +16,13 @@ test('expired quote and absent FX verification are blocked',()=>{
  assert.equal(estimateProfitFromServerFreight({...freight,fetchedAt:new Date(now-3600000).toISOString()},costs,{now,expectedVid:'v1'}).ready,false);
  assert.equal(estimateProfitFromServerFreight({...freight,fxVerified:false},costs,{now,expectedVid:'v1'}).ready,false);
 });
+
+test('margin near 30% must not round up into a 30% recommendation',()=>{
+ const nearThreshold={salePriceJpy:1000,productCostJpy:600,paymentFeeRatePercent:0,paymentFixedFeeJpy:0,adCostPerOrderJpy:100.05,returnReservePerOrderJpy:0};
+ const zeroFreight={...freight,shippingCostJpy:0,options:[{name:'CJ',usd:0,jpy:0}]};
+ const result=estimateProfitFromServerFreight(zeroFreight,nearThreshold,{now,expectedVid:'v1'});
+ assert.equal(result.ready,true);
+ assert.equal(result.profitJpy,299);
+ assert.equal(result.marginPercent,29.9);
+ assert.ok(result.marginPercent<30);
+});
