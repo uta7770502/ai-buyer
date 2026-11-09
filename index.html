@@ -540,45 +540,23 @@ function saveRules(){rules=readRules();localStorage.setItem('aiBuyerRules',JSON.
 function hydrateRules(){rules.minListed=Math.max(SAFE_TREND_MIN_LISTINGS,Number(rules.minListed)||SAFE_TREND_MIN_LISTINGS);ruleScore.value=rules.minScore;ruleMaxCost.value=rules.maxCost;ruleListed.value=rules.minListed;ruleMargin.value=rules.minMargin;ruleCount.value=rules.count;ruleDaily.value=rules.daily}
 function evaluateRule(p){const m=p._m||metrics(p);const safeTrend=Boolean(p.trending)&&Number(p.listedNum||0)>=Math.max(SAFE_TREND_MIN_LISTINGS,rules.minListed);const safeType=!['1','3','5'].includes(String(p.productType??''));const risk=catalogRisk(p);const checks=[['AIスコア',m.score>=rules.minScore,`${m.score} / ${rules.minScore}以上`],['CJ価格',m.cost<=rules.maxCost,`${usd(m.cost)} / ${usd(rules.maxCost)}以下`],['売れ筋シグナル',safeTrend,`CJ Trending + 掲載${Number(p.listedNum||0)}件`],['安全な商品タイプ',safeType,`type ${String(p.productType||'0')}`],['安全性',!risk.exclude, risk.label],['粗利率',m.margin*100>=rules.minMargin,`${Math.round(m.margin*100)}% / ${rules.minMargin}%以上`]];return {pass:checks.every(x=>x[1]),checks,m}}
 function dedupe(arr){const seen=new Set();return arr.filter(x=>{const k=String(x.id||x.sku);if(!k||seen.has(k))return false;seen.add(k);return true})}
-async function addTestCatalogProducts(){
-  const status=document.getElementById('testCatalogStatus');
-  const queries=['kitchen','home','gadget','outdoor','storage','office'];
-  if(status)status.textContent='CJからテスト商品を選定中…';
-  const picked=[];
-  try{
-    for(const qv of queries){
-      const r=await fetch('/api/cj-search?q='+encodeURIComponent(qv)+'&page=1&size=8');
-      const j=await r.json();
-      if(!r.ok||!j.ok||!Array.isArray(j.products))continue;
-      const ranked=j.products
-        .filter(p=>!active.some(x=>String(x.id)===String(p.id)))
-        .filter(p=>!/(?:\bcat\b|\bkitten\b|\bfeline\b|猫|ネコ|ねこ)/i.test(String(p.name||p.title||'')))
-        .filter(p=>!picked.some(x=>String(x.id)===String(p.id)))
-        .filter(p=>!catalogRisk(p).exclude)
-        .map(p=>({p,m:metrics(p)}))
-        .filter(x=>x.m.cost>0&&x.m.cost<=35)
-        .sort((a,b)=>b.m.score-a.m.score);
-      if(ranked[0])picked.push(ranked[0].p);
-      if(picked.length>=5)break;
-      await waitMs(1150);
-    }
-    if(!picked.length){
-      if(status)status.textContent='追加できる安全なCJ商品が見つかりませんでした。';
-      return;
-    }
-    for(let i=0;i<picked.length;i++){
-      const p=picked[i],m=metrics(p);
-      const x={...p,costUsd:m.cost,price:m.sell,qty:12,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'queued',testCatalogSeed:true};
-      active.push(x);save();renderAll();
-      if(status)status.textContent='テスト商品 '+(i+1)+' / '+picked.length+' をShopify下書き準備中…';
-      try{await autoPrepareSelectedProduct(x)}catch{}
-      await new Promise(resolve=>setTimeout(resolve,900));
-    }
-    save();renderAll();
-    if(status)status.textContent='テスト商品 '+picked.length+'点を追加しました。公開はせず、Shopify下書きで準備しています。';
-  }catch(e){
-    if(status)status.textContent='テスト商品の追加に失敗しました: '+String(e?.message||e);
-  }
+async async function addTestCatalogProducts(){
+ const status=document.getElementById('testCatalogStatus');
+ if(status)status.textContent='安全審査済みのペット関連商品だけを確認中…';
+ const eligible=orderedRecommendedProducts().filter(p=>oddlyPetRelevant(p)&&recommendationReviewReady(p)&&recommendationStockReady(p)&&verifiedMarginRecommendation(p)&&!catalogRisk(p).exclude&&!active.some(x=>String(x.id)===String(p.id))).slice(0,5);
+ if(!eligible.length){
+  if(status)status.textContent='追加可能な審査済み商品はありません。在庫・レビュー・送料・最終利益の確認を待っています。';
+  return;
+ }
+ let added=0;
+ for(const p of eligible){
+  if(!recommendationStockReady(p)||!verifiedMarginRecommendation(p))continue;
+  const m=metrics(p);
+  const x={...p,costUsd:m.cost,price:m.sell,qty:12,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',autoSetupState:'queued',testCatalogSeed:true};
+  active.push(x);save();renderAll();added++;
+  try{await autoPrepareSelectedProduct(x)}catch{}
+ }
+ if(status)status.textContent=added+'件を安全審査済みの販売候補として追加しました。公開はしていません。';
 }
 function renderMarginReview(){
  const container=document.getElementById('oddlyMarginReview');
@@ -644,7 +622,7 @@ function renderDiscoveryPreview(pool){
 function renderToday(){renderRecommendTop()}
 function renderScanSummary(){if(!today){scanSummary.innerHTML='<div class="tiny">まだスキャン結果はありません。</div>';return}const s=today.summary||{};scanSummary.innerHTML=`<div class="summary"><div><span class="tiny">取得</span><b>${s.fetched||0}</b></div><div><span class="tiny">条件通過</span><b>${s.passed||0}</b></div><div><span class="tiny">採用</span><b>${today.products?.length||0}</b></div></div><div class="explain">除外: スコア ${s.failScore||0} / 価格 ${s.failCost||0} / 売れ筋不足 ${s.failTrend||0} / 商品タイプ ${s.failType||0} / 安全性 ${s.failRisk||0} / 粗利 ${s.failMargin||0}</div><div class="tiny" style="margin-top:7px">${esc(new Date(today.at).toLocaleString('ja-JP'))}</div>`}
 function oddlyPetRelevant(p){const name=String(p.name||'').toLowerCase();const category=String(p.categoryName||p.category||'').toLowerCase();const pet=/\b(pet|pets|dog|dogs|puppy|puppies|cat|cats|kitten|kittens|feline|canine|aquarium|hamster|rabbit|bird cage|litter|leash|collar|harness|grooming|paw|pet feeder|pet bowl)\b|ペット|犬|猫|小動物/.test(name+' '+category);const unrelated=/sewer|drain|dredg|juicer|blender|kitchen mixer|hair cleaner|plumbing|sink unclog/.test(name);return pet&&!unrelated}
-async function runAutoScan(silent=false){if(recommendationScanRunning)return;recommendationScanRunning=true;if(!watch.length){watch=['pet','dog','cat'];saveWatch()}rules=readRules();localStorage.setItem('aiBuyerRules',JSON.stringify(rules));try{if(!silent)autoStatus.textContent='自動探索中…';let pool=[];const searchErrors=[];let successfulSearches=0;for(const kw of ['pet dog','pet cat','dog toy','cat toy','pet grooming','dog leash','cat bed','cat mug','dog print home decor','cat themed gift']){try{if(pool.length||kw!==watch[0])await waitMs(1150);const r=await fetch(`/api/cj-search?q=${encodeURIComponent(kw)}&page=1&size=20&trending=1&minListed=${Math.max(SAFE_TREND_MIN_LISTINGS,rules.minListed)}&minVerifiedInventory=0`);const j=await r.json();if(!r.ok||!j.ok){searchErrors.push(String(j.error||j.message||'CJ検索エラー').slice(0,120));continue;}successfulSearches++;const arr=(j.products||[]).map(x=>({...x,_kw:kw,_m:metrics(x)}));const passed=arr.filter(x=>evaluateRule(x).pass&&!catalogRisk(x).exclude).length;pool.push(...arr);const top=arr.length?Math.max(...arr.map(x=>x._m.score)):0;addHistory(kw,arr.length,top,passed)}catch(e){searchErrors.push(String(e?.message||'通信エラー').slice(0,120));}}pool=dedupe(pool).sort((a,b)=>b._m.score-a._m.score);const evaluated=pool.map(p=>({...p,_rule:evaluateRule(p)}));const passed=evaluated.filter(x=>oddlyPetRelevant(x)&&x._rule.pass&&!catalogRisk(x).exclude);await enrichRiskList(passed,10);await inspectDiscoveryVariantStock(passed);const safe=passed.filter(x=>recommendationReviewReady(x)&&!catalogRisk(x).exclude&&recommendationStockReady(x));const refillSafe=safe.filter(x=>{const a=findActive(x.id);return (!a||!a.autoExcludedReason)&&verifiedMarginRecommendation(x)});const chosen=refillSafe.slice(0,rules.count).map(({_rule,...x})=>x);const summary={searchesOk:successfulSearches,searchesFailed:searchErrors.length,searchError:searchErrors[0]||'',fetched:pool.length,passed:refillSafe.length,petEligible:passed.length,reviewVerified:passed.filter(recommendationReviewReady).length,stockEligible:passed.filter(x=>recommendationReviewReady(x)&&(oddlyFactoryOrderState(x)||Number(x.verifiedInventory)>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY)).length,finalProfitVerified:safe.filter(verifiedMarginRecommendation).length,failScore:evaluated.filter(x=>!x._rule.checks[0][1]).length,failCost:evaluated.filter(x=>!x._rule.checks[1][1]).length,failTrend:evaluated.filter(x=>!x._rule.checks[2][1]).length,failType:evaluated.filter(x=>!x._rule.checks[3][1]).length,failRisk:evaluated.filter(x=>!x._rule.checks[4][1]).length,failMargin:evaluated.filter(x=>!x._rule.checks[5][1]).length};today={at:new Date().toISOString(),products:chosen,summary,reviewCheckCompleted:true};if(!chosen.length)lastEmptyRecommendationScanAt=Date.now();localStorage.setItem('aiBuyerToday',JSON.stringify(today));results=refillSafe.slice(0,40);filtered=results;countLabel.textContent=`条件通過 ${refillSafe.length}件`;renderToday();renderDiscoveryPreview(pool);renderScanSummary();if(!silent){showPage('recommend');applyFilters();autoStatus.textContent=`検索成功 ${successfulSearches}/10回 / 取得 ${pool.length}件 / 基本条件 ${passed.length}件 / レビュー確認 ${summary.reviewVerified}件 / 在庫条件 ${summary.stockEligible}件 / 最終利益確認 ${summary.finalProfitVerified}件 / 推薦 ${chosen.length}件。${searchErrors.length?'検索エラー: '+searchErrors[0]:''} 在庫・レビュー・利益安全ゲート通過商品のみ推薦。未確認商品は公開不可。`;}}catch(e){const message=String(e?.message||'探索処理エラー').slice(0,180);if(!silent)autoStatus.textContent='探索に失敗しました: '+message;const box=document.getElementById('recommendTopPicks');if(box)box.textContent='商品探索エラー: '+message;}finally{recommendationScanRunning=false}}
+async function runAutoScan(silent=false){if(recommendationScanRunning)return;recommendationScanRunning=true;if(!watch.length){watch=['pet','dog','cat'];saveWatch()}rules=readRules();localStorage.setItem('aiBuyerRules',JSON.stringify(rules));try{if(!silent)autoStatus.textContent='自動探索中…';let pool=[];const searchErrors=[];let successfulSearches=0;for(const kw of ['pet dog','pet cat','dog toy','cat toy','pet grooming','dog leash','cat bed','cat mug','dog print home decor','cat themed gift']){try{if(pool.length||kw!==watch[0])await waitMs(1150);const r=await fetch(`/api/cj-search?q=${encodeURIComponent(kw)}&page=1&size=20&trending=1&minListed=${Math.max(SAFE_TREND_MIN_LISTINGS,rules.minListed)}&minVerifiedInventory=0`);const j=await r.json();if(!r.ok||!j.ok){searchErrors.push(String(j.error||j.message||'CJ検索エラー').slice(0,120));continue;}successfulSearches++;const arr=(j.products||[]).map(x=>({...x,_kw:kw,_m:metrics(x)}));const passed=arr.filter(x=>evaluateRule(x).pass&&!catalogRisk(x).exclude).length;pool.push(...arr);const top=arr.length?Math.max(...arr.map(x=>x._m.score)):0;addHistory(kw,arr.length,top,passed)}catch(e){searchErrors.push(String(e?.message||'通信エラー').slice(0,120));}}pool=dedupe(pool).sort((a,b)=>b._m.score-a._m.score);const evaluated=pool.map(p=>({...p,_rule:evaluateRule(p)}));const passed=evaluated.filter(x=>oddlyPetRelevant(x)&&x._rule.pass&&!catalogRisk(x).exclude);await enrichRiskList(passed,10);await inspectDiscoveryVariantStock(passed);const safe=passed.filter(x=>recommendationReviewReady(x)&&!catalogRisk(x).exclude&&recommendationStockReady(x));const refillSafe=safe.filter(x=>{const a=findActive(x.id);return (!a||!a.autoExcludedReason)&&verifiedMarginRecommendation(x)});const chosen=refillSafe.slice(0,rules.count).map(({_rule,...x})=>x);const summary={searchesOk:successfulSearches,searchesFailed:searchErrors.length,searchError:searchErrors[0]||'',fetched:pool.length,passed:refillSafe.length,petEligible:passed.length,reviewVerified:passed.filter(recommendationReviewReady).length,stockEligible:passed.filter(x=>recommendationReviewReady(x)&&recommendationStockReady(x)).length,finalProfitVerified:safe.filter(verifiedMarginRecommendation).length,failScore:evaluated.filter(x=>!x._rule.checks[0][1]).length,failCost:evaluated.filter(x=>!x._rule.checks[1][1]).length,failTrend:evaluated.filter(x=>!x._rule.checks[2][1]).length,failType:evaluated.filter(x=>!x._rule.checks[3][1]).length,failRisk:evaluated.filter(x=>!x._rule.checks[4][1]).length,failMargin:evaluated.filter(x=>!x._rule.checks[5][1]).length};today={at:new Date().toISOString(),products:chosen,summary,reviewCheckCompleted:true};if(!chosen.length)lastEmptyRecommendationScanAt=Date.now();localStorage.setItem('aiBuyerToday',JSON.stringify(today));results=refillSafe.slice(0,40);filtered=results;countLabel.textContent=`条件通過 ${refillSafe.length}件`;renderToday();renderDiscoveryPreview(pool);renderScanSummary();if(!silent){showPage('recommend');applyFilters();autoStatus.textContent=`検索成功 ${successfulSearches}/10回 / 取得 ${pool.length}件 / 基本条件 ${passed.length}件 / レビュー確認 ${summary.reviewVerified}件 / 在庫条件 ${summary.stockEligible}件 / 最終利益確認 ${summary.finalProfitVerified}件 / 推薦 ${chosen.length}件。${searchErrors.length?'検索エラー: '+searchErrors[0]:''} 在庫・レビュー・利益安全ゲート通過商品のみ推薦。未確認商品は公開不可。`;}}catch(e){const message=String(e?.message||'探索処理エラー').slice(0,180);if(!silent)autoStatus.textContent='探索に失敗しました: '+message;const box=document.getElementById('recommendTopPicks');if(box)box.textContent='商品探索エラー: '+message;}finally{recommendationScanRunning=false}}
 function recommendationsNeedRefresh(){
   const picks=Array.isArray(today?.products)?today.products:[];
   const last=today?.at?new Date(today.at).getTime():0;
