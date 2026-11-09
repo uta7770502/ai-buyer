@@ -39,3 +39,10 @@ test('DRAFT profit gate remains false until server-side settlement evidence exis
  assert.match(source,/if\(!draftProfitVerified\)safetyReasons\.push/);
  assert.match(source,/draftProfitVerified,draftRecommendationEligible,draftProfitVerificationReason,livePublishEnabled/);
 });
+
+test('resume cannot activate a DRAFT without server-verified readiness',()=>{
+ const guard=source.indexOf("if(syncAction==='resume')return res.status(409)");
+ const activate=source.indexOf("const status=syncAction==='stop'?'DRAFT':'ACTIVE'");
+ assert.ok(guard>=0&&activate>guard);
+ assert.match(source,/publicationBlocked:true,status:targetProduct.status/);
+});
