@@ -25,3 +25,13 @@ test('verified margin tiers are derived from trusted evidence, never client clai
  assert.equal(rejected.verifiedMarginEligible,false);
  assert.equal(rejected.verifiedMarginTier,null);
 });
+
+test('verified JPY profit refuses fractional yen and unsafe cost totals',()=>{
+ const forged={...base,verifiedMarginEligible:true,verifiedMarginTier:30};
+ for(const patch of [{paymentFeeJpy:1.5},{productCostJpy:Number.MAX_SAFE_INTEGER},{salePriceJpy:Number.MAX_SAFE_INTEGER,shippingJpy:1000}]){
+   const result=applyVerifiedProfit(forged,{...evidence(),...patch});
+   assert.equal(result.finalProfitVerified,false,JSON.stringify(patch));
+   assert.equal(result.verifiedMarginEligible,false);
+   assert.equal(result.verifiedMarginTier,null);
+ }
+});
