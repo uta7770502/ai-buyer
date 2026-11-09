@@ -30,6 +30,7 @@ test('live activation requires a separate server-side environment gate', () => {
 
 test('Shopify variant price is checked after writing and draft retained on mismatch', () => {
   assert.match(source, /const confirmedPrice=Number\(updatedVariant\?\.price\)/);
+  assert.match(source, /!Number\.isSafeInteger\(confirmedPrice\)\|\|confirmedPrice!==price/);
   assert.match(source, /Shopify価格の反映確認に失敗しました。下書きを保持します。/);
 });
 
