@@ -538,7 +538,13 @@ export default async function handler(req,res){
         if(targetProduct.status!=='DRAFT'&&(!livePublishEnabled||p.priceChangeApproved!==true))return res.status(403).json({ok:false,error:'公開中商品の価格変更にはサーバー許可と明示承認が必要です'});
         const d=await gql(shop,token,'mutation UpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId:$productId, variants:$variants) { productVariants { id price } userErrors { field message } } }',{productId,variants:[{id:variantId,price:String(Math.round(syncPrice))}]});
         const errs=d.productVariantsBulkUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
-        return res.status(200).json({ok:true,sync:true,action:'price',price:Math.round(syncPrice)});
+        const updated=d.productVariantsBulkUpdate?.productVariants;
+        if(!Array.isArray(updated)||updated.length!==1||updated[0]?.id!==variantId||Number(updated[0]?.price)!==syncPrice)
+          return res.status(409).json({ok:false,sync:true,action:'price',error:'Shopify価格同期の応答を照合できません。再確認してください。'});
+        const confirmed=await gql(shop,token,'query VerifySyncedPrice($id:ID!){productVariant(id:$id){id price product{id status}}}',{id:variantId});
+        if(confirmed?.productVariant?.id!==variantId||confirmed.productVariant.product?.id!==productId||!Number.isSafeInteger(Number(confirmed.productVariant.price))||Number(confirmed.productVariant.price)!==syncPrice)
+          return res.status(409).json({ok:false,sync:true,action:'price',error:'Shopify保存後の価格を照合できません。再確認してください。'});
+        return res.status(200).json({ok:true,sync:true,action:'price',price:syncPrice});
       }
       // Resume must never bypass the independent review, Japan freight and
       // settled-cost/payment-fee gates used by new product publication.
