@@ -103,3 +103,9 @@ test('CJ freight options with explicit non-USD currency cannot be converted as U
  assert.match(route,/currencyCompatible:!declaredCurrency\|\|declaredCurrency==='USD'/);
  assert.match(route,/\.filter\(x=>x\.currencyCompatible&&Number\.isFinite\(x\.usd\)/);
 });
+
+test('server profit preview never accepts browser-submitted supplier cost',()=>{
+ const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.doesNotMatch(route,/productCostJpy:req\.query\.productCostJpy/);
+ assert.match(route,/productCostJpy:supplierPriceUsdVerified&&fxReady\?Math\.ceil\(supplierUsd\*fx\.usdJpyRate\):null/);
+});
