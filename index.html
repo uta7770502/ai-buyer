@@ -272,7 +272,8 @@ function launchEligibility(x){
   if(listed<SAFE_TREND_MIN_LISTINGS)reasons.push('他店舗掲載実績が30件未満');
   if(!safeType)reasons.push('販売対象外の商品タイプ');
   if(!freshVariantInventory)reasons.push('variant在庫の最新確認が必要');
-  else if(inventory<=20)reasons.push('検証済み在庫が少ない');
+  else if(inventory<5)reasons.push('検証済み在庫が5件未満');
+  if(!recommendationReviewReady(x))reasons.push('最新レビュー・低評価リスクが未検証');
   if(!hasValidShipping(x))reasons.push('送料未確定');
   if(!x.shopifyProductId||!x.shopifyVariantId||x.shopifyPublishState==='error')reasons.push('Shopify下書き未完了');
   if(!x.growthPageOptimized)reasons.push('商品ページ最適化未完了');
@@ -280,7 +281,8 @@ function launchEligibility(x){
   if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
   if(x.priceEstimateOnly===true)reasons.push('広告費が暫定値のため公開承認不可（実績または承認済み予算の検証待ち）');
   if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
-  else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT)reasons.push('限界利益率25%未満');
+  else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<Number(oddlyMarginOverrides[String(x.id)]||30))reasons.push('限界利益率が商品別の基準未満');
+  if(!verifiedMarginRecommendation(x))reasons.push('最終利益・利益率の検証未完了');
   const plannedAds=Number(x.plannedAdCostPerOrderJpy),returnReserve=Number(x.returnReservePerOrderJpy);
   if(!Number.isFinite(plannedAds)||plannedAds<0)reasons.push('広告費想定未設定');
   if(!Number.isFinite(returnReserve)||returnReserve<0)reasons.push('返品・返金引当未設定');
