@@ -41,6 +41,9 @@ test('prelaunch product audit blocks incomplete ODDLY drafts',async t=>{
   assert.equal(r.body.readyDrafts,1);
   assert.equal(r.body.blockedDrafts,1);
   assert.equal(r.body.allDraftsReady,false);
+  assert.equal(r.body.financialAuditReady,false);
+  assert.equal(r.body.publishingEligible,false);
+  assert.equal(r.body.recommendationEligible,false);
   const blocked=r.body.products.find(p=>p.id==='gid://shopify/Product/2');
   assert.ok(blocked?.reasons.includes('SKU未設定'));
   assert.ok(blocked?.reasons.includes('商品画像なし'));
@@ -59,7 +62,9 @@ test('prelaunch product audit is admin protected',async()=>{
 
 test('prelaunch audit never approves partial scans or multiple variants without individual checks',()=>{
  const source=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
- assert.match(source,/allDraftsReady:!more&&draftRows\.length>0&&notReady\.length===0/);
+ assert.match(source,/allDraftsReady:false/);
+ assert.match(source,/contentAuditReady:!more&&draftRows\.length>0&&notReady\.length===0/);
+ assert.match(source,/financialAuditReady:false/);
  assert.match(source,/p\.variants\?\.nodes\|\|\[\]\)\.length!==1/);
 });
 
