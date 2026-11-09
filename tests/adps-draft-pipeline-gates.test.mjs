@@ -118,3 +118,14 @@ test('Shopify price update must return exactly one matching variant',()=>{
  assert.match(source,/Array\.isArray\(returnedVariants\)&&returnedVariants\.length===1/);
  assert.match(source,/updatedVariant\?\.id!==variantId/);
 });
+
+test('price sync verifies Shopify mutation and persisted variant before success',()=>{
+ const sync=source.indexOf("if(syncAction==='price')");
+ const mutation=source.indexOf("'mutation UpdateVariant",sync);
+ const readBack=source.indexOf('query VerifySyncedPrice',mutation);
+ const success=source.indexOf("action:'price',price:syncPrice",readBack);
+ assert.ok(sync>=0&&mutation>sync&&readBack>mutation&&success>readBack);
+ assert.match(source,/updated\.length!==1\|\|updated\[0\]\?\.id!==variantId/);
+ assert.match(source,/confirmed\.productVariant\.product\?\.id!==productId/);
+ assert.match(source,/Number\(confirmed\.productVariant\.price\)!==syncPrice/);
+});
