@@ -700,7 +700,7 @@ export default async function handler(req,res){
     if(update.productVariantsBulkUpdate?.userErrors?.length)throw Error(update.productVariantsBulkUpdate.userErrors.map(x=>x.message).join(' / '));
     const updatedVariant=update.productVariantsBulkUpdate?.productVariants?.[0];
     const confirmedPrice=Number(updatedVariant?.price);
-    if(!Number.isFinite(confirmedPrice)||Math.round(confirmedPrice)!==Math.round(price))throw Error('Shopify価格の反映確認に失敗しました。下書きを保持します。');
+    if(!Number.isSafeInteger(confirmedPrice)||confirmedPrice!==price)throw Error('Shopify価格の反映確認に失敗しました。下書きを保持します。');
     const metafields=aioMetafields(p,ce.product.id,title,description);
     let metadataReady=true,metadataErrors=[];
     if(metafields.length){
