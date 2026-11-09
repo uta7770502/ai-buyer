@@ -46,3 +46,9 @@ test('resume cannot activate a DRAFT without server-verified readiness',()=>{
  assert.ok(guard>=0&&activate>guard);
  assert.match(source,/publicationBlocked:true,status:targetProduct.status/);
 });
+
+test('price synchronization checks JPY shop and safe integer bounds',()=>{
+ assert.match(source,/!Number\.isSafeInteger\(syncPrice\)\|\|syncPrice<=0\|\|syncPrice>10000000/);
+ assert.match(source,/query VerifyPriceCurrency \{ shop \{ currencyCode myshopifyDomain \} \}/);
+ assert.match(source,/priceShop\?\.shop\?\.currencyCode!=='JPY'/);
+});
