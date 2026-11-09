@@ -73,3 +73,9 @@ test('UI only marks recommendation as registered after a DRAFT-only response',()
  const marked=ui.indexOf("x.shopifyPublishState=j.published?'published':'created'");
  assert.ok(verified>=0&&marked>verified);
 });
+
+test('Shopify returned product must be DRAFT before variant price updates',()=>{
+ const check=source.indexOf("if(ce.product.status!=='DRAFT')");
+ const variant=source.indexOf("const variantId=ce.product.variants?.nodes?.[0]?.id");
+ assert.ok(check>=0&&variant>check);
+});
