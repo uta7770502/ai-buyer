@@ -76,3 +76,16 @@ test('explicitly non-USD CJ supplier quotes cannot be treated as USD draft cost'
  assert.match(route,/declaredPriceCurrency=String\(v\.currency\|\|v\.currencyCode\|\|v\.priceCurrency\|\|p\.currency\|\|p\.currencyCode/);
  assert.match(route,/\(!declaredPriceCurrency\|\|declaredPriceCurrency==='USD'\)/);
 });
+
+test('discovery simulation requires fresh CJ server freight and verified FX',()=>{
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('async function inspectDiscoveryVariantStock(');
+ const end=html.indexOf('function renderDiscoveryPreview(',start);
+ const block=html.slice(start,end);
+ assert.match(block,/freight\.quoteSource==='cj-server'/);
+ assert.match(block,/freight\.fxVerified===true/);
+ assert.match(block,/freight\.currency==='USD'/);
+ assert.match(block,/freight\.shippingJpyVerified===true/);
+ assert.match(block,/Date\.now\(\)-Date\.parse\(freight\.fetchedAt\)<=15\*60\*1000/);
+ assert.match(block,/p\.discoveryPriceLabel='CJ選択SKU原価を使用/);
+});
