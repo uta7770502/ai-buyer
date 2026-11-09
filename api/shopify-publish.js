@@ -559,7 +559,10 @@ export default async function handler(req,res){
       const status=syncAction==='stop'?'DRAFT':'ACTIVE';
       const d=await gql(shop,token,'mutation UpdateProduct($product: ProductUpdateInput!) { productUpdate(product:$product) { product { id status } userErrors { field message } } }',{product:{id:productId,status}});
       const errs=d.productUpdate?.userErrors||[];if(errs.length)throw Error(errs.map(x=>x.message).join(' / '));
-      if(d.productUpdate?.product?.status!==status)throw Error('Shopify商品ステータスの反映確認に失敗しました');
+      if(d.productUpdate?.product?.id!==productId||d.productUpdate.product.status!==status)throw Error('Shopify商品ID・ステータスの反映確認に失敗しました');
+      const statusReadback=await gql(shop,token,'query VerifyStoppedProduct($id:ID!){product(id:$id){id status}}',{id:productId});
+      if(statusReadback?.product?.id!==productId||statusReadback.product.status!==status)
+        return res.status(409).json({ok:false,sync:true,action:syncAction,error:'Shopify保存後の商品ステータスを照合できません。再確認してください。'});
       if(syncAction==='resume'){
         const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
         const nodes=pubs.publications?.nodes||[];
