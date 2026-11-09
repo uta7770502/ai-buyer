@@ -610,7 +610,7 @@ async function inspectDiscoveryVariantStock(pool){
       p.discoveryFreightLabel='日本向け送料 '+freight.shippingCostJpy.toLocaleString('ja-JP')+'円（CJ見積）';
       // Show a transparent pricing simulation only. CJ search prices and assumed fees
       // are not verified final contribution margins and must not pass the safety gate.
-      const supplierUsd=Number(variants[0].price);
+      const supplierUsd=freight.supplierPriceUsdVerified===true&&freight.supplierPriceSource==='cj-selected-variant'?Number(freight.supplierPriceUsd):NaN;
       const fx=Number(freight.usdJpyRate);
       if(Number.isFinite(supplierUsd)&&supplierUsd>0&&Number.isFinite(fx)&&fx>0){
        const productCostJpy=Math.ceil(supplierUsd*fx);
@@ -620,7 +620,7 @@ async function inspectDiscoveryVariantStock(pool){
        const {calculateTargetSalePrice}=await import('./lib/target-price.js');
        const proposal=calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent:30,shippingVerified:true});
        if(proposal.ready&&Number.isSafeInteger(proposal.priceJpy)&&proposal.priceJpy>0&&proposal.priceJpy<=10000000){
-        p.discoveryPriceLabel='利益率30%を想定した試算売価 '+proposal.priceJpy.toLocaleString('ja-JP')+'円（原価・広告費など未確定）';
+        p.discoveryPriceLabel='CJ選択SKU原価を使用・利益率30%想定の試算売価 '+proposal.priceJpy.toLocaleString('ja-JP')+'円（原価・広告費など未確定）';
        }
       }
      }else p.discoveryFreightLabel='送料確認待ち';
