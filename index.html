@@ -630,7 +630,6 @@ async function inspectDiscoveryVariantStock(pool){
         p.discoveryPriceLabel='CJ見積と送料を照合・利益率30%想定の試算売価 '+proposal.priceJpy.toLocaleString('ja-JP')+'円（原価・広告費など未確定）';
        }
       }else if(freight.supplierPriceUsdVerified===true)p.discoveryPriceLabel='CJ商品詳細と送料見積の仕入価格が一致しません。価格試算を保留';
-      }
      }else p.discoveryFreightLabel='送料確認待ち';
     }catch{p.discoveryFreightLabel='送料確認失敗';}
    }
