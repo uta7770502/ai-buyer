@@ -606,7 +606,7 @@ async function inspectDiscoveryVariantStock(pool){
    const variants=detail?.product?.variants;
    if(!detailResponse.ok||!detail.ok||!Array.isArray(variants)||variants.length!==1){p.discoveryStockLabel='バリエーション確認が必要';continue;}
    const vid=String(variants[0].id||'');
-   if(!/^\\d{10,25}$/.test(vid)){p.discoveryStockLabel='在庫確認対象外';continue;}
+   if(!/^\d{10,25}$/.test(vid)){p.discoveryStockLabel='在庫確認対象外';continue;}
    const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(vid),{signal:AbortSignal.timeout(12000)});
    const stock=await response.json();
    if(!response.ok||stock.ok!==true||String(stock.vid)!==vid){p.discoveryStockLabel='在庫確認失敗';continue;}
