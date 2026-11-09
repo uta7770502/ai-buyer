@@ -87,7 +87,7 @@ test('discovery simulation requires fresh CJ server freight and verified FX',()=
  assert.match(block,/freight\.currency==='USD'/);
  assert.match(block,/freight\.shippingJpyVerified===true/);
  assert.match(block,/Date\.now\(\)-Date\.parse\(freight\.fetchedAt\)<=15\*60\*1000/);
- assert.match(block,/p\.discoveryPriceLabel='CJ選択SKU原価を使用/);
+ assert.match(block,/p\.discoveryPriceLabel='CJ見積と送料を照合/);
 });
 
 test('missing CJ supplier currency must not be treated as USD',()=>{
