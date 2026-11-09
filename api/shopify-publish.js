@@ -558,7 +558,7 @@ export default async function handler(req,res){
     }
     let title=clean(p.title||p.name,255);
     const vendor=clean('ODDLY',255),price=Number(p.price);
-    if(!title||!Number.isFinite(price)||price<=0)return res.status(400).json({ok:false,error:'商品名と販売価格が必要です'});
+    if(!title||!Number.isSafeInteger(price)||price<=0||price>10000000)return res.status(400).json({ok:false,error:'商品名と1〜10,000,000円の整数販売価格が必要です'});
     const cj=await cjVariant(p.cjProductId||p.id,p.cjVariantId||p.vid);
     const stock=await cjVariantStock(cj.vid);
     if(!stock.ok)return res.status(409).json({ok:false,error:'CJ variant在庫をサーバー確認できないためShopify下書きを作成しません',reason:stock.reason||'stock-unverified'});
