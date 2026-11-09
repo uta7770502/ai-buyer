@@ -584,6 +584,7 @@ async function inspectDiscoveryVariantStock(pool){
  const candidates=pool.filter(p=>oddlyPetRelevant(p)&&!catalogRisk(p).exclude).slice(0,4);
  for(const p of candidates){
   p.discoveryStockLabel='在庫未検証';
+  p.discoveryVerificationLabel='確定仕入原価・Shopify決済手数料・広告費・返品引当の検証待ち';
   p.variantInventoryVerified=false;
   p.verifiedInventory=null;
   try{
@@ -609,6 +610,7 @@ async function inspectDiscoveryVariantStock(pool){
      const freight=await freightResponse.json();
      if(freightResponse.ok&&freight.ok===true&&freight.quoteSource==='cj-server'&&String(freight.vid)===vid&&freight.destination==='JP'&&freight.currency==='USD'&&freight.shippingJpyVerified===true&&freight.fxVerified===true&&Number.isSafeInteger(freight.shippingCostJpy)&&freight.shippingCostJpy>=0&&Number.isFinite(Date.parse(freight.fetchedAt||''))&&Date.parse(freight.fetchedAt)<=Date.now()&&Date.now()-Date.parse(freight.fetchedAt)<=15*60*1000){
       p.discoveryFreightLabel='日本向け送料 '+freight.shippingCostJpy.toLocaleString('ja-JP')+'円（CJ見積）';
+      p.discoveryVerificationLabel=freight.supplierPriceUsdVerified===true?'CJ選択SKU見積あり（確定原価ではありません）':'CJ選択SKUの通貨・原価未確認';
       // Show a transparent pricing simulation only. CJ search prices and assumed fees
       // are not verified final contribution margins and must not pass the safety gate.
       const supplierUsd=freight.supplierPriceUsdVerified===true&&freight.supplierPriceSource==='cj-selected-variant'?Number(freight.supplierPriceUsd):NaN;
@@ -634,7 +636,7 @@ function renderDiscoveryPreview(pool){
  const box=document.getElementById('adpsDiscoveryPreview');if(!box)return;
  const items=pool.filter(p=>oddlyPetRelevant(p)&&!catalogRisk(p).exclude).slice(0,6);
  const wasOpen=box.querySelector('details')?.open===true;
- box.innerHTML=items.length?'<details style="margin-top:12px"><summary>審査待ちの商品を確認（'+items.length+'件・販売不可）</summary><div style="padding:8px 0">'+items.map(p=>'<div class="card" style="margin:6px 0;padding:9px"><b>'+esc(japaneseProductName(p))+'</b><div class="tiny">CJ検索で発見 / '+esc(p.discoveryStockLabel||'在庫未検証')+' / '+esc(p.discoveryFreightLabel||'送料未確認')+' / '+esc(p.discoveryPriceLabel||'売価試算待ち')+' / レビュー・最終利益は未検証。販売候補への追加・公開はできません。</div></div>').join('')+'</div></details>':'';
+ box.innerHTML=items.length?'<details style="margin-top:12px"><summary>審査待ちの商品を確認（'+items.length+'件・販売不可）</summary><div style="padding:8px 0">'+items.map(p=>'<div class="card" style="margin:6px 0;padding:9px"><b>'+esc(japaneseProductName(p))+'</b><div class="tiny">CJ検索で発見 / '+esc(p.discoveryStockLabel||'在庫未検証')+' / '+esc(p.discoveryFreightLabel||'送料未確認')+' / '+esc(p.discoveryPriceLabel||'売価試算待ち')+' / '+esc(p.discoveryVerificationLabel||'確定原価未確認')+' / Shopify決済手数料・広告費・返品引当・最終利益は未検証。販売候補への追加・公開はできません。</div></div>').join('')+'</div></details>':'';
  if(wasOpen&&box.querySelector('details'))box.querySelector('details').open=true;
 }
 function renderToday(){renderRecommendTop()}
