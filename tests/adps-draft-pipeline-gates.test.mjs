@@ -59,3 +59,9 @@ test('recommendation-to-draft mode rejects simultaneous publish approval',()=>{
  assert.ok(gate>=0&&draft>gate);
  assert.match(source,/recommendationToDraft,metadataReady:true,safetyReady/);
 });
+
+test('selected-product UI calls recommendation-to-DRAFT with publish disabled',()=>{
+ const ui=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(ui,/images,recommendationToDraft:true,publishApproved:false,\.\.\.buildAioPublishMeta\(x\)/);
+ assert.match(ui,/fetch\('\/api\/shopify-publish',\{method:'POST'/);
+});
