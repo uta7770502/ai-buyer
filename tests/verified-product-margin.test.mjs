@@ -9,8 +9,8 @@ const now=Date.parse('2026-11-09T00:00:00Z'),at=new Date(now-1000).toISOString()
 const input={
  expectedVid:'1234567890123',salePriceJpy:3000,threshold:30,
  freight:{ok:true,quoteSource:'cj-server',destination:'JP',currency:'USD',vid:'1234567890123',shippingJpyVerified:true,fxVerified:true,fxSource:'open.er-api.com',fetchedAt:at,fxVerifiedAt:at,shippingCostJpy:600,usdJpyRate:150,options:[{usd:4,jpy:600}]},
- supplier:{source:'cj-settled-cost',verified:true,vid:'1234567890123',costJpy:800,verifiedAt:at},
- fees:{source:'shopify-payment-settings',verified:true,verifiedAt:at,ratePercent:3.6,fixedJpy:0},
+ supplier:{source:'cj-settled-cost',currency:'JPY',verified:true,vid:'1234567890123',costJpy:800,verifiedAt:at},
+ fees:{source:'shopify-payment-settings',currency:'JPY',verified:true,verifiedAt:at,ratePercent:3.6,fixedJpy:0},
  advertising:{source:'approved-ad-budget',approved:true,costPerOrderJpy:300},
  returns:{source:'approved-return-reserve',approved:true,reserveJpy:100}
 };
@@ -25,4 +25,10 @@ test('expired payment fee evidence and fractional budget amounts are rejected',(
  assert.equal(assessVerifiedProductMargin({...input,advertising:{...input.advertising,costPerOrderJpy:1.5}},{now}).approved,false);
  assert.equal(assessVerifiedProductMargin({...input,returns:{...input.returns,reserveJpy:-1}},{now}).approved,false);
  assert.equal(assessVerifiedProductMargin({...input,salePriceJpy:3000.5},{now}).approved,false);
+});
+
+test('missing or mismatched currencies cannot certify a final margin',()=>{
+ assert.equal(assessVerifiedProductMargin({...input,supplier:{...input.supplier,currency:'USD'}},{now}).approved,false);
+ assert.equal(assessVerifiedProductMargin({...input,supplier:{...input.supplier,currency:undefined}},{now}).approved,false);
+ assert.equal(assessVerifiedProductMargin({...input,fees:{...input.fees,currency:'USD'}},{now}).approved,false);
 });
