@@ -112,3 +112,9 @@ test('existing Shopify DRAFT with extra variants is blocked before refresh mutat
  assert.match(source,/String\(existing\.variants\.nodes\[0\]\?\.sku\)!==String\(cj\.vid\)/);
  assert.match(source,/既存DRAFTに想定外のバリエーションがあります/);
 });
+
+test('Shopify price update must return exactly one matching variant',()=>{
+ assert.match(source,/const returnedVariants=update\.productVariantsBulkUpdate\?\.productVariants/);
+ assert.match(source,/Array\.isArray\(returnedVariants\)&&returnedVariants\.length===1/);
+ assert.match(source,/updatedVariant\?\.id!==variantId/);
+});
