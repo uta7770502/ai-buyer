@@ -66,7 +66,7 @@ test('draft pricing must use authenticated selected-SKU supplier cost and never 
 test('freight supplier quote belongs to selected CJ variant and is never asserted as final profit',()=>{
  const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
  assert.match(route,/const rawSupplierPrice=v\.variantSellPrice\?\?v\.sellPrice\?\?v\.price/);
- assert.match(route,/supplierPriceUsdVerified:supplierPriceUsdVerified/);
+ assert.match(route,/supplierPriceUsdVerified,supplierPriceUsd:supplierPriceUsdVerified/);
  assert.match(route,/supplierPriceSource:supplierPriceUsdVerified\?'cj-selected-variant':null/);
  assert.doesNotMatch(route,/finalProfitVerified:true/);
 });
