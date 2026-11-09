@@ -65,3 +65,11 @@ test('selected-product UI calls recommendation-to-DRAFT with publish disabled',(
  assert.match(ui,/images,recommendationToDraft:true,publishApproved:false,\.\.\.buildAioPublishMeta\(x\)/);
  assert.match(ui,/fetch\('\/api\/shopify-publish',\{method:'POST'/);
 });
+
+test('UI only marks recommendation as registered after a DRAFT-only response',()=>{
+ const ui=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(ui,/j\.status!=='DRAFT'\|\|j\.published!==false\|\|!j\.productId\|\|!j\.variantId\|\|j\.recommendationToDraft!==true/);
+ const verified=ui.indexOf("if(j.status!=='DRAFT'||j.published!==false");
+ const marked=ui.indexOf("x.shopifyPublishState=j.published?'published':'created'");
+ assert.ok(verified>=0&&marked>verified);
+});
