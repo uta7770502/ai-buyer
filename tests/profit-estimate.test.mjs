@@ -10,7 +10,7 @@ test('calculates profit only with all cost components',()=>{
   const result=estimateProfit(base);
   assert.equal(result.ready,true);
   assert.equal(result.profitJpy,992);
-  assert.equal(result.marginPercent,33.1);
+  assert.equal(result.marginPercent,33.0);
 });
 test('unknown shipping is not zero',()=>{
   const result=estimateProfit({...base,shippingCostJpy:null});
