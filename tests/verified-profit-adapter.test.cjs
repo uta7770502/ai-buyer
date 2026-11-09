@@ -22,6 +22,6 @@ test('verified margin tiers are derived from trusted evidence, never client clai
    assert.equal(result.marginExceptionReviewRequired,review);
  }
  const rejected=applyVerifiedProfit(forged,{...evidence(),feesVerified:false});
- assert.equal(rejected.verifiedMarginEligible,undefined);
- assert.equal(rejected.verifiedMarginTier,undefined);
+ assert.equal(rejected.verifiedMarginEligible,false);
+ assert.equal(rejected.verifiedMarginTier,null);
 });
