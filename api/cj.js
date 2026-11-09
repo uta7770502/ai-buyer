@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import cjDetail from '../lib/routes/cj-detail.js';
+import marginException from '../lib/routes/margin-exception.js';
 import cjFreight from '../lib/routes/cj-freight.js';
 import cjMonitor from '../lib/routes/cj-monitor.js';
 import cjRisk from '../lib/routes/cj-risk.js';
@@ -14,6 +15,7 @@ import cjSandboxSimulate from '../lib/routes/cj-sandbox-simulate.js';
 import cjSandboxReconcile from '../lib/routes/cj-sandbox-reconcile.js';
 
 const handlers={
+  'margin-exception':marginException,
   'sandbox-simulate':cjSandboxSimulate,
   'sandbox-reconcile':cjSandboxReconcile,
   'detail':cjDetail,
