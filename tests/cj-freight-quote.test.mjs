@@ -52,3 +52,21 @@ test('CJ freight endpoint rejects empty supplier variant lists',()=>{
  const endpoint=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
  assert.match(endpoint,/if\(!variants\.length\)return res\.status\(422\)/);
 });
+
+test('draft pricing must use authenticated selected-SKU supplier cost and never fall back to search prices',()=>{
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('async function autoPrepareSelectedProduct(');
+ const end=html.indexOf('\nasync function ',start+20);
+ const draft=html.slice(start,end<0?undefined:end);
+ assert.match(draft,/data\.supplierPriceUsdVerified===true&&data\.supplierPriceSource==='cj-selected-variant'/);
+ assert.match(draft,/Number\(data\.supplierPriceUsd\):NaN/);
+ assert.doesNotMatch(draft,/x\.costUsd\?\?parsePrice\(x\.sellPrice\)/);
+ assert.match(draft,/CJ選択SKUの仕入原価または為替レートが未検証/);
+});
+test('freight supplier quote belongs to selected CJ variant and is never asserted as final profit',()=>{
+ const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
+ assert.match(route,/const rawSupplierPrice=v\.variantSellPrice\?\?v\.sellPrice\?\?v\.price/);
+ assert.match(route,/supplierPriceUsdVerified:supplierPriceUsdVerified/);
+ assert.match(route,/supplierPriceSource:supplierPriceUsdVerified\?'cj-selected-variant':null/);
+ assert.doesNotMatch(route,/finalProfitVerified:true/);
+});
