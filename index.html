@@ -540,7 +540,7 @@ function saveRules(){rules=readRules();localStorage.setItem('aiBuyerRules',JSON.
 function hydrateRules(){rules.minListed=Math.max(SAFE_TREND_MIN_LISTINGS,Number(rules.minListed)||SAFE_TREND_MIN_LISTINGS);ruleScore.value=rules.minScore;ruleMaxCost.value=rules.maxCost;ruleListed.value=rules.minListed;ruleMargin.value=rules.minMargin;ruleCount.value=rules.count;ruleDaily.value=rules.daily}
 function evaluateRule(p){const m=p._m||metrics(p);const safeTrend=Boolean(p.trending)&&Number(p.listedNum||0)>=Math.max(SAFE_TREND_MIN_LISTINGS,rules.minListed);const safeType=!['1','3','5'].includes(String(p.productType??''));const risk=catalogRisk(p);const checks=[['AIスコア',m.score>=rules.minScore,`${m.score} / ${rules.minScore}以上`],['CJ価格',m.cost<=rules.maxCost,`${usd(m.cost)} / ${usd(rules.maxCost)}以下`],['売れ筋シグナル',safeTrend,`CJ Trending + 掲載${Number(p.listedNum||0)}件`],['安全な商品タイプ',safeType,`type ${String(p.productType||'0')}`],['安全性',!risk.exclude, risk.label],['粗利率',m.margin*100>=rules.minMargin,`${Math.round(m.margin*100)}% / ${rules.minMargin}%以上`]];return {pass:checks.every(x=>x[1]),checks,m}}
 function dedupe(arr){const seen=new Set();return arr.filter(x=>{const k=String(x.id||x.sku);if(!k||seen.has(k))return false;seen.add(k);return true})}
-async async function addTestCatalogProducts(){
+async function addTestCatalogProducts(){
  const status=document.getElementById('testCatalogStatus');
  if(status)status.textContent='安全審査済みのペット関連商品だけを確認中…';
  const eligible=orderedRecommendedProducts().filter(p=>oddlyPetRelevant(p)&&recommendationReviewReady(p)&&recommendationStockReady(p)&&verifiedMarginRecommendation(p)&&!catalogRisk(p).exclude&&!active.some(x=>String(x.id)===String(p.id))).slice(0,5);
