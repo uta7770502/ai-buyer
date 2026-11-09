@@ -52,3 +52,33 @@ test('20 percent exception is SKU-scoped and cannot be reused at 25 percent',()=
  assert.equal(assessVerifiedProductMargin({...data,threshold:20,marginException:{...approval,source:'browser-approval'}},{now}).approved,false);
  assert.equal(assessVerifiedProductMargin({...data,threshold:20,marginException:{...approval,approvedAt:new Date(now+1000).toISOString()}},{now}).approved,false);
 });
+
+test('margin exceptions reject malformed approval identifiers and unapproved requests',()=>{
+ const approval={approved:true,source:'product-specific-owner-approval',vid:input.expectedVid,threshold:25,approvedAt:at,approvalId:'approval-test-123'};
+ for(const invalid of [{...approval,approved:false},{...approval,approvalId:'short'},{...approval,approvalId:'approval with spaces'},{...approval,threshold:20},{...approval,vid:undefined}]){
+  const result=assessVerifiedProductMargin({...input,threshold:25,marginException:invalid},{now});
+  assert.equal(result.approved,false);
+  assert.equal(result.finalProfitVerified,false);
+ }
+});
+
+test('fail-closed verified costs reject missing or future dated evidence',()=>{
+ const invalid=[
+  {supplier:{...input.supplier,costJpy:0}},
+  {supplier:{...input.supplier,costJpy:800.5}},
+  {supplier:{...input.supplier,verifiedAt:new Date(now+1000).toISOString()}},
+  {fees:{...input.fees,source:'browser-estimate'}},
+  {fees:{...input.fees,verifiedAt:new Date(now+1000).toISOString()}},
+  {advertising:{...input.advertising,source:'browser-input'}},
+  {returns:{...input.returns,source:'browser-input'}},
+  {freight:{...input.freight,shippingJpyVerified:false}},
+  {freight:{...input.freight,fxVerified:false}},
+  {freight:{...input.freight,vid:'another-variant'}}
+ ];
+ for(const changes of invalid){
+  const result=assessVerifiedProductMargin({...input,...changes},{now});
+  assert.equal(result.approved,false,JSON.stringify(changes));
+  assert.equal(result.finalProfitVerified,false);
+  assert.equal(result.profitJpy,null);
+ }
+});
