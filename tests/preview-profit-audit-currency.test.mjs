@@ -23,3 +23,7 @@ test('preflight is read-only and does not claim profit evidence readiness',()=>{
  for(const fragment of ["req.query?.preflight==='1'","shopifyDraftQueryVerified:false","cjAuthenticationVerified:false","readyForVerifiedProfit:false"])assert.ok(route.includes(fragment),fragment);
  assert.ok(route.indexOf("req.query?.preflight==='1'")>route.indexOf("Admin authorization required"));
 });
+
+test('audit reads approved margin exception from server Redis but never marks final economics verified',()=>{
+ for(const fragment of ["import {loadMarginException} from '../server-margin-exception.js'","await loadMarginException(vid)","storedMarginException.threshold===estimatedMarginTier","marginExceptionApproved","launchEconomicsEligible:false","contributionMarginVerified=false,finalProfitVerified=false"])assert.ok(route.includes(fragment),fragment);
+});
