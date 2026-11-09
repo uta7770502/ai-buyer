@@ -2858,8 +2858,12 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     x.shippingDestination='JP';
     x.shippingVariant=data.variantSku||data.vid;
     x.shippingQuotedAt=data.fetchedAt;
-    const unitCost=Number(x.costUsd??parsePrice(x.sellPrice));
-    if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(data.usdJpyRate))||Number(data.usdJpyRate)<=0)throw new Error('商品原価または為替レートが不正です');
+    // Never treat a CJ search/listing price or locally edited price as supplier cost.
+    // Only the selected SKU's price returned with the authenticated freight quote
+    // may be used for draft pricing; the ad and return assumptions remain provisional.
+    const unitCost=data.supplierPriceUsdVerified===true&&data.supplierPriceSource==='cj-selected-variant'
+      ?Number(data.supplierPriceUsd):NaN;
+    if(!Number.isFinite(unitCost)||unitCost<0||!Number.isFinite(Number(data.usdJpyRate))||Number(data.usdJpyRate)<=0)throw new Error('CJ選択SKUの仕入原価または為替レートが未検証です。下書き登録を保留します');
     const cost=Math.ceil(unitCost*Number(data.usdJpyRate))+Number(x.shippingJpy||0);
     if(!Number.isFinite(cost)||cost<0)throw new Error('商品原価と送料を確認できません');
     const {calculateTargetSalePrice}=await import('./lib/target-price.js');
