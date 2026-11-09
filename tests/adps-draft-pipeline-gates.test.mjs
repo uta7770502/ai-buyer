@@ -104,3 +104,11 @@ test('single-CJ-variant draft refuses unexpected additional persisted Shopify va
  assert.match(source,/const singleVariantPersisted=Array\.isArray\(savedVariants\?\.nodes\)&&savedVariants\.nodes\.length===1/);
  assert.match(source,/!savedVariant\|\|!singleVariantPersisted\|\|String\(savedVariant\.sku\)/);
 });
+
+test('existing Shopify DRAFT with extra variants is blocked before refresh mutation',()=>{
+ const guard=source.indexOf('if(existing.variants.nodes.length!==1');
+ const refresh=source.indexOf("'mutation RefreshDraft");
+ assert.ok(guard>=0&&refresh>guard);
+ assert.match(source,/String\(existing\.variants\.nodes\[0\]\?\.sku\)!==String\(cj\.vid\)/);
+ assert.match(source,/既存DRAFTに想定外のバリエーションがあります/);
+});
