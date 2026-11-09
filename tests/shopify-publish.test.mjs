@@ -649,3 +649,52 @@ test('CJ stock timeout never creates a Shopify draft',async()=>{
   assert.ok(calls.every(u=>!u.includes('myshopify.com')));
  }finally{globalThis.fetch=previousFetch;for(const [k,v] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj]]){if(v===undefined)delete process.env[k];else process.env[k]=v}}
 });
+
+
+test('Shopify persisted DRAFT verification rejects mismatched identity, status, SKU, price, pagination and duplicates',async()=>{
+ const cases=[
+  ['product id',p=>({...p,id:'gid://shopify/Product/OTHER'})],
+  ['ACTIVE status',p=>({...p,status:'ACTIVE'})],
+  ['wrong SKU',p=>({...p,variants:{...p.variants,nodes:[{...p.variants.nodes[0],sku:'other'}]}})],
+  ['wrong price',p=>({...p,variants:{...p.variants,nodes:[{...p.variants.nodes[0],price:'1201'}]}})],
+  ['truncated variants',p=>({...p,variants:{...p.variants,pageInfo:{hasNextPage:true}}})],
+  ['duplicate variant ID',p=>({...p,variants:{...p.variants,nodes:[p.variants.nodes[0],p.variants.nodes[0]]}})]
+ ];
+ for(const [label,mutate] of cases){
+  const previousFetch=globalThis.fetch;
+  const oldShop=process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN;
+  const oldCj=process.env.CJ_ACCESS_TOKEN;
+  const oldLive=process.env.SHOPIFY_LIVE_PUBLISH_ENABLED;
+  process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN='test.myshopify.com';
+  process.env.CJ_ACCESS_TOKEN='test-cj';
+  process.env.SHOPIFY_LIVE_PUBLISH_ENABLED='false';
+  const requests=[];
+  globalThis.fetch=async(url,opts={})=>{
+   const u=String(url);
+   if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/stock/queryByVid'))return {ok:true,status:200,json:async()=>({result:true,data:[{cjInventoryNum:'50',factoryInventoryNum:'0',totalInventoryNum:'50'}]})};
+   if(u.includes('developers.cjdropshipping.com/api2.0/v1/product/query'))return {ok:true,status:200,json:async()=>({result:true,data:{pid:'cj-test',variants:[{vid:'cj-variant',variantSku:'CJ-001'}]}})};
+   const data=JSON.parse(opts.body);requests.push(data.query);
+   if(data.query.includes('ExistingProductsBySku'))return {ok:true,json:async()=>({data:{products:{nodes:[],pageInfo:{hasNextPage:false}}}})};
+   if(data.query.includes('CreateProduct'))return {ok:true,json:async()=>({data:{productCreate:{product:{id:'gid://shopify/Product/1',title:'Sample',handle:'sample',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2'}]}},userErrors:[]}}})};
+   if(data.query.includes('UpdateVariant'))return {ok:true,json:async()=>({data:{productVariantsBulkUpdate:{productVariants:[{id:'gid://shopify/ProductVariant/2',price:'1200'}],userErrors:[]}}})};
+   if(data.query.includes('SetAioMetafields'))return {ok:true,json:async()=>({data:{metafieldsSet:{metafields:[],userErrors:[]}}})};
+   if(data.query.includes('VerifyDraftPersisted')){
+    const product={id:'gid://shopify/Product/1',status:'DRAFT',variants:{nodes:[{id:'gid://shopify/ProductVariant/2',sku:'cj-variant',price:'1200'}],pageInfo:{hasNextPage:false}}};
+    return {ok:true,json:async()=>({data:{product:mutate(product)}})};
+   }
+   throw Error('Unexpected Shopify request '+data.query);
+  };
+  const res={code:200,setHeader(){return this},status(n){this.code=n;return this},json(v){this.body=v;return this}};
+  try{
+   await publish({method:'POST',headers:{cookie:browserCookie()},body:{title:'Sample',price:1200,cjProductId:'cj-test',recommendationToDraft:true,publishApproved:false}},res);
+   assert.equal(res.code,409,label);
+   assert.equal(res.body.status,'UNVERIFIED',label);
+   assert.equal(res.body.ok,false,label);
+   assert.ok(requests.some(q=>q.includes('VerifyDraftPersisted')),label);
+   assert.ok(requests.every(q=>!q.includes('ActivateProduct')&&!q.includes('publishablePublish')),label);
+  }finally{
+   globalThis.fetch=previousFetch;
+   for(const [key,value] of [['SHOPIFY_ALLOWED_SHOP_DOMAIN',oldShop],['CJ_ACCESS_TOKEN',oldCj],['SHOPIFY_LIVE_PUBLISH_ENABLED',oldLive]]){if(value===undefined)delete process.env[key];else process.env[key]=value}
+  }
+ }
+});
