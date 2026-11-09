@@ -62,7 +62,7 @@ test('prelaunch product audit is admin protected',async()=>{
 
 test('prelaunch audit never approves partial scans or multiple variants without individual checks',()=>{
  const source=readFileSync(new URL('../lib/routes/prelaunch-product-audit.js',import.meta.url),'utf8');
- assert.match(source,/allDraftsReady:false/);
+ assert.match(source,/allDraftsReady:!more&&draftRows\.length>0&&notReady\.length===0/);
  assert.match(source,/contentAuditReady:!more&&draftRows\.length>0&&notReady\.length===0/);
  assert.match(source,/financialAuditReady:false/);
  assert.match(source,/p\.variants\?\.nodes\|\|\[\]\)\.length!==1/);
