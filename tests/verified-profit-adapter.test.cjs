@@ -11,3 +11,17 @@ test('wrong product, destination, currency, or stale evidence fail closed',()=>{
   assert.equal(p.finalProfitJpy,undefined);
  }
 });
+
+test('verified margin tiers are derived from trusted evidence, never client claims',()=>{
+ const forged={...base,verifiedMarginEligible:true,verifiedMarginTier:30,marginExceptionReviewRequired:false};
+ const cases=[[-100,30,false],[0,25,true],[150,null,false]];
+ for(const [extraCost,tier,review] of cases){
+   const result=applyVerifiedProfit(forged,{...evidence(),productCostJpy:800+extraCost});
+   assert.equal(result.verifiedMarginTier,tier);
+   assert.equal(result.verifiedMarginEligible,tier!==null);
+   assert.equal(result.marginExceptionReviewRequired,review);
+ }
+ const rejected=applyVerifiedProfit(forged,{...evidence(),feesVerified:false});
+ assert.equal(rejected.verifiedMarginEligible,undefined);
+ assert.equal(rejected.verifiedMarginTier,undefined);
+});
