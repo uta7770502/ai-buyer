@@ -606,7 +606,7 @@ async function inspectDiscoveryVariantStock(pool){
     try{
      const freightResponse=await fetch('/api/cj-freight?id='+encodeURIComponent(p.id)+'&vid='+encodeURIComponent(vid)+'&destination=JP',{signal:AbortSignal.timeout(20000)});
      const freight=await freightResponse.json();
-     if(freightResponse.ok&&freight.ok===true&&String(freight.vid)===vid&&freight.destination==='JP'&&freight.shippingJpyVerified===true&&Number.isSafeInteger(freight.shippingCostJpy)){
+     if(freightResponse.ok&&freight.ok===true&&freight.quoteSource==='cj-server'&&String(freight.vid)===vid&&freight.destination==='JP'&&freight.currency==='USD'&&freight.shippingJpyVerified===true&&freight.fxVerified===true&&Number.isSafeInteger(freight.shippingCostJpy)&&freight.shippingCostJpy>=0&&Number.isFinite(Date.parse(freight.fetchedAt||''))&&Date.parse(freight.fetchedAt)<=Date.now()&&Date.now()-Date.parse(freight.fetchedAt)<=15*60*1000){
       p.discoveryFreightLabel='日本向け送料 '+freight.shippingCostJpy.toLocaleString('ja-JP')+'円（CJ見積）';
       // Show a transparent pricing simulation only. CJ search prices and assumed fees
       // are not verified final contribution margins and must not pass the safety gate.
