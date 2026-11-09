@@ -26,3 +26,14 @@ test('margin near 30% must not round up into a 30% recommendation',()=>{
  assert.equal(result.marginPercent,29.9);
  assert.ok(result.marginPercent<30);
 });
+
+test('20, 25 and 30 percent gates cannot be passed by rounding up',()=>{
+ const zeroFreight={...freight,shippingCostJpy:0,options:[{name:'CJ',usd:0,jpy:0}]};
+ for(const threshold of [20,25,30]){
+  const input={salePriceJpy:1000,productCostJpy:1000-threshold*10, paymentFeeRatePercent:0,paymentFixedFeeJpy:0,adCostPerOrderJpy:0.01,returnReservePerOrderJpy:0};
+  const result=estimateProfitFromServerFreight(zeroFreight,input,{now,expectedVid:'v1'});
+  assert.equal(result.ready,true);
+  assert.ok(result.marginPercent<threshold,`rounded margin must stay below ${threshold}%`);
+  assert.equal(result.profitJpy,threshold*10-1);
+ }
+});
