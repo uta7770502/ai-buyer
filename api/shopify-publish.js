@@ -542,7 +542,7 @@ export default async function handler(req,res){
         if(!Array.isArray(updated)||updated.length!==1||updated[0]?.id!==variantId||Number(updated[0]?.price)!==syncPrice)
           return res.status(409).json({ok:false,sync:true,action:'price',error:'Shopify価格同期の応答を照合できません。再確認してください。'});
         const confirmed=await gql(shop,token,'query VerifySyncedPrice($id:ID!){productVariant(id:$id){id price product{id status}}}',{id:variantId});
-        if(confirmed?.productVariant?.id!==variantId||confirmed.productVariant.product?.id!==productId||!Number.isSafeInteger(Number(confirmed.productVariant.price))||Number(confirmed.productVariant.price)!==syncPrice)
+        if(confirmed?.productVariant?.id!==variantId||confirmed.productVariant.product?.id!==productId||confirmed.productVariant.product?.status!==targetProduct.status||!Number.isSafeInteger(Number(confirmed.productVariant.price))||Number(confirmed.productVariant.price)!==syncPrice)
           return res.status(409).json({ok:false,sync:true,action:'price',error:'Shopify保存後の価格を照合できません。再確認してください。'});
         return res.status(200).json({ok:true,sync:true,action:'price',price:syncPrice});
       }
