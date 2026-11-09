@@ -52,3 +52,10 @@ test('price synchronization checks JPY shop and safe integer bounds',()=>{
  assert.match(source,/query VerifyPriceCurrency \{ shop \{ currencyCode myshopifyDomain \} \}/);
  assert.match(source,/priceShop\?\.shop\?\.currencyCode!=='JPY'/);
 });
+
+test('recommendation-to-draft mode rejects simultaneous publish approval',()=>{
+ const gate=source.indexOf("if(recommendationToDraft&&p.publishApproved===true)");
+ const draft=source.indexOf("status:'DRAFT',tags:productTags");
+ assert.ok(gate>=0&&draft>gate);
+ assert.match(source,/recommendationToDraft,metadataReady:true,safetyReady/);
+});
