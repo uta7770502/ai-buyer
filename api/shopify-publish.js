@@ -658,6 +658,11 @@ export default async function handler(req,res){
     const draftProfitVerificationReason='settled-cost-and-payment-fee-evidence-not-connected';
     if(!draftProfitVerified)safetyReasons.push('実仕入原価・決済手数料に基づく純利益率が未確認');
     const safetyReady=safetyReasons.length===0;
+    // An explicit recommendation-to-draft request is allowed only as a DRAFT.
+    // It cannot carry a publish approval through the same request.
+    const recommendationToDraft=p.recommendationToDraft===true;
+    if(recommendationToDraft&&p.publishApproved===true)
+      return res.status(409).json({ok:false,publicationBlocked:true,error:'推薦からの登録はDRAFT限定です。公開承認は別途必要です。'});
     if(p.publishApproved===true&&!safetyReady)
       return res.status(409).json({ok:false,status:'DRAFT',publicationBlocked:true,
         safetyReady:false,safetyReasons,error:'安全・商品情報の確認が完了していないため公開できません。'});
@@ -707,7 +712,7 @@ export default async function handler(req,res){
     if(!metadataReady){if(formPublish)return res.redirect(303,'/?publish=error&reason=metadata');return res.status(409).json({ok:false,productId:ce.product.id,variantId,status:'DRAFT',metadataReady:false,error:'AIO/GEO metadata could not be saved; draft retained',metadataErrors});}
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
-    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',metadataReady:true,safetyReady,safetyReasons,reviewEvidenceVerified:reviewsVerified,japanShippingVerified,draftProfitVerified,draftRecommendationEligible,draftProfitVerificationReason,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId,verifiedInventory:stock.total,inventoryVerifiedAt:p.inventoryVerifiedAt,minimumLaunchInventory:MIN_LAUNCH_INVENTORY});}
+    if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',recommendationToDraft,metadataReady:true,safetyReady,safetyReasons,reviewEvidenceVerified:reviewsVerified,japanShippingVerified,draftProfitVerified,draftRecommendationEligible,draftProfitVerificationReason,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId,verifiedInventory:stock.total,inventoryVerifiedAt:p.inventoryVerifiedAt,minimumLaunchInventory:MIN_LAUNCH_INVENTORY});}
     // Resolve the intended channel before activating the draft.
     const pubs=await gql(shop,token,'query Publications { publications(first:20) { nodes { id name autoPublish } } }');
     const nodes=pubs.publications?.nodes||[];
