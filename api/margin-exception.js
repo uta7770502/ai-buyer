@@ -30,7 +30,7 @@ export default async function handler(req,res){
    const raw=await redis(['GET',keyFor(vid)]);
    if(!raw)return res.status(200).json({ok:true,approved:false,vid});
    const record=JSON.parse(raw);
-   if(record.vid!==vid||record.approved!==true||Date.parse(record.approvedAt)>Date.now()||Date.now()-Date.parse(record.approvedAt)>30*86400000)return res.status(200).json({ok:true,approved:false,vid});
+   if(record.vid!==vid||record.approved!==true||![20,25].includes(record.threshold)||!Number.isFinite(Date.parse(record.approvedAt))||Date.parse(record.approvedAt)>Date.now()||Date.now()-Date.parse(record.approvedAt)>30*86400000)return res.status(200).json({ok:true,approved:false,vid});
    return res.status(200).json({ok:true,...record});
   }
   if(req.method==='DELETE'){
