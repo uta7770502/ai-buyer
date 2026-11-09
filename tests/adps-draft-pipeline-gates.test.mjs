@@ -89,3 +89,11 @@ test('Shopify DRAFT registration performs persisted status SKU and price read-ba
  const success=source.indexOf("published:false,status:'DRAFT',recommendationToDraft");
  assert.ok(readBack>=0&&success>readBack);
 });
+
+
+test('persisted Shopify DRAFT must match requested product and exactly one variant',()=>{
+ assert.match(source,/savedProduct\.id!==ce\.product\.id/);
+ assert.match(source,/savedMatches\.length===1/);
+ assert.match(source,/savedVariants\?\.pageInfo\?\.hasNextPage!==false/);
+ assert.match(source,/status:'UNVERIFIED'/);
+});
