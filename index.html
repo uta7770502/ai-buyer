@@ -625,9 +625,10 @@ async function inspectDiscoveryVariantStock(pool){
        const adCostJpy=Math.ceil(landed*0.2);
        const returnReserveJpy=Math.ceil(landed*SAFE_RETURN_RESERVE_RATE);
        const {calculateTargetSalePrice}=await import('./lib/target-price.js');
-       const proposal=calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent:30,shippingVerified:true});
-       if(proposal.ready&&Number.isSafeInteger(proposal.priceJpy)&&proposal.priceJpy>0&&proposal.priceJpy<=10000000){
-        p.discoveryPriceLabel='CJ見積と送料を照合・利益率30%想定の試算売価 '+proposal.priceJpy.toLocaleString('ja-JP')+'円（原価・広告費など未確定）';
+       const scenarios=[30,25,20].map(targetMarginPercent=>calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent,shippingVerified:true}));
+       const proposal=scenarios[0];
+       if(scenarios.every(x=>x.ready&&Number.isSafeInteger(x.priceJpy)&&x.priceJpy>0&&x.priceJpy<=10000000)){
+        p.discoveryPriceLabel='CJ見積・送料照合済み / 想定売価 30%: '+scenarios[0].priceJpy.toLocaleString('ja-JP')+'円 / 25%: '+scenarios[1].priceJpy.toLocaleString('ja-JP')+'円 / 20%: '+scenarios[2].priceJpy.toLocaleString('ja-JP')+'円（決済手数料4.5%・広告費・返品引当は仮定。25%・20%は商品別承認が必要。販売不可）';
        }
       }else if(freight.supplierPriceUsdVerified===true)p.discoveryPriceLabel='CJ商品詳細と送料見積の仕入価格が一致しません。価格試算を保留';
      }else p.discoveryFreightLabel='送料確認待ち';
