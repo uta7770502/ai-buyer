@@ -606,6 +606,21 @@ async function inspectDiscoveryVariantStock(pool){
      const freight=await freightResponse.json();
      if(freightResponse.ok&&freight.ok===true&&String(freight.vid)===vid&&freight.destination==='JP'&&freight.shippingJpyVerified===true&&Number.isSafeInteger(freight.shippingCostJpy)){
       p.discoveryFreightLabel='日本向け送料 '+freight.shippingCostJpy.toLocaleString('ja-JP')+'円（CJ見積）';
+      // Show a transparent pricing simulation only. CJ search prices and assumed fees
+      // are not verified final contribution margins and must not pass the safety gate.
+      const supplierUsd=Number(variants[0].price);
+      const fx=Number(freight.usdJpyRate);
+      if(Number.isFinite(supplierUsd)&&supplierUsd>0&&Number.isFinite(fx)&&fx>0){
+       const productCostJpy=Math.ceil(supplierUsd*fx);
+       const landed=productCostJpy+freight.shippingCostJpy;
+       const adCostJpy=Math.ceil(landed*0.2);
+       const returnReserveJpy=Math.ceil(landed*SAFE_RETURN_RESERVE_RATE);
+       const {calculateTargetSalePrice}=await import('./lib/target-price.js');
+       const proposal=calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent:30,shippingVerified:true});
+       if(proposal.ready&&Number.isSafeInteger(proposal.priceJpy)&&proposal.priceJpy>0&&proposal.priceJpy<=10000000){
+        p.discoveryPriceLabel='利益率30%を想定した試算売価 '+proposal.priceJpy.toLocaleString('ja-JP')+'円（原価・広告費など未確定）';
+       }
+      }
      }else p.discoveryFreightLabel='送料確認待ち';
     }catch{p.discoveryFreightLabel='送料確認失敗';}
    }
@@ -616,7 +631,7 @@ function renderDiscoveryPreview(pool){
  const box=document.getElementById('adpsDiscoveryPreview');if(!box)return;
  const items=pool.filter(p=>oddlyPetRelevant(p)&&!catalogRisk(p).exclude).slice(0,6);
  const wasOpen=box.querySelector('details')?.open===true;
- box.innerHTML=items.length?'<details style="margin-top:12px"><summary>審査待ちの商品を確認（'+items.length+'件・販売不可）</summary><div style="padding:8px 0">'+items.map(p=>'<div class="card" style="margin:6px 0;padding:9px"><b>'+esc(japaneseProductName(p))+'</b><div class="tiny">CJ検索で発見 / '+esc(p.discoveryStockLabel||'在庫未検証')+' / '+esc(p.discoveryFreightLabel||'送料未確認')+' / レビュー・最終利益は未検証。販売候補への追加・公開はできません。</div></div>').join('')+'</div></details>':'';
+ box.innerHTML=items.length?'<details style="margin-top:12px"><summary>審査待ちの商品を確認（'+items.length+'件・販売不可）</summary><div style="padding:8px 0">'+items.map(p=>'<div class="card" style="margin:6px 0;padding:9px"><b>'+esc(japaneseProductName(p))+'</b><div class="tiny">CJ検索で発見 / '+esc(p.discoveryStockLabel||'在庫未検証')+' / '+esc(p.discoveryFreightLabel||'送料未確認')+' / '+esc(p.discoveryPriceLabel||'売価試算待ち')+' / レビュー・最終利益は未検証。販売候補への追加・公開はできません。</div></div>').join('')+'</div></details>':'';
  if(wasOpen&&box.querySelector('details'))box.querySelector('details').open=true;
 }
 function renderToday(){renderRecommendTop()}
