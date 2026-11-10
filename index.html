@@ -583,7 +583,9 @@ function renderRecommendTop(){
 async function inspectDiscoveryVariantStock(pool){
  const candidates=pool.filter(p=>oddlyPetRelevant(p)&&!catalogRisk(p).exclude).slice(0,6);
  for(const p of candidates){
-  p.discoveryStockLabel='在庫未検証';
+  p.discoveryStockLabel='商品詳細の確認待ち';
+  p.discoveryFreightLabel='在庫確認後に送料を検証';
+  p.discoveryPriceLabel='CJ仕入見積の確認待ち';
   p.discoveryVerificationLabel='確定仕入原価・Shopify決済手数料・広告費・返品引当の検証待ち';
   p.variantInventoryVerified=false;
   p.verifiedInventory=null;
@@ -591,7 +593,9 @@ async function inspectDiscoveryVariantStock(pool){
    const detailResponse=await fetch('/api/cj-detail?id='+encodeURIComponent(p.id),{signal:AbortSignal.timeout(12000)});
    const detail=await detailResponse.json();
    const variants=detail?.product?.variants;
-   if(!detailResponse.ok||!detail.ok||!Array.isArray(variants)||variants.length!==1){p.discoveryStockLabel='バリエーション確認が必要';continue;}
+   if(!detailResponse.ok||detail?.ok!==true){p.discoveryStockLabel='CJ商品詳細APIエラー（HTTP '+detailResponse.status+'）';continue;}
+   if(!Array.isArray(variants)){p.discoveryStockLabel='CJ商品詳細にSKU一覧なし';continue;}
+   if(variants.length!==1){p.discoveryStockLabel='SKUが'+variants.length+'件のため選択SKU未確定（自動判定停止）';continue;}
    const vid=String(variants[0].id||'');
    const supplierQuote=Array.isArray(detail.product.quoteEvidence)?detail.product.quoteEvidence.find(q=>String(q?.vid)===vid):null;
    p.discoverySupplierQuote=supplierQuote?.quoteCurrencyVerified===true&&supplierQuote.currency==='USD'&&Number.isFinite(supplierQuote.quotedAmount)&&supplierQuote.quotedAmount>0?supplierQuote:null;
@@ -601,7 +605,9 @@ async function inspectDiscoveryVariantStock(pool){
    const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(vid),{signal:AbortSignal.timeout(12000)});
    const stock=await response.json();
    const stockCheckedAt=Date.parse(stock?.verifiedAt||'');
-   if(!response.ok||stock.ok!==true||stock.readOnly!==true||String(stock.vid)!==vid||!Number.isSafeInteger(stock.verifiedInventory)||stock.verifiedInventory<0||!Number.isFinite(stockCheckedAt)||stockCheckedAt>Date.now()||Date.now()-stockCheckedAt>15*60*1000){p.discoveryStockLabel='在庫確認失敗・再検証が必要';continue;}
+   if(!response.ok||stock?.ok!==true){p.discoveryStockLabel='CJ在庫APIエラー（HTTP '+response.status+'）';continue;}
+   if(stock.readOnly!==true||String(stock.vid)!==vid||!Number.isSafeInteger(stock.verifiedInventory)||stock.verifiedInventory<0){p.discoveryStockLabel='CJ在庫データ形式・SKU不一致';continue;}
+   if(!Number.isFinite(stockCheckedAt)||stockCheckedAt>Date.now()||Date.now()-stockCheckedAt>15*60*1000){p.discoveryStockLabel='CJ在庫の確認時刻が無効・期限切れ';continue;}
    p.verifiedInventory=stock.verifiedInventory;
    p.variantInventoryVerified=true;
    p.variantInventoryVerifiedAt=String(stock.verifiedAt||'');
@@ -631,10 +637,10 @@ async function inspectDiscoveryVariantStock(pool){
         p.discoveryPriceLabel='CJ見積・送料照合済み / 想定売価 30%: '+scenarios[0].priceJpy.toLocaleString('ja-JP')+'円 / 25%: '+scenarios[1].priceJpy.toLocaleString('ja-JP')+'円 / 20%: '+scenarios[2].priceJpy.toLocaleString('ja-JP')+'円（決済手数料4.5%・広告費・返品引当は仮定。25%・20%は商品別承認が必要。販売不可）';
        }
       }else if(freight.supplierPriceUsdVerified===true)p.discoveryPriceLabel='CJ商品詳細と送料見積の仕入価格が一致しません。価格試算を保留';
-     }else p.discoveryFreightLabel='送料確認待ち';
-    }catch{p.discoveryFreightLabel='送料確認失敗';}
+     }else p.discoveryFreightLabel='送料API応答の検証失敗（HTTP '+freightResponse.status+'）';
+    }catch(e){p.discoveryFreightLabel='送料取得失敗（'+(e?.name==='TimeoutError'?'時間切れ':'通信・解析エラー')+'）';}
    }
-  }catch{p.discoveryStockLabel='在庫確認失敗';}
+  }catch(e){p.discoveryStockLabel='CJ詳細・在庫取得失敗（'+(e?.name==='TimeoutError'?'時間切れ':'通信・解析エラー')+'）';}
  }
 }
 function renderDiscoveryPreview(pool){
