@@ -7,7 +7,7 @@ const base = {sku:'ODDLY-001',salePriceJpy:10000,productCostJpy:5000,
   plannedAdCostJpy:500,returnReserveJpy:500,
   costSourceVerified:true,jpShippingVerified:true,feesVerified:true};
 const approval = {approved:true,sku:'ODDLY-001',threshold:25,
-  approvedBy:'operator',approvedAt:'2026-10-01T00:00:00.000Z'};
+  approvedBy:'operator',approvedAt:new Date(Date.now()-24*60*60*1000).toISOString()};
 test('standard margin needs no exception approval', () => {
   assert.deepEqual(verifiedAuthorizedMargin({...base,productCostJpy:4500},null),
     {allowed:true,threshold:30,reason:'standard_margin_met'});
@@ -30,4 +30,12 @@ test('approval cannot override missing evidence or invalid costs', () => {
     {costSourceVerified:false},{productCostJpy:-1}]) {
     assert.equal(verifiedAuthorizedMargin({...base,...patch},approval).allowed,false);
   }
+});
+
+test('expired SKU approval is rejected even when margin meets exception threshold', () => {
+  const expired = {...approval,approvedAt:new Date(Date.now()-31*24*60*60*1000).toISOString()};
+  assert.deepEqual(verifiedAuthorizedMargin(base,expired),
+    {allowed:false,reason:'exception_approval_invalid_time'});
+  const atBoundary = {...approval,approvedAt:new Date(Date.now()-29*24*60*60*1000).toISOString()};
+  assert.equal(verifiedAuthorizedMargin(base,atBoundary).allowed,true);
 });
