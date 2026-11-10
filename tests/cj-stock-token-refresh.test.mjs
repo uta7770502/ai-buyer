@@ -46,3 +46,19 @@ test('stock HTTP failures identify upstream cause without allowing inventory',as
     assert.equal(res.body.launchEligible,undefined);
   }
 });
+
+test('CJ rejected stock payload is not reported as verified zero inventory',async t=>{
+  const oldKey=process.env.CJ_API_KEY,oldToken=process.env.CJ_ACCESS_TOKEN;
+  delete process.env.CJ_API_KEY;
+  process.env.CJ_ACCESS_TOKEN='mock-static-token';
+  t.after(()=>{if(oldKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=oldKey;
+    if(oldToken===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=oldToken;});
+  t.mock.method(globalThis,'fetch',async()=>({ok:true,status:200,json:async()=>({result:false,data:null,message:'rejected'})}));
+  const res={setHeader(){},status(code){this.statusCode=code;return this;},json(body){this.body=body;return this;}};
+  await handler({method:'GET',query:{vid:'1234567890123'}},res);
+  assert.equal(res.statusCode,409);
+  assert.equal(res.body.code,'CJ_STOCK_UPSTREAM_REJECTED');
+  assert.equal(res.body.inventoryVerified,false);
+  assert.equal(res.body.verifiedInventory,undefined);
+  assert.equal(res.body.launchEligible,undefined);
+});
