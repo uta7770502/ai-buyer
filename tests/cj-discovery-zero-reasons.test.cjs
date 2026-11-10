@@ -30,3 +30,16 @@ test('discovery candidates remain blocked pending SKU-level evidence',()=>{
  assert.equal(d.variantStockVerified,false);
  assert.equal(d.netProfitVerified,false);
 });
+
+test('invalid IDs are not incorrectly counted as duplicates',()=>{
+ const d=summarizeDiscovery({received:[{id:'A'},{id:null},{id:'A'},{id:'B'}],products:[item('A'),{id:null},item('A'),item('B')]}).diagnostics;
+ assert.equal(d.uniqueCandidates,2);
+ assert.equal(d.duplicateIds,1);
+ assert.equal(d.returnedCandidates,2);
+});
+test('multiple missing IDs are not reported as duplicate products',()=>{
+ const d=summarizeDiscovery({received:[{},{}],products:[{},{}]}).diagnostics;
+ assert.equal(d.duplicateIds,0);
+ assert.equal(d.uniqueCandidates,0);
+ assert.equal(d.zeroResultReason,'missing_or_invalid_product_ids');
+});
