@@ -69,7 +69,7 @@ test('CJ risk gate excludes mid and high complaint risk products',()=>{
 });
 
 
-test('discovery allows factory-stock candidates but verified inventory is still required for approved recommendations',()=>{
+test('discovery allows factory-stock candidates but verified inventory is still required for approved recommendations',async()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   const search=fs.readFileSync(new URL('../lib/routes/cj-search.js',import.meta.url),'utf8');
   assert.match(html,/SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=5/);
@@ -77,7 +77,15 @@ test('discovery allows factory-stock candidates but verified inventory is still 
   assert.match(html,/function recommendationStockReady\(p/);
   assert.match(html,/p\.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
   assert.match(search,/minVerifiedInventory/);
-  assert.match(search,/p\.verifiedInventory>=minVerifiedInventory/);
+  const {createRequire}=await import('node:module');
+  const require=createRequire(import.meta.url);
+  const {summarizeDiscovery}=require('../lib/cj-discovery-diagnostics.cjs');
+  const rejected=summarizeDiscovery({received:[{id:'A'}],products:[{id:'A',listedNum:30,verifiedInventory:null}],minVerifiedInventory:5});
+  assert.equal(rejected.products.length,0);
+  assert.equal(rejected.diagnostics.zeroResultReason,'discovery_inventory_gate');
+  const accepted=summarizeDiscovery({received:[{id:'A'}],products:[{id:'A',listedNum:30,verifiedInventory:5}],minVerifiedInventory:5});
+  assert.equal(accepted.products.length,1);
+  assert.equal(accepted.diagnostics.variantStockVerified,false);
   assert.match(search,/Variant-level CJ stock is reverified before launch/);
 });
 
