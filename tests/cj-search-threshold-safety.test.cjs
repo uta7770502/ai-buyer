@@ -66,3 +66,31 @@ test('CJ HTTP success with unknown product schema is not reported as zero matche
     if(oldToken===undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN=oldToken;
   }
 });
+
+test('CJ search upstream rejection and invalid JSON remain unknown and redact supplier messages',async()=>{
+  const {default:handler}=await import(pathToFileURL(path.resolve(__dirname,'../lib/routes/cj-search.js')).href);
+  const oldFetch=global.fetch,oldKey=process.env.CJ_API_KEY,oldToken=process.env.CJ_ACCESS_TOKEN;
+  delete process.env.CJ_API_KEY;process.env.CJ_ACCESS_TOKEN='test-token';
+  try{
+    for(const scenario of [
+      {status:401,ok:false,body:{result:false,message:'secret-token-in-upstream-error'},reason:'cj_upstream_http_error'},
+      {status:200,ok:true,body:{result:false,message:'secret-token-in-upstream-error'},reason:'cj_upstream_rejected'},
+      {status:200,ok:true,body:null,reason:'cj_response_json_invalid'}
+    ]){
+      global.fetch=async()=>({status:scenario.status,ok:scenario.ok,json:async()=>{if(scenario.body===null)throw Error('invalid json');return scenario.body;}});
+      const req={method:'GET',query:{q:'pet'}};
+      const res={statusCode:200,status(n){this.statusCode=n;return this},json(v){this.body=v;return this}};
+      await handler(req,res);
+      assert.equal(res.statusCode,502);
+      assert.equal(res.body.diagnostics.reason,scenario.reason);
+      assert.equal(res.body.diagnostics.upstreamStatus,scenario.status);
+      assert.equal(res.body.diagnostics.receivedFromCJ,null);
+      assert.equal(res.body.diagnostics.readyForShopifyDraft,false);
+      assert.doesNotMatch(JSON.stringify(res.body),/secret-token-in-upstream-error/);
+    }
+  }finally{
+    global.fetch=oldFetch;
+    if(oldKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=oldKey;
+    if(oldToken===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=oldToken;
+  }
+});
