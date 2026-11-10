@@ -86,7 +86,9 @@ test('discovery allows factory-stock candidates but verified inventory is still 
   const accepted=summarizeDiscovery({received:[{id:'A'}],products:[{id:'A',listedNum:30,verifiedInventory:5}],minVerifiedInventory:5});
   assert.equal(accepted.products.length,1);
   assert.equal(accepted.diagnostics.variantStockVerified,false);
-  assert.match(search,/Variant-level CJ stock is reverified before launch/);
+  // Discovery-level stock evidence never certifies SKU-level inventory for launch.
+  assert.equal(rejected.diagnostics.variantStockVerified,false);
+  assert.equal(accepted.diagnostics.variantStockVerified,false);
 });
 
 
