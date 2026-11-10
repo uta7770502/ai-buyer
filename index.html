@@ -581,7 +581,7 @@ function renderRecommendTop(){
   renderMarginReview();
 }
 async function inspectDiscoveryVariantStock(pool){
- const candidates=pool.filter(p=>oddlyPetRelevant(p)&&!catalogRisk(p).exclude).slice(0,4);
+ const candidates=pool.filter(p=>oddlyPetRelevant(p)&&!catalogRisk(p).exclude).slice(0,6);
  for(const p of candidates){
   p.discoveryStockLabel='在庫未検証';
   p.discoveryVerificationLabel='確定仕入原価・Shopify決済手数料・広告費・返品引当の検証待ち';
