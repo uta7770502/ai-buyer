@@ -24,3 +24,25 @@ test('stock verification refreshes CJ token from API key even when a stale stati
   assert.equal(calls[1].options.headers['CJ-Access-Token'],'fresh-stock-token');
   assert.notEqual(res.body.ok,true);
 });
+
+test('stock HTTP failures identify upstream cause without allowing inventory',async t=>{
+  const oldKey=process.env.CJ_API_KEY;
+  process.env.CJ_API_KEY='test-api-key';
+  t.after(()=>{if(oldKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=oldKey;});
+  let upstreamStatus=401;
+  t.mock.method(globalThis,'fetch',async url=>{
+    if(String(url).includes('/authentication/getAccessToken'))
+      return {ok:true,status:200,json:async()=>({result:true,data:{accessToken:'stock-diagnostic-token',accessTokenExpiryDate:'2099-01-01T00:00:00Z'}})};
+    return {ok:false,status:upstreamStatus,json:async()=>({result:false})};
+  });
+  for(const [status,code] of [[401,'CJ_STOCK_AUTH_REJECTED'],[403,'CJ_STOCK_AUTH_REJECTED'],[429,'CJ_STOCK_RATE_LIMITED'],[502,'CJ_STOCK_UPSTREAM_HTTP_ERROR']]){
+    upstreamStatus=status;
+    const res={setHeader(){},status(value){this.statusCode=value;return this;},json(value){this.body=value;return this;}};
+    await handler({method:'GET',query:{vid:'1234567890123'}},res);
+    assert.equal(res.body.ok,false);
+    assert.equal(res.body.code,code);
+    assert.equal(res.body.upstreamStatus,status);
+    assert.equal(res.body.verifiedInventory,undefined);
+    assert.equal(res.body.launchEligible,undefined);
+  }
+});
