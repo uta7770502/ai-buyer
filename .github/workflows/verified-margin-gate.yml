@@ -14,7 +14,7 @@ on:
       - tests/verified-margin-gate.test.cjs
       - tests/verified-profit.test.cjs
       - tests/verified-profit-adapter.test.cjs
-      - tests/verified-profit-evidence-regression.test.cjs tests/cj-search-threshold-safety.test.cjs
+      - tests/verified-profit-evidence-regression.test.cjs
       - .github/workflows/verified-margin-gate.yml
   pull_request:
     paths:
