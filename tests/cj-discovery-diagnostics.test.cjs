@@ -17,3 +17,20 @@ test('discovery candidates never imply verified stock, reviews, freight or profi
  assert.equal(r.products.length,1);
  for(const k of ['reviewVerified','variantStockVerified','jpFreightVerified','netProfitVerified'])assert.equal(r.diagnostics[k],false);
 });
+
+test('missing ID count is derived from raw CJ records rather than transformed array length',()=>{
+ const r=summarizeDiscovery({received:[{id:'a'},{id:'b'},{name:'no id'}],products:[{id:'a',listedNum:3,verifiedInventory:8}]});
+ assert.equal(r.diagnostics.missingProductId,1);
+ assert.equal(r.diagnostics.receivedFromCJ,3);
+ assert.equal(r.diagnostics.returnedCandidates,1);
+});
+test('NaN thresholds do not incorrectly reject all candidates',()=>{
+ const r=summarizeDiscovery({received:[{id:'a'}],products:[{id:'a',listedNum:3,verifiedInventory:8}],minListed:NaN,minVerifiedInventory:NaN});
+ assert.equal(r.products.length,1);
+ assert.equal(r.diagnostics.variantStockVerified,false);
+});
+test('zero-result diagnosis identifies the discovery inventory stage',()=>{
+ const r=summarizeDiscovery({received:[{id:'a'}],products:[{id:'a',listedNum:9,verifiedInventory:null}],minListed:5,minVerifiedInventory:5});
+ assert.equal(r.diagnostics.zeroResultReason,'discovery_inventory_gate');
+ assert.equal(r.diagnostics.returnedCandidates,0);
+});
