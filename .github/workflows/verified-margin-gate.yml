@@ -6,19 +6,23 @@ on:
       - index.html
       - lib/routes/preview-profit-audit.js
       - lib/cj-stock-validation.js
+      - lib/routes/cj-search.js
+      - tests/cj-search-threshold-safety.test.cjs
       - tests/preview-profit-audit-safety.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
       - tests/verified-margin-gate.test.cjs
       - tests/verified-profit.test.cjs
       - tests/verified-profit-adapter.test.cjs
-      - tests/verified-profit-evidence-regression.test.cjs
+      - tests/verified-profit-evidence-regression.test.cjs tests/cj-search-threshold-safety.test.cjs
       - .github/workflows/verified-margin-gate.yml
   pull_request:
     paths:
       - index.html
       - lib/routes/preview-profit-audit.js
       - lib/cj-stock-validation.js
+      - lib/routes/cj-search.js
+      - tests/cj-search-threshold-safety.test.cjs
       - tests/preview-profit-audit-safety.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
