@@ -6,12 +6,13 @@ on:
       - index.html
       - lib/routes/preview-profit-audit.js
       - lib/cj-stock-validation.js
-      - tests/preview-profit-audit-safety.test.cjs
+      - tests/preview-profit-audit-safety.test.cjs tests/verified-profit-evidence-regression.test.cjs
       - lib/verified-profit.cjs
       - lib/verified-profit-adapter.cjs
       - tests/verified-margin-gate.test.cjs
       - tests/verified-profit.test.cjs
       - tests/verified-profit-adapter.test.cjs
+      - tests/verified-profit-evidence-regression.test.cjs
       - .github/workflows/verified-margin-gate.yml
   pull_request:
     paths:
