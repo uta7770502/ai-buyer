@@ -35,3 +35,17 @@ test('verified JPY profit refuses fractional yen and unsafe cost totals',()=>{
    assert.equal(result.verifiedMarginTier,null);
  }
 });
+
+test('one yen below 30%, 25%, and 20% never rounds into a higher tier',()=>{
+ const salePriceJpy=1000000000000;
+ for(const [threshold,expectedTier] of [[30,25],[25,20],[20,null]]) {
+   const profitJpy=salePriceJpy*threshold/100-1;
+   const result=applyVerifiedProfit(base,{
+     ...evidence(),salePriceJpy,productCostJpy:salePriceJpy-profitJpy,
+     shippingJpy:0,paymentFeeJpy:0,platformFeeJpy:0,plannedAdCostJpy:0,returnReserveJpy:0
+   });
+   assert.equal(result.finalProfitVerified,true);
+   assert.equal(result.verifiedMarginTier,expectedTier,`threshold ${threshold}`);
+   assert.equal(result.marginExceptionReviewRequired,expectedTier!==null);
+ }
+});
