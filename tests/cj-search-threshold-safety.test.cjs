@@ -18,3 +18,28 @@ test('CJ search rejects malformed filter thresholds before any network call',asy
     assert.equal(calls,0);
   } finally {global.fetch=previousFetch}
 });
+
+test('CJ authentication or network failure is unknown, never a verified zero result',async()=>{
+  const {default:handler}=await import(pathToFileURL(path.resolve(__dirname,'../lib/routes/cj-search.js')).href);
+  const oldFetch=global.fetch;
+  const oldKey=process.env.CJ_API_KEY;
+  const oldToken=process.env.CJ_ACCESS_TOKEN;
+  delete process.env.CJ_API_KEY;
+  delete process.env.CJ_ACCESS_TOKEN;
+  global.fetch=async()=>{throw Error('network failure')};
+  try {
+    const req={method:'GET',query:{q:'pet'}};
+    const res={statusCode:200,status(n){this.statusCode=n;return this},json(v){this.body=v;return this}};
+    await handler(req,res);
+    assert.equal(res.statusCode,502);
+    assert.equal(res.body.ok,false);
+    assert.equal(res.body.diagnostics.receivedFromCJ,null);
+    assert.equal(res.body.diagnostics.returnedCandidates,null);
+    assert.equal(res.body.diagnostics.readyForShopifyDraft,false);
+    assert.equal(res.body.diagnostics.reason,'cj_request_failed');
+  } finally {
+    global.fetch=oldFetch;
+    if(oldKey===undefined) delete process.env.CJ_API_KEY; else process.env.CJ_API_KEY=oldKey;
+    if(oldToken===undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN=oldToken;
+  }
+});
