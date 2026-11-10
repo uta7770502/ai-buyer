@@ -252,13 +252,18 @@ function recommendationReviewReady(p,now=Date.now()){
 }
 async function enrichRiskList(list,limit=6){
  const targets=list.filter(x=>x&&x.id&&!recommendationReviewReady(x)).slice(0,limit);
- for(const p of targets){
+ // Independent review requests can run concurrently; failed checks never qualify.
+ const workers=Array.from({length:Math.min(3,targets.length)},async(_,worker)=>{
+  for(let i=worker;i<targets.length;i+=3){
+   const p=targets[i];
    try{
-     const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id),{signal:AbortSignal.timeout(12000)});
-     const j=await r.json();
-     p.complaintRisk=r.ok&&j.ok&&j.risk?j.risk:{level:'unknown',exclude:true,label:'レビュー取得失敗'};
-   }catch{p.complaintRisk={level:'unknown',exclude:true,label:'レビュー未確認'};}
- }
+    const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id),{signal:AbortSignal.timeout(12000)});
+    const j=await r.json();
+    p.complaintRisk=r.ok&&j.ok&&j.risk?j.risk:{level:'unknown',exclude:true,label:'レビュー取得失敗（HTTP '+r.status+'）'};
+   }catch(e){p.complaintRisk={level:'unknown',exclude:true,label:e?.name==='TimeoutError'?'レビューAPI時間切れ':'レビュー通信・解析エラー'};}
+  }
+ });
+ await Promise.all(workers);
  return list;
 }
 function launchEligibility(x){
