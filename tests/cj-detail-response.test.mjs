@@ -63,3 +63,26 @@ test('persistent CJ detail HTTP 502 fails closed after exactly two attempts',asy
  assert.equal(calls,2);assert.equal(res.code,502);assert.equal(res.body.code,'CJ_DETAIL_HTTP_ERROR');
  assert.notEqual(res.body.ok,true);
 });
+
+test('CJ detail HTTP 403 is not retried and never exposes upstream body',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{calls++;return {ok:false,status:403,json:async()=>({secret:'supplier-private'})};});
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'product-1'}},res);
+ assert.equal(calls,1);assert.equal(res.code,503);
+ assert.equal(res.body.code,'CJ_DETAIL_AUTH_REJECTED');
+ assert.doesNotMatch(JSON.stringify(res.body),/supplier-private/);
+});
+test('CJ detail HTTP 200 with malformed JSON fails closed without retry',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{calls++;return {ok:true,status:200,json:async()=>{throw new Error('sensitive response');}};});
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'product-1'}},res);
+ assert.equal(calls,1);assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_DETAIL_INVALID_JSON');
+ assert.doesNotMatch(JSON.stringify(res.body),/sensitive response/);
+});
