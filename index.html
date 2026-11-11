@@ -612,7 +612,7 @@ async function inspectDiscoveryVariantStock(pool){
    p.discoverySupplierQuote=supplierQuote?.quoteCurrencyVerified===true&&supplierQuote.currency==='USD'&&Number.isFinite(supplierQuote.quotedAmount)&&supplierQuote.quotedAmount>0?supplierQuote:null;
    p.discoveryPriceLabel=p.discoverySupplierQuote?'CJ仕入見積 '+p.discoverySupplierQuote.quotedAmount.toFixed(2)+' USD（確定原価ではありません）':'CJ仕入見積の通貨・金額未確認';
 
-   if(!/^\d{10,25}$/.test(vid)){p.discoveryStockLabel='在庫確認対象外';continue;}
+   if(!/^(?:\d{10,25}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(vid)){p.discoveryStockLabel='在庫確認対象外';continue;}
    const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(vid),{signal:AbortSignal.timeout(12000)});
    const stock=await response.json();
    const stockCheckedAt=Date.parse(stock?.verifiedAt||'');

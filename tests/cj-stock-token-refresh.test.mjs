@@ -62,3 +62,22 @@ test('CJ rejected stock payload is not reported as verified zero inventory',asyn
   assert.equal(res.body.verifiedInventory,undefined);
   assert.equal(res.body.launchEligible,undefined);
 });
+
+test('stock lookup accepts a CJ UUID and forwards it without modification', async t=>{
+  const vid='084C1D31-23F9-4D10-9A53-48E482E443E9';
+  const previousToken=process.env.CJ_ACCESS_TOKEN;
+  process.env.CJ_ACCESS_TOKEN='test';
+  t.after(()=>{if(previousToken===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previousToken;});
+  const fetchMock=t.mock.method(globalThis,'fetch',async(url)=>{
+    const request=new URL(url);
+    assert.equal(request.pathname,'/api2.0/v1/product/stock/queryByVid');
+    assert.equal(request.searchParams.get('vid'),vid);
+    return {ok:true,status:200,json:async()=>({result:true,data:[{vid,cjInventoryNum:0,factoryInventoryNum:9,totalInventoryNum:9}]})};
+  });
+  const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};
+  await handler({method:'GET',query:{vid}},res);
+  assert.equal(fetchMock.mock.callCount(),1);
+  assert.equal(res.code,200);
+  assert.equal(res.body.verifiedInventory,0);
+  assert.equal(res.body.factoryStockQuantity,9);
+});
