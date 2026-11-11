@@ -23,6 +23,23 @@ test('review request limit never approves unchecked products',async()=>{
 test('failed refresh invalidates stale positive evidence',async()=>{
  const c=setup();const p=good();p.complaintRisk.checkedAt='2020-01-01';await c.enrichRiskList([p]);assert.equal(p.complaintRisk.exclude,true);assert.equal(c.recommendationReviewReady(p),false);
 });
+test('overlapping review batches send one request at a time',async()=>{
+ const requested=[];
+ let finishFirst;
+ const firstResponse=new Promise(resolve=>{finishFirst=resolve;});
+ const response={ok:true,json:async()=>({ok:true,risk:good().complaintRisk})};
+ const c=setup(async url=>{
+  requested.push(url);
+  return requested.length===1?firstResponse:response;
+ });
+ const batch=c.enrichRiskList([{id:'p1'},{id:'p2'}]);
+ const overlap=c.enrichRiskList([{id:'p3'}]);
+ await Promise.resolve();
+ assert.deepEqual(requested,['/api/cj-risk?id=p1']);
+ finishFirst(response);
+ await Promise.all([batch,overlap]);
+ assert.deepEqual(requested,['/api/cj-risk?id=p1','/api/cj-risk?id=p2','/api/cj-risk?id=p3']);
+});
 test('saved recommendations and recently removed items cannot bypass review gate',()=>{
  const c=setup();c.today={products:[good(),{id:'unchecked'}]};c.verifiedMarginRecommendation=()=>true;c.recommendationStockReady=p=>p.id==='p1';c.recentlyRemovedCandidates=()=>[{product:{id:'removed'}}];c.findActive=()=>null;c.catalogRisk=()=>({exclude:false});
  vm.runInContext(html.slice(html.indexOf('function orderedRecommendedProducts('),html.indexOf('function toggleCandidate(')),c);

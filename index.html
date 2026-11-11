@@ -250,12 +250,11 @@ function recommendationReviewReady(p,now=Date.now()){
  const rate=(lowReviews+twoStarReviews)/reviewCount;
  return lowReviews<3&&rate<0.08&&!(reviewCount>=10&&rate>=0.05);
 }
+let reviewQueue=Promise.resolve();
 async function enrichRiskList(list,limit=6){
  const targets=list.filter(x=>x&&x.id&&!recommendationReviewReady(x)).slice(0,limit);
- // Independent review requests can run concurrently; failed checks never qualify.
- const workers=Array.from({length:Math.min(3,targets.length)},async(_,worker)=>{
-  for(let i=worker;i<targets.length;i+=3){
-   const p=targets[i];
+ const batch=reviewQueue.then(async()=>{
+  for(const p of targets){
    try{
     const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id),{signal:AbortSignal.timeout(12000)});
     const j=await r.json();
@@ -263,7 +262,8 @@ async function enrichRiskList(list,limit=6){
    }catch(e){p.complaintRisk={level:'unknown',exclude:true,label:e?.name==='TimeoutError'?'レビューAPI時間切れ（12秒）':e?.name==='AbortError'?'レビューAPI通信中断':'レビュー通信・解析エラー（'+String(e?.message||'不明').replace(/[<>]/g,'').slice(0,70)+'）'};}
   }
  });
- await Promise.all(workers);
+ reviewQueue=batch.catch(()=>{});
+ await batch;
  return list;
 }
 function launchEligibility(x){
@@ -606,7 +606,23 @@ async function inspectDiscoveryVariantStock(pool){
    const variants=detail?.product?.variants;
    if(!detailResponse.ok||detail?.ok!==true){p.discoveryStockLabel='CJ商品詳細APIエラー（HTTP '+detailResponse.status+'）';continue;}
    if(!Array.isArray(variants)){p.discoveryStockLabel='CJ商品詳細にSKU一覧なし';continue;}
-   if(variants.length!==1){p.discoveryStockLabel='SKUが'+variants.length+'件のため選択SKU未確定（自動判定停止）';continue;}
+   if(variants.length!==1){
+    const inspected=[];
+    for(const variant of variants.slice(0,3)){
+     const variantId=String(variant?.id||'');
+     if(!/^(?:\d{10,25}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(variantId))continue;
+     try{
+      const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(variantId),{signal:AbortSignal.timeout(12000)});
+      const stock=await response.json();
+      const checkedAt=Date.parse(stock?.verifiedAt||'');
+      if(response.ok&&stock?.ok===true&&stock.readOnly===true&&stock.vid===variantId&&Number.isSafeInteger(stock.verifiedInventory)&&stock.verifiedInventory>=0&&Number.isFinite(checkedAt)&&checkedAt<=Date.now()&&Date.now()-checkedAt<=15*60*1000){
+       inspected.push((variant.name||variant.sku||variantId)+' '+stock.verifiedInventory+'件');
+      }
+     }catch{}
+    }
+    p.discoveryStockLabel='SKU選択が必要（全'+variants.length+'件）'+(inspected.length?' / CJ在庫 '+inspected.join('、'):' / SKU在庫未確認');
+    continue;
+   }
    const vid=String(variants[0].id||'');
    const supplierQuote=Array.isArray(detail.product.quoteEvidence)?detail.product.quoteEvidence.find(q=>String(q?.vid)===vid):null;
    p.discoverySupplierQuote=supplierQuote?.quoteCurrencyVerified===true&&supplierQuote.currency==='USD'&&Number.isFinite(supplierQuote.quotedAmount)&&supplierQuote.quotedAmount>0?supplierQuote:null;
