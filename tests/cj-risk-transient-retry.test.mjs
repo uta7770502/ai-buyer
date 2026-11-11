@@ -15,13 +15,15 @@ test('transient review HTTP 500 retries once and requires complete evidence', as
     const u = new URL(url);
     if (u.pathname.endsWith('/product/query')) return response(200, {result:true,data:{pid:'p1',comprehensiveScore:4.5}});
     if (!u.searchParams.has('score') && ++reviewCalls === 1) return response(500, {result:false});
-    return response(200, {result:true,data:{total:100}});
+    return response(200, {result:true,data:{total:u.searchParams.has('score') ? 0 : 100}});
   });
   const res = {setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
   await handler({method:'GET',query:{id:'p1'}},res);
   assert.equal(reviewCalls,2);
   assert.equal(res.code,200);
   assert.equal(res.body.risk.reviewCount,100);
+  assert.equal(res.body.risk.lowReviews,0);
+  assert.equal(res.body.risk.twoStarReviews,0);
 });
 
 test('persistent review HTTP 500 fails closed after one retry', async t => {
