@@ -1,13 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-risk.js';
-async function run(t,{mismatch=false,fail=false}={}){
+async function run(t,{mismatch=false,fail=false,documentedReviews=false,scoreTotal='0',reviewEnvelope={}}={}){
  const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
  const signals=[];
  t.mock.method(globalThis,'fetch',async(url,opts)=>{
   signals.push(opts.signal);if(fail)throw Error('secret upstream detail');
   const u=new URL(url);const data=u.pathname.endsWith('/product/query')?{pid:mismatch?'other':'p1',comprehensiveScore:4.5}: {total:u.searchParams.has('score')?0:100};
-  return {ok:true,json:async()=>({result:true,data})};
+  const body = documentedReviews && u.pathname.endsWith('/productComments')
+   ? {success:true,code:0,data:{total:u.searchParams.has('score')?scoreTotal:'100'},...reviewEnvelope}
+   : {result:true,data};
+  return {ok:true,json:async()=>body};
  });
  const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
  await handler({method:'GET',query:{id:'p1'}},res);return {res,signals};
@@ -17,6 +20,22 @@ test('review evidence requires matching product and a shared request deadline',a
 });
 test('mismatched product cannot produce a safe review result',async t=>{
  const {res,signals}=await run(t,{mismatch:true});assert.equal(res.body.ok,false);assert.equal(signals.length,1);
+});
+test('CJ documented review envelope provides verified counts',async t=>{
+ const {res}=await run(t,{documentedReviews:true});
+ assert.equal(res.code,200);
+ assert.equal(res.body.risk.reviewCount,100);
+ assert.equal(res.body.risk.exclude,false);
+});
+test('empty score counts cannot be treated as zero',async t=>{
+ const {res}=await run(t,{documentedReviews:true,scoreTotal:''});
+ assert.equal(res.code,424);
+ assert.equal(res.body.code,'CJ_REVIEW_EVIDENCE_UNAVAILABLE');
+});
+test('explicit review rejection takes precedence over the success field',async t=>{
+ const {res}=await run(t,{documentedReviews:true,reviewEnvelope:{result:false}});
+ assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_REVIEWS_UPSTREAM_REJECTED');
 });
 test('review transport failures remain failures without exposing upstream messages',async t=>{
  const {res}=await run(t,{fail:true});assert.equal(res.body.ok,false);assert.match(res.body.error,/推薦を保留/);assert.doesNotMatch(res.body.error,/secret/);
