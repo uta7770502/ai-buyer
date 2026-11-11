@@ -30,7 +30,8 @@ test('large safe integer inputs use exact comparisons without rounding', () => {
   const price = Number.MAX_SAFE_INTEGER;
   const common = {...base,salePriceJpy:price,shippingJpy:0,paymentFeeJpy:0,
     platformFeeJpy:0,plannedAdCostJpy:0,returnReserveJpy:0};
-  const maxCost = price - Math.ceil(price*0.3);
+  const minimumProfit = (BigInt(price) * 30n + 99n) / 100n;
+  const maxCost = Number(BigInt(price) - minimumProfit);
   assert.equal(verifiedMarginAtLeast({...common,productCostJpy:maxCost},30).allowed,true);
   assert.equal(verifiedMarginAtLeast({...common,productCostJpy:maxCost+1},30).allowed,false);
 });
