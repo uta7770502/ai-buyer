@@ -40,3 +40,26 @@ test('CJ variant quotes are never promoted to settled supplier costs',async t=>{
  assert.equal(res.body.product.finalProfitVerified,false);
  assert.ok(res.body.product.quoteEvidence.every(x=>x.settledCostVerified===false&&x.finalProfitVerified===false));
 });
+
+test('transient CJ detail HTTP 502 retries once and returns verified matching identity',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>++calls===1
+   ? {ok:false,status:502,json:async()=>({result:false})}
+   : {ok:true,status:200,json:async()=>({result:true,data:{pid:'product-1'}})});
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'product-1'}},res);
+ assert.equal(calls,2);assert.equal(res.code,200);assert.equal(res.body.product.id,'product-1');
+ assert.equal(res.body.product.finalProfitVerified,false);
+});
+test('persistent CJ detail HTTP 502 fails closed after exactly two attempts',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{calls++;return {ok:false,status:502,json:async()=>({result:false})};});
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'product-1'}},res);
+ assert.equal(calls,2);assert.equal(res.code,502);assert.equal(res.body.code,'CJ_DETAIL_HTTP_ERROR');
+ assert.notEqual(res.body.ok,true);
+});
