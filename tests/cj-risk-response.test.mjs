@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-risk.js';
-async function run(t,{mismatch=false,fail=false,documentedReviews=false,scoreTotal='0',reviewEnvelope={}}={}){
+async function run(t,{mismatch=false,fail=false,documentedReviews=false,scoreTotal='0',reviewEnvelope={},rateLimited=false}={}){
  const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
  const signals=[];
  t.mock.method(globalThis,'fetch',async(url,opts)=>{
   signals.push(opts.signal);if(fail)throw Error('secret upstream detail');
   const u=new URL(url);const data=u.pathname.endsWith('/product/query')?{pid:mismatch?'other':'p1',comprehensiveScore:4.5}: {total:u.searchParams.has('score')?0:100};
+  if(rateLimited && u.searchParams.get('score')==='1' && signals.length===3){
+   return {ok:false,status:429,headers:new Headers({'Retry-After':'0'})};
+  }
   const body = documentedReviews && u.pathname.endsWith('/productComments')
    ? {success:true,code:0,data:{total:u.searchParams.has('score')?scoreTotal:'100'},...reviewEnvelope}
    : {result:true,data};
@@ -26,6 +29,13 @@ test('CJ documented review envelope provides verified counts',async t=>{
  assert.equal(res.code,200);
  assert.equal(res.body.risk.reviewCount,100);
  assert.equal(res.body.risk.exclude,false);
+});
+test('a transient CJ score rate limit is retried within the shared deadline',async t=>{
+ const {res,signals}=await run(t,{rateLimited:true});
+ assert.equal(res.code,200);
+ assert.equal(res.body.risk.exclude,false);
+ assert.equal(signals.length,5);
+ assert.ok(signals.every(signal=>signal===signals[0]));
 });
 test('empty score counts cannot be treated as zero',async t=>{
  const {res}=await run(t,{documentedReviews:true,scoreTotal:''});
