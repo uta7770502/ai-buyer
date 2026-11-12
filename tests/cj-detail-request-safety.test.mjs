@@ -57,3 +57,10 @@ test('CJ detail auth deadline applies before upstream fetch and prevents token e
  assert.match(source,/CJ_DETAIL_TIMEOUT/);
  assert.doesNotMatch(source,/token:\s*token|error:\s*error\.message/);
 });
+
+
+test('CJ detail clears the authentication deadline timer on success or failure',()=>{
+ assert.match(source,/let authTimer;/);
+ assert.match(source,/authTimer = setTimeout\(/);
+ assert.match(source,/finally \{\s*clearTimeout\(authTimer\);\s*\}/);
+});
