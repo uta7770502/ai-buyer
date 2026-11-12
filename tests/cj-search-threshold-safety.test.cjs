@@ -94,3 +94,45 @@ test('CJ search upstream rejection and invalid JSON remain unknown and redact su
     if(oldToken===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=oldToken;
   }
 });
+
+
+test('CJ search normalizes productId and pid without promoting discovery to verified inventory',async()=>{
+  const {default:handler}=await import(pathToFileURL(path.resolve(__dirname,'../lib/routes/cj-search.js')).href);
+  const oldFetch=global.fetch,oldKey=process.env.CJ_API_KEY,oldToken=process.env.CJ_ACCESS_TOKEN;
+  delete process.env.CJ_API_KEY;process.env.CJ_ACCESS_TOKEN='test-token';
+  global.fetch=async()=>({ok:true,status:200,json:async()=>({result:true,data:{list:[
+    {productId:'product-from-productId',nameEn:'A',totalVerifiedInventory:100},
+    {pid:'product-from-pid',nameEn:'B',totalVerifiedInventory:100}
+  ],total:2}})});
+  try{
+    const res={statusCode:200,status(n){this.statusCode=n;return this},setHeader(){},json(v){this.body=v;return this}};
+    await handler({method:'GET',query:{q:'pet'}},res);
+    assert.equal(res.statusCode,200);
+    assert.deepEqual(res.body.products.map(p=>p.id),['product-from-productId','product-from-pid']);
+    for(const p of res.body.products){
+      assert.equal(p.variantInventoryVerified,false);
+      assert.equal(p.freightVerified,false);
+      assert.equal(p.profitVerified,false);
+      assert.equal(p.readyForShopifyDraft,false);
+    }
+  }finally{
+    global.fetch=oldFetch;
+    if(oldKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=oldKey;
+    if(oldToken===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=oldToken;
+  }
+});
+
+test('CJ search rejects malformed pagination without upstream requests',async()=>{
+  const {default:handler}=await import(pathToFileURL(path.resolve(__dirname,'../lib/routes/cj-search.js')).href);
+  const oldFetch=global.fetch;
+  let calls=0;global.fetch=async()=>{calls++;throw Error('unexpected network')};
+  try{
+    for(const query of [{page:'0'},{page:'1.5'},{page:'Infinity'},{size:'51'},{size:'-1'}]){
+      const res={statusCode:200,status(n){this.statusCode=n;return this},json(v){this.body=v;return this}};
+      await handler({method:'GET',query:{q:'pet',...query}},res);
+      assert.equal(res.statusCode,400);
+      assert.equal(res.body.diagnostics.readyForShopifyDraft,false);
+    }
+    assert.equal(calls,0);
+  }finally{global.fetch=oldFetch}
+});
