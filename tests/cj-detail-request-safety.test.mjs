@@ -78,3 +78,11 @@ test('CJ detail refuses absent or header-injection tokens before contacting supp
  assert.ok(source.indexOf("CJ_DETAIL_AUTH_INVALID") < source.indexOf('await fetch(url'));
  assert.match(source,/res\.status\(503\)\.json\(\{ error: 'CJ認証を確認できませんでした。販売を保留します。', code: 'CJ_DETAIL_AUTH_INVALID' \}\)/);
 });
+
+
+test('CJ detail rejects HTTP 200 proxy HTML and other non-JSON content before parsing',()=>{
+ assert.match(source,/response\.headers\.get\('content-type'\)/);
+ assert.match(source,/mediaType !== 'application\/json' && !mediaType\.endsWith\('\+json'\)/);
+ assert.match(source,/CJ_DETAIL_UNEXPECTED_CONTENT_TYPE/);
+ assert.ok(source.indexOf("CJ_DETAIL_UNEXPECTED_CONTENT_TYPE") < source.indexOf('const json = await response.json()'));
+});
