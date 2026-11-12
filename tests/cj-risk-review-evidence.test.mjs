@@ -32,3 +32,9 @@ test('CJ ratings outside five-star scale are excluded',()=>{
  assert.match(source,/rating>5/);
  assert.match(source,/reason:'rating-out-of-range'/);
 });
+
+test('live CJ review total cannot fall back to stale catalog comment count',()=>{
+ assert.match(source,/const total=parseReviewCount\(all\?\.total\)/);
+ assert.doesNotMatch(source,/all\?\.total\?\?detail\?\.commentCount/);
+ assert.match(source,/!Number\.isSafeInteger\(total\)\|\|total<0/);
+});
