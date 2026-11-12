@@ -86,3 +86,26 @@ test('CJ detail HTTP 200 with malformed JSON fails closed without retry',async t
  assert.equal(res.body.code,'CJ_DETAIL_INVALID_JSON');
  assert.doesNotMatch(JSON.stringify(res.body),/sensitive response/);
 });
+
+test('CJ detail HTTP 429 does not retry and keeps supplier body private',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{calls++;return {ok:false,status:429,json:async()=>({secret:'rate-limit-private'})};});
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'product-1'}},res);
+ assert.equal(calls,1);assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_DETAIL_HTTP_ERROR');
+ assert.doesNotMatch(JSON.stringify(res.body),/rate-limit-private/);
+});
+test('CJ detail HTTP 200 with supplier result false is never accepted',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{calls++;return {ok:true,status:200,json:async()=>({result:false,data:{pid:'product-1'},message:'supplier-private'})};});
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'product-1'}},res);
+ assert.equal(calls,1);assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
+ assert.doesNotMatch(JSON.stringify(res.body),/supplier-private/);
+});
