@@ -27,3 +27,8 @@ test('CJ review retry cleanup failure cannot suppress HTTP retry classification'
   assert.match(retryBlock, /await delay\(150/);
   assert.match(throttleBlock, /await delay\(waitMs/);
 });
+
+test('CJ review eligibility responses are never cached', () => {
+  assert.match(source, /res\.setHeader\('Cache-Control','no-store'\)/);
+  assert.doesNotMatch(source, /private, max-age=300/);
+});
