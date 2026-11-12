@@ -41,3 +41,11 @@ test('CJ detail malformed envelopes and mismatched ids fail closed without cachi
  assert.match(source,/if\(!p \|\| typeof p !== 'object'[\s\S]*?res\.setHeader\('Cache-Control', 'no-store'\);[\s\S]*?CJ_DETAIL_ID_MISMATCH/);
  assert.doesNotMatch(source,/const authRejected = false/);
 });
+
+
+test('CJ detail token refresh is covered by the total request deadline',()=>{
+ assert.ok(source.indexOf('const deadline = Date.now() + CJ_DETAIL_TIMEOUT_MS') < source.indexOf('getCJAccessToken()'));
+ assert.match(source,/Promise\.race\(\[getCJAccessToken\(\), new Promise/);
+ assert.match(source,/CJ detail auth timeout/);
+ assert.match(source,/name: 'TimeoutError'/);
+});
