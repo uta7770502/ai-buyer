@@ -5,7 +5,7 @@ const source=readFileSync(new URL('../lib/routes/cj-detail.js',import.meta.url),
 test('CJ detail requests validate ids, bound timeouts and redact errors',()=>{
  assert.match(source,/Invalid product id/);
  assert.match(source,/AbortSignal\.timeout\(Math\.min\(remaining, CJ_DETAIL_TIMEOUT_MS\)\)/);
- assert.match(source,/await getCJAccessToken\(\)/);
+ assert.match(source,/Promise\.race\(\[getCJAccessToken\(\), new Promise/);
  assert.match(source,/CJ_DETAIL_HTTP_ERROR/);
  assert.match(source,/\[500, 502, 503, 504\]/);
  assert.match(source,/deadline - Date\.now\(\)/);
@@ -48,4 +48,12 @@ test('CJ detail token refresh is covered by the total request deadline',()=>{
  assert.match(source,/Promise\.race\(\[getCJAccessToken\(\), new Promise/);
  assert.match(source,/CJ detail auth timeout/);
  assert.match(source,/name: 'TimeoutError'/);
+});
+
+
+test('CJ detail auth deadline applies before upstream fetch and prevents token exposure',()=>{
+ assert.match(source,/const deadline = Date\.now\(\) \+ CJ_DETAIL_TIMEOUT_MS/);
+ assert.ok(source.indexOf('Promise.race([getCJAccessToken()') < source.indexOf('await fetch(url'));
+ assert.match(source,/CJ_DETAIL_TIMEOUT/);
+ assert.doesNotMatch(source,/token:\s*token|error:\s*error\.message/);
 });
