@@ -17,3 +17,11 @@ test('CJ does not retry authentication failures or treat a failed retry as succe
   assert.match(getJson, /if \(!r\.ok\) \{/);
   assert.match(getJson, /error\.upstreamStatus = r\.status/);
 });
+
+
+test('CJ review retries at most once across gateway and rate-limit responses', () => {
+  assert.match(getJson, /let retried = false/);
+  assert.match(getJson, /retried = true/);
+  assert.match(getJson, /r\.status === 429 && !retried/);
+  assert.match(getJson, /Number\.isFinite\(waitMs\) && waitMs >= 0 && waitMs <= 2000/);
+});
