@@ -14,3 +14,10 @@ test('CJ detail requests validate ids, bound timeouts and redact errors',()=>{
  assert.match(source,/CJ_DETAIL_FETCH_FAILED/);
  assert.doesNotMatch(source,/error: error\.message/);
 });
+
+test('CJ detail retry releases failed responses and bounds backoff',()=>{
+ assert.match(source,/await response\.body\?\.cancel\(\)/);
+ assert.match(source,/retryRemaining = deadline - Date\.now\(\)/);
+ assert.match(source,/retryRemaining <= 150/);
+ assert.match(source,/setTimeout\(resolve, 150\)/);
+});
