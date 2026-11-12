@@ -20,8 +20,8 @@ test('CJ review failures retain stage diagnostics without leaking upstream bodie
 });
 
 test('CJ review retry cleanup failure cannot suppress HTTP retry classification', () => {
-  const retryBlock = source.slice(source.indexOf('if ([500, 502, 503, 504].includes(r.status))'), source.indexOf('if (r.status === 429)'));
-  const throttleBlock = source.slice(source.indexOf('if (r.status === 429)'), source.indexOf('// Do not parse upstream error bodies'));
+  const retryBlock = source.slice(source.indexOf('if ([500, 502, 503, 504].includes(r.status))'), source.indexOf('if (r.status === 429 && !retried)'));
+  const throttleBlock = source.slice(source.indexOf('if (r.status === 429 && !retried)'), source.indexOf('// Do not parse upstream error bodies'));
   assert.match(retryBlock, /await r\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
   assert.match(throttleBlock, /await r\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
   assert.match(retryBlock, /await delay\(150/);
@@ -31,4 +31,10 @@ test('CJ review retry cleanup failure cannot suppress HTTP retry classification'
 test('CJ review eligibility responses are never cached', () => {
   assert.match(source, /res\.setHeader\('Cache-Control','no-store'\)/);
   assert.doesNotMatch(source, /private, max-age=300/);
+});
+
+test('CJ review does not perform a third request after gateway retry followed by 429', () => {
+  assert.match(source, /let retried = false;/);
+  assert.match(source, /retried = true;/);
+  assert.match(source, /if \(r\.status === 429 && !retried\)/);
 });
