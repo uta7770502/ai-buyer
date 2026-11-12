@@ -109,3 +109,16 @@ test('CJ detail HTTP 200 with supplier result false is never accepted',async t=>
  assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
  assert.doesNotMatch(JSON.stringify(res.body),/supplier-private/);
 });
+
+
+test('successful CJ detail responses explicitly disable caching of supplier quotes',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,status:200,json:async()=>({result:true,data:{pid:'product-1',variants:[{vid:'variant-1',variantSellPrice:'4.00',currency:'USD'}]}})}));
+ const headers={};
+ const res={setHeader(k,v){headers[k.toLowerCase()]=v},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'product-1'}},res);
+ assert.equal(res.code,200);
+ assert.equal(headers['cache-control'],'no-store');
+ assert.equal(res.body.product.finalProfitVerified,false);
+});
