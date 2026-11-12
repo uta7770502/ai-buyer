@@ -34,3 +34,10 @@ test('CJ detail handles body cancellation failures without bypassing retry class
  assert.match(source,/await response\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
  assert.match(source,/if \(!response\.ok\)/);
 });
+
+test('CJ detail malformed envelopes and mismatched ids fail closed without caching',()=>{
+ assert.match(source,/if \(json\?\.result !== true\) \{/);
+ assert.match(source,/code: !json \? 'CJ_DETAIL_INVALID_JSON' : 'CJ_DETAIL_UPSTREAM_REJECTED'/);
+ assert.match(source,/if\(!p \|\| typeof p !== 'object'[\s\S]*?res\.setHeader\('Cache-Control', 'no-store'\);[\s\S]*?CJ_DETAIL_ID_MISMATCH/);
+ assert.doesNotMatch(source,/const authRejected = false/);
+});
