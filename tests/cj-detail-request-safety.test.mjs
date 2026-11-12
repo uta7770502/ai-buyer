@@ -19,7 +19,8 @@ test('CJ detail retry releases failed responses and bounds backoff',()=>{
  assert.match(source,/await response\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
  assert.match(source,/retryRemaining = deadline - Date\.now\(\)/);
  assert.match(source,/retryRemaining <= 150/);
- assert.match(source,/setTimeout\(resolve, 150\)/);
+ assert.match(source,/await delay\(150, undefined, \{ signal: AbortSignal\.timeout\(Math\.max\(1, retryRemaining\)\) \}\)/);
+ assert.doesNotMatch(source,/setTimeout\(resolve, 150\)/);
 });
 
 test('CJ detail HTTP errors never parse upstream response bodies',()=>{
@@ -63,4 +64,10 @@ test('CJ detail clears the authentication deadline timer on success or failure',
  assert.match(source,/let authTimer;/);
  assert.match(source,/authTimer = setTimeout\(/);
  assert.match(source,/finally \{\s*clearTimeout\(authTimer\);\s*\}/);
+});
+
+test('CJ detail retry backoff is abort-aware and cannot extend beyond deadline',()=>{
+ assert.match(source,/import \{ setTimeout as delay \} from 'node:timers\/promises'/);
+ assert.match(source,/retryRemaining <= 150/);
+ assert.match(source,/AbortSignal\.timeout\(Math\.max\(1, retryRemaining\)\)/);
 });
