@@ -16,7 +16,7 @@ test('CJ detail requests validate ids, bound timeouts and redact errors',()=>{
 });
 
 test('CJ detail retry releases failed responses and bounds backoff',()=>{
- assert.match(source,/await response\.body\?\.cancel\(\)/);
+ assert.match(source,/await response\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
  assert.match(source,/retryRemaining = deadline - Date\.now\(\)/);
  assert.match(source,/retryRemaining <= 150/);
  assert.match(source,/setTimeout\(resolve, 150\)/);
@@ -28,4 +28,9 @@ test('CJ detail HTTP errors never parse upstream response bodies',()=>{
  assert.match(source,/CJ_DETAIL_HTTP_ERROR/);
  assert.match(source,/const json = await response\.json\(\)\.catch/);
  assert.ok(source.indexOf('if (!response.ok) {') < source.indexOf('const json = await response.json()'));
+});
+
+test('CJ detail handles body cancellation failures without bypassing retry classification',()=>{
+ assert.match(source,/await response\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
+ assert.match(source,/if \(!response\.ok\)/);
 });
