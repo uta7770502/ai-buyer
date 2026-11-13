@@ -250,3 +250,22 @@ test('CJ detail rejects non-application +json media types before parsing', async
  assert.equal(res.code, 502);
  assert.equal(res.body.code, 'CJ_DETAIL_UNEXPECTED_CONTENT_TYPE');
 });
+
+for (const mediaType of ['application/+json', 'application/jsonp', 'application/.vendor+json']) {
+  test(`CJ detail rejects malformed media type ${mediaType} without parsing`, async t => {
+    const old = process.env.CJ_ACCESS_TOKEN; process.env.CJ_ACCESS_TOKEN = 'test';
+    t.after(() => { if (old === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = old; });
+    let parsed = false;
+    const fetchMock = mockCJFetch(t, async () => ({
+      ok: true, status: 200, headers: { get: () => mediaType },
+      json: async () => { parsed = true; throw new Error('PRIVATE_SUPPLIER_BODY'); }
+    }));
+    const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+    await handler({ method: 'GET', query: { id: 'product-1' } }, res);
+    assert.equal(fetchMock.mock.callCount(), 1);
+    assert.equal(parsed, false);
+    assert.equal(res.code, 502);
+    assert.equal(res.body.code, 'CJ_DETAIL_UNEXPECTED_CONTENT_TYPE');
+    assert.doesNotMatch(JSON.stringify(res.body), /PRIVATE_SUPPLIER_BODY/);
+  });
+}
