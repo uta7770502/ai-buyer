@@ -70,3 +70,20 @@ test('upstream detail and review failures identify their stage without bypassing
   mock.mock.restore();
  }
 });
+
+test('malformed CJ review credentials fail closed without an upstream request', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ for(const invalid of [' leading','trailing ','bad\nline','bad\ttab','bad\rreturn','bad\x7fdel']){
+  process.env.CJ_ACCESS_TOKEN=invalid;
+  let calls=0;
+  const mock=t.mock.method(globalThis,'fetch',async()=>{calls++;throw Error('unexpected CJ request');});
+  const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+  await handler({method:'GET',query:{id:'p1'}},res);
+  assert.equal(res.code,503);
+  assert.equal(res.body.code,'CJ_AUTH_INVALID');
+  assert.equal(calls,0);
+  assert.doesNotMatch(JSON.stringify(res.body),/leading|trailing|bad\\nline/);
+  mock.mock.restore();
+ }
+});
