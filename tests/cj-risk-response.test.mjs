@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-risk.js';
-async function run(t,{mismatch=false,fail=false,documentedReviews=false,scoreTotal='0',reviewEnvelope={},rateLimited=false}={}){
+async function run(t,{mismatch=false,fail=false,documentedReviews=false,scoreTotal='0',reviewEnvelope={},rateLimited=false,contentType=null}={}){
  const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
  const signals=[];
  t.mock.method(globalThis,'fetch',async(url,opts)=>{
@@ -13,7 +13,7 @@ async function run(t,{mismatch=false,fail=false,documentedReviews=false,scoreTot
   const body = documentedReviews && u.pathname.endsWith('/productComments')
    ? {success:true,code:0,data:{total:u.searchParams.has('score')?scoreTotal:'100'},...reviewEnvelope}
    : {result:true,data};
-  return {ok:true,json:async()=>body};
+  return {ok:true,headers:contentType?new Headers({'content-type':contentType}):undefined,json:async()=>body};
  });
  const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
  await handler({method:'GET',query:{id:'p1'}},res);return {res,signals};
@@ -86,4 +86,12 @@ test('malformed CJ review credentials fail closed without an upstream request', 
   assert.doesNotMatch(JSON.stringify(res.body),/leading|trailing|bad\\nline/);
   mock.mock.restore();
  }
+});
+
+test('explicit HTML response cannot be accepted as verified CJ review evidence', async t => {
+ const {res}=await run(t,{contentType:'text/html; charset=utf-8'});
+ assert.equal(res.code,502);
+ assert.equal(res.body.ok,false);
+ assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
+ assert.match(res.body.error,/推薦を保留/);
 });
