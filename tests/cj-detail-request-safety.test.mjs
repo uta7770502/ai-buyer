@@ -82,7 +82,7 @@ test('CJ detail refuses absent or header-injection tokens before contacting supp
 test('CJ detail rejects HTTP 200 proxy HTML and other non-JSON content before parsing',()=>{
  assert.match(source,/response\.headers\.get\('content-type'\)/);
  assert.ok(source.includes("mediaType !== 'application/json'"));
- assert.ok(source.includes("/^application\\/[a-z0-9.+-]+\\+json$/.test(mediaType)"));
+ assert.ok(source.includes("/^application\\/[a-z0-9][a-z0-9.+-]*\\+json$/.test(mediaType)"));
  assert.match(source,/CJ_DETAIL_UNEXPECTED_CONTENT_TYPE/);
  assert.ok(source.indexOf("CJ_DETAIL_UNEXPECTED_CONTENT_TYPE") < source.indexOf('const json = await response.json()'));
 });
