@@ -224,7 +224,7 @@ test('CJ detail rejects padded and control-character auth tokens before supplier
  const previous = process.env.CJ_ACCESS_TOKEN;
  t.after(() => { if (previous === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = previous; });
  const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('supplier must not be called'); });
- for (const token of [' test', 'test ', 'test\\tvalue', 'test\\u0000value', 'test\\u007fvalue']) {
+ for (const token of [' test', 'test ', ...[9, 10, 13, 1, 31, 127].map(code => 'test' + String.fromCharCode(code) + 'value')]) {
    process.env.CJ_ACCESS_TOKEN = token;
    const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
    await handler({ method: 'GET', query: { id: 'product-1' } }, res);
