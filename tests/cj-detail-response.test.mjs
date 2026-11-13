@@ -18,9 +18,9 @@ test('detail rejects missing or mismatched supplier identities',async t=>{
  for(const data of [null,{},[],{pid:'product-2'}]){const res=await run(t,data);assert.equal(res.code,502);assert.notEqual(res.body.ok,true);}
 });
 test('detail reports an invalid auth response without exposing its body',async t=>{
- const previous=process.env.CJ_API_KEY;
- process.env.CJ_API_KEY='test';
- t.after(()=>{if(previous===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=previous;});
+ const previous=process.env.CJ_ACCESS_TOKEN;
+ process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
  const fetchMock=mockCJFetch(t,async()=>({ok:false,status:401,json:async()=>{throw new Error('private supplier response');}}));
  const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
  await handler({method:'GET',query:{id:'product-1'}},res);
