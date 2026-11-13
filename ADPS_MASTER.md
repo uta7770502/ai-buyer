@@ -1,5 +1,7 @@
 # ADPS / AI BUYER — Master decisions
 
+> Current status (2026-11-13): Historical completion percentages below are not release evidence. See [backend verification](docs/backend-verification-2026-11-13.md) for verified changes and remaining acceptance checks.
+
 ## Brand separation (confirmed 2026-10-12)
 - Customer-facing shop: **ODDLY**.
 - Internal automation app: **ADPS / AI BUYER**.
