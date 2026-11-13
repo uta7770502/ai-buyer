@@ -186,3 +186,36 @@ test('CJ detail HTTP 200 with missing content type fails closed without parsing'
  assert.equal(res.code, 502);
  assert.equal(res.body.code, 'CJ_DETAIL_UNEXPECTED_CONTENT_TYPE');
 });
+
+test('CJ detail rejects invalid identifiers before any supplier request', async t => {
+ const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('must not fetch'); });
+ const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+ await handler({ method: 'GET', query: { id: '../unsafe' } }, res);
+ assert.equal(res.code, 400);
+ assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('CJ detail HTTP 400 is not retried or treated as verified supplier data', async t => {
+ const old = process.env.CJ_ACCESS_TOKEN; process.env.CJ_ACCESS_TOKEN = 'test';
+ t.after(() => { if (old === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = old; });
+ const fetchMock = mockCJFetch(t, async () => ({ ok: false, status: 400, json: async () => { throw new Error('supplier-private'); } }));
+ const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+ await handler({ method: 'GET', query: { id: 'product-1' } }, res);
+ assert.equal(fetchMock.mock.callCount(), 1);
+ assert.equal(res.code, 502);
+ assert.equal(res.body.upstreamStatus, 400);
+ assert.doesNotMatch(JSON.stringify(res.body), /supplier-private/);
+});
+
+test('CJ detail HTTP 503 retries once but remains fail-closed on a second 504', async t => {
+ const old = process.env.CJ_ACCESS_TOKEN; process.env.CJ_ACCESS_TOKEN = 'test';
+ t.after(() => { if (old === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = old; });
+ let calls = 0;
+ mockCJFetch(t, async () => ({ ok: false, status: ++calls === 1 ? 503 : 504, json: async () => { throw new Error('supplier-private'); } }));
+ const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+ await handler({ method: 'GET', query: { id: 'product-1' } }, res);
+ assert.equal(calls, 2);
+ assert.equal(res.code, 502);
+ assert.equal(res.body.upstreamStatus, 504);
+ assert.doesNotMatch(JSON.stringify(res.body), /supplier-private/);
+});
