@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-risk.js';
 
 function response(status, data) {
-  return { ok: status === 200, status, headers: new Headers(), body: { cancel: async () => {} }, json: async () => data };
+  return { ok: status === 200, status, headers: new Headers({'content-type': 'application/json'}), body: { cancel: async () => {} }, json: async () => data };
 }
 
 test('transient review HTTP 500 retries once and requires complete evidence', async t => {
