@@ -219,3 +219,17 @@ test('CJ detail HTTP 503 retries once but remains fail-closed on a second 504', 
  assert.equal(res.body.upstreamStatus, 504);
  assert.doesNotMatch(JSON.stringify(res.body), /supplier-private/);
 });
+
+test('CJ detail rejects padded and control-character auth tokens before supplier fetch', async t => {
+ const previous = process.env.CJ_ACCESS_TOKEN;
+ t.after(() => { if (previous === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = previous; });
+ const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('supplier must not be called'); });
+ for (const token of [' test', 'test ', 'test\\tvalue', 'test\\u0000value', 'test\\u007fvalue']) {
+   process.env.CJ_ACCESS_TOKEN = token;
+   const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+   await handler({ method: 'GET', query: { id: 'product-1' } }, res);
+   assert.equal(res.code, 503);
+   assert.equal(res.body.code, 'CJ_DETAIL_AUTH_INVALID');
+ }
+ assert.equal(fetchMock.mock.callCount(), 0);
+});
