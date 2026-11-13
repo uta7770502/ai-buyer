@@ -128,3 +128,18 @@ test('successful CJ detail responses explicitly disable caching of supplier quot
  assert.equal(headers['cache-control'],'no-store');
  assert.equal(res.body.product.finalProfitVerified,false);
 });
+
+
+test('CJ detail rejects HTTP 200 HTML without parsing supplier body', async t => {
+ const old = process.env.CJ_ACCESS_TOKEN; process.env.CJ_ACCESS_TOKEN = 'test';
+ t.after(() => { if (old === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = old; });
+ let parsed = false;
+ const fetchMock = mockCJFetch(t, async () => ({ ok: true, status: 200, headers: { get: () => 'text/html; charset=utf-8' }, json: async () => { parsed = true; throw new Error('private html'); } }));
+ const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+ await handler({ method: 'GET', query: { id: 'product-1' } }, res);
+ assert.equal(fetchMock.mock.callCount(), 1);
+ assert.equal(parsed, false);
+ assert.equal(res.code, 502);
+ assert.equal(res.body.code, 'CJ_DETAIL_UNEXPECTED_CONTENT_TYPE');
+ assert.doesNotMatch(JSON.stringify(res.body), /private html/);
+});
