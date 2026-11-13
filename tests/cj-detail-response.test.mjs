@@ -157,3 +157,32 @@ test('CJ detail 502 followed by 429 stops after the single permitted retry', asy
  assert.equal(res.body.upstreamStatus, 429);
  assert.doesNotMatch(JSON.stringify(res.body), /private upstream error/);
 });
+
+test('CJ detail HTTP 500 retries once, then accepts only a matching supplier identity', async t => {
+ const old = process.env.CJ_ACCESS_TOKEN; process.env.CJ_ACCESS_TOKEN = 'test';
+ t.after(() => { if (old === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = old; });
+ let calls = 0;
+ mockCJFetch(t, async () => ++calls === 1
+   ? { ok: false, status: 500, json: async () => { throw new Error('supplier internal secret'); } }
+   : { ok: true, status: 200, json: async () => ({ result: true, data: { pid: 'product-1' } }) });
+ const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+ await handler({ method: 'GET', query: { id: 'product-1' } }, res);
+ assert.equal(calls, 2);
+ assert.equal(res.code, 200);
+ assert.equal(res.body.product.id, 'product-1');
+ assert.equal(res.body.product.finalProfitVerified, false);
+ assert.doesNotMatch(JSON.stringify(res.body), /supplier internal secret/);
+});
+
+test('CJ detail HTTP 200 with missing content type fails closed without parsing', async t => {
+ const old = process.env.CJ_ACCESS_TOKEN; process.env.CJ_ACCESS_TOKEN = 'test';
+ t.after(() => { if (old === undefined) delete process.env.CJ_ACCESS_TOKEN; else process.env.CJ_ACCESS_TOKEN = old; });
+ let parsed = false;
+ const fetchMock = mockCJFetch(t, async () => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => { parsed = true; return { result: true, data: { pid: 'product-1' } }; } }));
+ const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+ await handler({ method: 'GET', query: { id: 'product-1' } }, res);
+ assert.equal(fetchMock.mock.callCount(), 1);
+ assert.equal(parsed, false);
+ assert.equal(res.code, 502);
+ assert.equal(res.body.code, 'CJ_DETAIL_UNEXPECTED_CONTENT_TYPE');
+});
