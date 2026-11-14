@@ -138,3 +138,37 @@ test('CJ gateway 502 followed by 429 never triggers a third request', async t =>
  assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
  assert.equal(res.body.upstreamStatus,429);
 });
+
+test('CJ rate limit with excessive Retry-After fails closed without sleeping or retrying', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{
+  calls++;
+  return {ok:false,status:429,headers:new Headers({'Retry-After':'120'}),body:{cancel:async()=>{}},json:async()=>{throw Error('private upstream diagnostics');}};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(calls,1);
+ assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
+ assert.equal(res.body.upstreamStatus,429);
+ assert.doesNotMatch(JSON.stringify(res.body),/private upstream diagnostics/);
+});
+
+test('CJ rate limit with invalid Retry-After fails closed without retry', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{
+  calls++;
+  return {ok:false,status:429,headers:new Headers({'Retry-After':'not-a-date'}),body:{cancel:async()=>{}},json:async()=>{throw Error('private upstream diagnostics');}};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(calls,1);
+ assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
+ assert.equal(res.body.upstreamStatus,429);
+ assert.match(res.body.error,/推薦を保留/);
+});
