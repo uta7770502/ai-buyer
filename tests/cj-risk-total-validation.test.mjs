@@ -67,3 +67,19 @@ test('aftercare review-rate thresholds exclude borderline candidates', () => {
     assert.equal(result.reason, reason, JSON.stringify(counts));
   }
 });
+
+test('two-star reviews count toward risk even without one-star reviews', () => {
+  const borderline = scoreRisk({ low: 0, mid: 1, total: 20, rating: 4.8 });
+  assert.equal(borderline.exclude, true);
+  assert.equal(borderline.reason, 'low-review-rate-mid');
+  const highRate = scoreRisk({ low: 0, mid: 2, total: 20, rating: 4.8 });
+  assert.equal(highRate.exclude, true);
+  assert.equal(highRate.reason, 'aftercare-risk-mid');
+});
+
+test('review risk threshold is not rounded down to permit recommendations', () => {
+  const justBelow = scoreRisk({ low: 1, mid: 0, total: 21, rating: 4.8 });
+  assert.equal(justBelow.exclude, false);
+  const atThreshold = scoreRisk({ low: 1, mid: 0, total: 20, rating: 4.8 });
+  assert.equal(atThreshold.exclude, true);
+});
