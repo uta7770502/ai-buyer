@@ -105,3 +105,36 @@ test('missing CJ response content type blocks review evidence without parsing', 
  assert.equal(signals.length,1);
  assert.match(res.body.error,/推薦を保留/);
 });
+
+test('CJ gateway 502 followed by auth 401 stops after two attempts and fails closed', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{
+  calls++;
+  return {ok:false,status:calls===1?502:401,headers:new Headers(),body:{cancel:async()=>{}},json:async()=>{throw Error('must not parse private upstream error');}};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(calls,2);
+ assert.equal(res.code,503);
+ assert.equal(res.body.code,'CJ_AUTH_REJECTED');
+ assert.equal(res.body.upstreamStatus,401);
+ assert.match(res.body.error,/推薦を保留/);
+});
+
+test('CJ gateway 502 followed by 429 never triggers a third request', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{
+  calls++;
+  return {ok:false,status:calls===1?502:429,headers:new Headers({'Retry-After':'0'}),body:{cancel:async()=>{}},json:async()=>{throw Error('must not parse private upstream error');}};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(calls,2);
+ assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
+ assert.equal(res.body.upstreamStatus,429);
+});
