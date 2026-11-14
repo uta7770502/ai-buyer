@@ -45,3 +45,25 @@ test('invalid rating evidence and below-four ratings never pass', () => {
   assert.equal(belowFour.exclude, true);
   assert.equal(belowFour.reason, 'rating-below-four');
 });
+
+test('exactly four stars passes only when review evidence is otherwise safe', () => {
+  const safe = scoreRisk({ low: 0, mid: 0, total: 20, rating: 4.0 });
+  assert.equal(safe.exclude, false);
+  const unsafe = scoreRisk({ low: 1, mid: 0, total: 20, rating: 4.0 });
+  assert.equal(unsafe.exclude, true);
+  assert.equal(unsafe.reason, 'low-review-rate-mid');
+});
+
+test('aftercare review-rate thresholds exclude borderline candidates', () => {
+  const cases = [
+    { low: 1, mid: 0, total: 20, reason: 'low-review-rate-mid' },
+    { low: 1, mid: 0, total: 12, reason: 'aftercare-risk-mid' },
+    { low: 3, mid: 0, total: 100, reason: 'aftercare-risk-mid' },
+    { low: 8, mid: 0, total: 50, reason: 'low-review-rate-high' },
+  ];
+  for (const { reason, ...counts } of cases) {
+    const result = scoreRisk({ ...counts, rating: 4.9 });
+    assert.equal(result.exclude, true, JSON.stringify(counts));
+    assert.equal(result.reason, reason, JSON.stringify(counts));
+  }
+});
