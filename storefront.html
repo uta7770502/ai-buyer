@@ -534,6 +534,7 @@ function readSaved(){try{const v=JSON.parse(localStorage.getItem(storageKey)||'{
 const saved=readSaved();
 let favorites=new Set(Array.isArray(saved.favorites)?saved.favorites.filter(v=>typeof v==='string').slice(0,200):[]);
 let searchMode='all';
+const searchState={all:{query:'',sort:'default'},favorites:{query:'',sort:'default'}};
 let products=previewMode?demoProducts.map(p=>({...p,currency:'JPY'})):[];
 let usingAuthoritativeProducts=false;
 let heroIndex=0,heroTimer=null;
@@ -841,7 +842,14 @@ function openLayer(id){
 function closeLayer(id){const el=document.getElementById(id);if(!el.classList.contains('open'))return;el.classList.remove('open');el.inert=true;el.setAttribute('aria-hidden','true');document.body.style.overflow='';unlockBackground();const previous=layerFocus.get(id);if(previous?.isConnected&&!previous.closest('[inert]'))previous.focus()}
 function openCart(){renderCart();openLayer('cartDrawer')}
 function closeCart(){closeLayer('cartDrawer')}
-function openSearch(mode='all'){searchMode=mode;document.getElementById('searchLayer').classList.toggle('favoritesMode',mode==='favorites');document.getElementById('searchInput').value='';document.getElementById('searchSort').value='default';renderSearch('');openLayer('searchLayer');if(mode!=='favorites')document.getElementById('searchInput').focus()}
+function openSearch(mode='all'){
+  const input=document.getElementById('searchInput'),sort=document.getElementById('searchSort');
+  searchState[searchMode]={query:input.value,sort:sort.value||'default'};
+  searchMode=mode==='favorites'?'favorites':'all';
+  document.getElementById('searchLayer').classList.toggle('favoritesMode',searchMode==='favorites');
+  input.value=searchState[searchMode].query;sort.value=searchState[searchMode].sort;
+  renderSearch(input.value);openLayer('searchLayer');if(searchMode!=='favorites')input.focus();
+}
 function closeSearch(){closeLayer('searchLayer')}
 function toggleFavorite(id){if(favorites.has(id))favorites.delete(id);else favorites.add(id);persist();render();if(document.getElementById('searchLayer').classList.contains('open'))renderSearch(document.getElementById('searchInput').value);const b=document.querySelector('#productDetail .detailFavorite[data-id="'+CSS.escape(String(id))+'"]');if(b){const on=favorites.has(id);b.classList.toggle('isFavorite',on);b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',(products.find(x=>x.id===id)?.shortTitleJa||'商品')+'をお気に入り'+(on?'から削除':'に追加'));b.innerHTML=(on?'♥':'♡')+'<span>お気に入り</span>'}announce(favorites.has(id)?'お気に入りに追加しました':'お気に入りから削除しました')}
 function selectSearch(value){document.getElementById('searchInput').value=value;renderSearch(value)}

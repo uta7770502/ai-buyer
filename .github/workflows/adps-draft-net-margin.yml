@@ -1,0 +1,35 @@
+name: ADPS draft and net margin regression
+on:
+  push:
+    branches: [safety-gate-20261024]
+    paths:
+      - api/shopify-publish.js
+      - lib/adps-net-margin.mjs
+      - tests/adps-draft-pipeline-gates.test.mjs
+      - tests/adps-net-margin.test.mjs
+      - tests/adps-profit-audit-readonly.test.mjs
+      - .github/workflows/adps-draft-net-margin.yml
+  pull_request:
+    paths:
+      - api/shopify-publish.js
+      - lib/adps-net-margin.mjs
+      - tests/adps-draft-pipeline-gates.test.mjs
+      - tests/adps-net-margin.test.mjs
+      - .github/workflows/adps-draft-net-margin.yml
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check api/shopify-publish.js
+          node --check lib/adps-net-margin.mjs
+      - name: Run ADPS regression tests
+        run: node --test tests/adps-draft-pipeline-gates.test.mjs tests/adps-net-margin.test.mjs tests/adps-profit-audit-readonly.test.mjs

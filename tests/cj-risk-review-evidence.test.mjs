@@ -1,0 +1,66 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {scoreRisk} from '../lib/routes/cj-risk.js';
+const source=readFileSync(new URL('../lib/routes/cj-risk.js',import.meta.url),'utf8');
+test('CJ review API failures must not become zero-review success',()=>{
+ assert.doesNotMatch(source,/getJson\(reviewUrl,headers\)\.catch\(/);
+ assert.doesNotMatch(source,/getJson\(u,headers\)\.catch\(/);
+});
+test('missing review evidence blocks recommendation',()=>{
+ assert.match(source,/total<10\|\|!rated/);
+ assert.match(source,/reason:'review-evidence-insufficient'/);
+ assert.match(source,/exclude:true/);
+});
+
+test('invalid and inconsistent CJ review totals fail closed',()=>{
+ assert.match(source,/CJ review score count unavailable/);
+ assert.match(source,/CJ review totals inconsistent/);
+ assert.match(source,/score1\+score2>total/);
+});
+
+test('risk scorer rejects internally inconsistent rating counts',()=>{
+ assert.match(source,/reason:'review-counts-invalid'/);
+ assert.match(source,/low\+mid>total/);
+});
+
+test('average CJ rating below 4.0 is excluded explicitly',()=>{
+ assert.match(source,/rating<4\.0/);
+ assert.match(source,/reason:'rating-below-four'/);
+});
+
+test('CJ ratings outside five-star scale are excluded',()=>{
+ assert.match(source,/rating>5/);
+ assert.match(source,/reason:'rating-out-of-range'/);
+});
+
+test('live CJ review total cannot fall back to stale catalog comment count',()=>{
+ assert.match(source,/const total=parseReviewCount\(all\?\.total\)/);
+ assert.doesNotMatch(source,/all\?\.total\?\?detail\?\.commentCount/);
+ assert.match(source,/!Number\.isSafeInteger\(total\)\|\|total<0/);
+});
+
+// Execute the actual recommendation risk logic, not only source-code patterns.
+test('risk scorer fails closed for missing and inconsistent live review evidence',()=>{
+ for(const args of [
+  {low:0,mid:0,total:0,rating:4.9},
+  {low:0,mid:0,total:1,rating:5},
+  {low:0,mid:0,total:9,rating:5},
+  {low:0,mid:0,total:NaN,rating:4.9},
+  {low:2,mid:1,total:2,rating:4.9},
+  {low:-1,mid:0,total:20,rating:4.9},
+  {low:0,mid:0,total:20,rating:NaN},
+  {low:0,mid:0,total:20,rating:5.1},
+  {low:0,mid:0,total:20,rating:3.99},
+  {low:3,mid:0,total:20,rating:4.8}
+ ]) assert.equal(scoreRisk(args).exclude,true,JSON.stringify(args));
+});
+test('risk scorer permits only sufficient low-risk review evidence',()=>{
+ assert.equal(scoreRisk({low:0,mid:0,total:20,rating:4.7}).exclude,false);
+ assert.equal(scoreRisk({low:1,mid:0,total:10,rating:4.7}).exclude,true);
+});
+
+test('ten verified reviews are the minimum evidence threshold',()=>{
+ assert.equal(scoreRisk({low:0,mid:0,total:9,rating:5}).reason,'review-evidence-insufficient');
+ assert.equal(scoreRisk({low:0,mid:0,total:10,rating:5}).exclude,false);
+});
