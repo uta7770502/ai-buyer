@@ -12,6 +12,7 @@ import storefrontCheckout from '../lib/routes/storefront-checkout.js';
 import storefrontConfig from '../lib/routes/storefront-config.js';
 import prelaunchProductAudit from '../lib/routes/prelaunch-product-audit.js';
 import prelaunchOneAction from '../lib/routes/prelaunch-one-action.js';
+import prelaunchReturnDaysBulk from '../lib/routes/prelaunch-return-days-bulk.js';
 import previewProfitAudit from '../lib/routes/preview-profit-audit.js';
 
 const PREVIEW_MANAGED_CJ_VIDS=[
@@ -337,7 +338,8 @@ const handlers={
   'storefront-checkout':storefrontCheckout,
   'storefront-config':storefrontConfig,
   'prelaunch-product-audit':prelaunchProductAudit,
-  'prelaunch-one-action':prelaunchOneAction
+  'prelaunch-one-action':prelaunchOneAction,
+  'prelaunch-return-days-bulk':prelaunchReturnDaysBulk
 };
 export default async function handler(req,res){
   const action=String(req.query.action||'');
