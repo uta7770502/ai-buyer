@@ -127,6 +127,10 @@
     {
       "source": "/api/preview-launch-audit-summary",
       "destination": "/api/diagnostics?action=preview-launch-audit-summary"
+    },
+    {
+      "source": "/api/prelaunch-return-days-bulk",
+      "destination": "/api/diagnostics?action=prelaunch-return-days-bulk"
     }
   ]
 }
