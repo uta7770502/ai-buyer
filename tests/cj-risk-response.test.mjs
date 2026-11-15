@@ -172,3 +172,42 @@ test('CJ rate limit with invalid Retry-After fails closed without retry', async 
  assert.equal(res.body.upstreamStatus,429);
  assert.match(res.body.error,/推薦を保留/);
 });
+
+test('CJ detail 500 twice stops at two attempts and never parses private diagnostics', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{
+  calls++;
+  return {ok:false,status:500,headers:new Headers(),body:{cancel:async()=>{}},json:async()=>{throw Error('private upstream diagnostics');}};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(calls,2);
+ assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_DETAIL_UPSTREAM_REJECTED');
+ assert.equal(res.body.upstreamStatus,500);
+ assert.doesNotMatch(JSON.stringify(res.body),/private upstream diagnostics/);
+});
+
+test('CJ reviews 500 twice cannot authorize recommendation despite valid detail', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ let detailCalls=0,reviewCalls=0;
+ t.mock.method(globalThis,'fetch',async url=>{
+  if(new URL(url).pathname.endsWith('/product/query')){
+   detailCalls++;
+   return {ok:true,status:200,headers:new Headers({'content-type':'application/json'}),json:async()=>({result:true,data:{pid:'p1',comprehensiveScore:4.8}})};
+  }
+  reviewCalls++;
+  return {ok:false,status:500,headers:new Headers(),body:{cancel:async()=>{}},json:async()=>{throw Error('private review diagnostics');}};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(detailCalls,1);
+ assert.equal(reviewCalls,2);
+ assert.equal(res.code,502);
+ assert.equal(res.body.code,'CJ_REVIEWS_UPSTREAM_REJECTED');
+ assert.equal(res.body.upstreamStatus,500);
+ assert.doesNotMatch(JSON.stringify(res.body),/private review diagnostics/);
+});
