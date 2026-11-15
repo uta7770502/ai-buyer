@@ -308,7 +308,7 @@ async function previewLaunchAuditSummary(req,res){
     profitBudgetCandidates,
     catalogTriage,
     nextActions,
-    catalogCoverage:{expected:expectedSkus.length,missingSkus,unexpectedSkus,duplicateSkus},
+    catalogCoverage:{expected:expectedSkus.length,expectedSkus,missingSkus,unexpectedSkus,duplicateSkus},
     prelaunch:{readyToFinalManualStep:Boolean(q.readyToFinalManualStep),blockers:Array.isArray(q.blockers)?q.blockers.slice(0,20):[],warnings:Array.isArray(q.warnings)?q.warnings.slice(0,20):[]}
   });
 }
