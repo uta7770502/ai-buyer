@@ -1,6 +1,13 @@
 name: ADPS English localization tests
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'lib/*translation*.js'
+      - 'lib/oddly-storefront-locales.js'
+      - 'tests/*translation*.test.mjs'
+      - 'tests/oddly-storefront-locales.test.mjs'
+      - '.github/workflows/adps-english-localization-tests.yml'
   push:
     branches: [safety-gate-20261024]
     paths:
@@ -30,4 +37,5 @@ jobs:
             tests/shopify-storefront-localization-readiness.test.mjs \
             tests/shopify-english-draft-sync.test.mjs \
             tests/gemini-english-translation-provider.test.mjs \
-            tests/english-translation-integration.test.mjs
+            tests/english-translation-integration.test.mjs \
+            tests/english-translation-batch-gate.test.mjs
