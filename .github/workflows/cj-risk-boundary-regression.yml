@@ -1,0 +1,22 @@
+name: ADPS CJ risk boundary regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/routes/cj-risk.js'
+      - 'lib/cj-access-token.js'
+      - 'tests/cj-risk-boundary-regression.test.mjs'
+      - '.github/workflows/cj-risk-boundary-regression.yml'
+  workflow_dispatch:
+jobs:
+  cj-risk-boundaries:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run synthetic fail-closed boundary tests
+        run: node --experimental-default-type=module --test tests/cj-risk-boundary-regression.test.mjs
