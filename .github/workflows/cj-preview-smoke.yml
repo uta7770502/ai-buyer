@@ -79,6 +79,18 @@ jobs:
           printf '%s' "$BODY" | grep -Eq '"verifiedInventory"[[:space:]]*:[[:space:]]*[0-9]+'
           export VARIANT_BODY_JSON="$BODY"
           node - <<'NODE'
+          const stock=JSON.parse(process.env.VARIANT_BODY_JSON);
+          const integer=n=>Number.isSafeInteger(n)&&n>=0;
+          if(!integer(stock.verifiedInventory)||!integer(stock.factoryStockQuantity))throw Error('CJ inventory must be nonnegative safe integers');
+          if(stock.minimumLaunchInventory!==5)throw Error('Unexpected launch inventory threshold');
+          if(stock.launchEligible!==(stock.verifiedInventory>=5))throw Error('Launch eligibility must use CJ warehouse inventory only');
+          const factoryNeeded=stock.verifiedInventory<5&&stock.factoryStockQuantity>=5-stock.verifiedInventory;
+          const eligible=stock.verifiedInventory>=5||factoryNeeded;
+          if(stock.recommendationStockEligible!==eligible)throw Error('Recommendation eligibility mismatch');
+          if(stock.requiresFactoryReplenishment!==factoryNeeded)throw Error('Factory replenishment mismatch');
+          if(stock.recommendationStockStatus!==(stock.verifiedInventory>=5?'cj-warehouse':factoryNeeded?'factory-replenishment':'insufficient-stock'))throw Error('Recommendation reason mismatch');
+          NODE
+          node - <<'NODE'
           const fs=require('fs');
           const audit=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
           const stock=JSON.parse(process.env.VARIANT_BODY_JSON);
