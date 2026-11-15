@@ -13,6 +13,8 @@ on:
     branches: [safety-gate-20261024]
     paths:
       - 'lib/cj-stock-validation.js'
+      - 'lib/stock-audit-summary.js'
+      - 'tests/stock-audit-summary.test.mjs'
       - 'lib/routes/cj-shopify-stock-sync.js'
       - 'tests/cj-stock-validation.test.mjs'
       - '.github/workflows/adps-cj-inventory-tests.yml'
