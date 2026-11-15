@@ -365,6 +365,14 @@ test('profit audit rejects duplicate CJ variant IDs before CJ lookup',()=>{
  assert.ok(source.indexOf("reason:'duplicate-cj-variant-id'")<source.indexOf("BASE+'/product/variant/queryByVid'"));
 });
 
+test('manual CJ smoke is restricted to the intended Preview branch',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ assert.match(wf,/Require approved Preview branch/);
+ assert.match(wf,/GITHUB_REF_NAME/);
+ assert.match(wf,/safety-gate-20261024/);
+ assert.ok(wf.indexOf('Require approved Preview branch')<wf.indexOf('Verify Preview is serving this commit'));
+});
+
 test('manual Preview workflow embedded Node scripts parse and audit payload is not printed',()=>{
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
  const scripts=[...wf.matchAll(/node - <<'NODE'[^\n]*\n([\s\S]*?)^\s*NODE\s*$/gm)].map(m=>m[1].split('\n').map(line=>line.replace(/^ {10}/,'')).join('\n'));
