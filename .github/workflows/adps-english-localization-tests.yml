@@ -6,6 +6,8 @@ on:
       - 'lib/*translation*.js'
       - 'lib/english-draft-pipeline-hook.js'
       - 'api/shopify-publish.js'
+      - 'lib/oddly-localization-catalog-audit.js'
+      - 'tests/oddly-localization-catalog-audit.test.mjs'
       - 'lib/oddly-storefront-locales.js'
       - 'tests/*translation*.test.mjs'
       - 'tests/oddly-storefront-locales.test.mjs'
@@ -43,4 +45,5 @@ jobs:
             tests/gemini-english-translation-provider.test.mjs \
             tests/english-translation-integration.test.mjs \
             tests/english-translation-batch-gate.test.mjs \
-            tests/english-draft-pipeline-hook.test.mjs
+            tests/english-draft-pipeline-hook.test.mjs \
+            tests/oddly-localization-catalog-audit.test.mjs
