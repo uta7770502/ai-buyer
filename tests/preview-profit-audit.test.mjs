@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 test('preview profit audit stays read-only and fails closed on unverified supplier cost',()=>{
  const source=fs.readFileSync(new URL('../lib/routes/preview-profit-audit.js',import.meta.url),'utf8');
@@ -363,3 +364,14 @@ test('profit audit rejects duplicate CJ variant IDs before CJ lookup',()=>{
  assert.match(source,/reason:'duplicate-cj-variant-id'/);
  assert.ok(source.indexOf("reason:'duplicate-cj-variant-id'")<source.indexOf("BASE+'/product/variant/queryByVid'"));
 });
+
+test('manual Preview workflow embedded Node scripts parse and audit payload is not printed',()=>{
+ const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
+ const scripts=[...wf.matchAll(/node - <<'NODE'[^\n]*\n([\s\S]*?)^\s*NODE\s*$/gm)].map(m=>m[1].split('\n').map(line=>line.replace(/^ {10}/,'')).join('\n'));
+ assert.ok(scripts.length>=3,'Expected Node heredoc audit scripts');
+ for(const [index,script] of scripts.entries()){
+   assert.doesNotThrow(()=>new vm.Script(script,{filename:'preview-smoke-script-'+index+'.js'}));
+ }
+ assert.doesNotMatch(wf,/printf '%s\\n' "\\$BODY"/);
+});
+\n
