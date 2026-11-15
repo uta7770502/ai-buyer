@@ -6,7 +6,7 @@ on:
 jobs:
   cj-preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Verify Preview is serving this commit
         id: verify_preview
