@@ -79,7 +79,7 @@ jobs:
           const fs=require('fs');
           const audit=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
           const skus=audit?.catalogCoverage?.expectedSkus;
-          if(!Array.isArray(skus)||skus.length!==9||new Set(skus.map(String)).size!==9||skus.some(s=>!/^\\d{10,25}$/.test(String(s))))throw Error('Expected exactly nine unique CJ numeric variant IDs from the audited catalog');
+          if(!Array.isArray(skus)||skus.length!==9||new Set(skus.map(String)).size!==9||skus.some(s=>!/^\d{10,25}$/.test(String(s))))throw Error('Expected exactly nine unique CJ numeric variant IDs from the audited catalog');
           fs.writeFileSync('variant-ids.json',JSON.stringify(skus.map(String)));
           NODE
           node - <<'NODE'
@@ -104,7 +104,7 @@ jobs:
             }
             const audit=JSON.parse(fs.readFileSync('launch-audit.json','utf8'));
             audit.variantStockSmoke={commitSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,checked:results.length,rows:results};
-            fs.writeFileSync('launch-audit.json',JSON.stringify(audit,null,2)+'\\n');
+            fs.writeFileSync('launch-audit.json',JSON.stringify(audit,null,2)+'\n');
           })().catch(e=>{console.error(e.message);process.exitCode=1});
           NODE
 
