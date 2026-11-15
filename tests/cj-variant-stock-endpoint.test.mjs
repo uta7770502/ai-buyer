@@ -56,3 +56,22 @@ test('CJ variant endpoint rejects unknown inventory instead of reporting zero',a
   if(originalKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=originalKey;
  }
 });
+
+test('CJ variant endpoint rejects invalid IDs and write methods without contacting supplier',async()=>{
+ const originalFetch=globalThis.fetch;
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;throw Error('unexpected CJ request')};
+ try{
+  for(const req of [
+   {method:'POST',query:{vid:'1657322876615274496'}},
+   {method:'GET',query:{vid:'not-a-vid'}},
+   {method:'GET',query:{vid:'1657322876615274496&apply=true'}}
+  ]){
+   const res=makeResponse();
+   await handler(req,res);
+   assert.equal(res.body.ok,false);
+   assert.ok([400,405].includes(res.statusCode));
+  }
+  assert.equal(calls,0);
+ }finally{globalThis.fetch=originalFetch}
+});
