@@ -8,6 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Require approved Preview branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF_NAME" != "safety-gate-20261024" ]; then
+            echo "CJ smoke is restricted to the safety-gate-20261024 Preview branch"
+            exit 1
+          fi
       - name: Verify Preview is serving this commit
         id: verify_preview
         shell: bash
