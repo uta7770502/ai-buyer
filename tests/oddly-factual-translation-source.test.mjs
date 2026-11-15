@@ -20,3 +20,11 @@ test('blocks truncated Shopify descriptions rather than treating fragments as ve
  assert.equal(r.readyForTranslation,false);
  assert.ok(r.reviewReasons.includes('possibly-truncated-source'));
 });
+
+test('real Shopify HTML commercial paragraphs are removed without losing product copy',()=>{
+ const description='<h2>猫用 爪とぎボールおもちゃ</h2><p>爪とぎとボール遊びを組み合わせた猫用おもちゃです。</p><h3>ご購入前に</h3><p>日本向け送料目安: ¥1011</p><p>販売価格・仕入先在庫・配送状況は変動するため、ご注文時に最新情報を確認して手配します。</p><p>返品条件はストアポリシーをご確認ください。</p>';
+ const r=prepareFactualTranslationSource({title:'猫用 爪とぎボールおもちゃ',description});
+ assert.equal(r.readyForTranslation,true);
+ assert.match(r.description,/爪とぎとボール遊び/);
+ assert.doesNotMatch(r.description,/送料目安|ご購入前に|仕入先|返品条件/);
+});
