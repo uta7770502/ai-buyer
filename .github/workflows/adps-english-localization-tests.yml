@@ -7,6 +7,8 @@ on:
       - 'lib/english-draft-pipeline-hook.js'
       - 'api/shopify-publish.js'
       - 'lib/oddly-localization-catalog-audit.js'
+      - 'lib/oddly-factual-translation-source.js'
+      - 'tests/oddly-factual-translation-source.test.mjs'
       - 'tests/oddly-localization-catalog-audit.test.mjs'
       - 'lib/oddly-storefront-locales.js'
       - 'tests/*translation*.test.mjs'
@@ -46,4 +48,5 @@ jobs:
             tests/english-translation-integration.test.mjs \
             tests/english-translation-batch-gate.test.mjs \
             tests/english-draft-pipeline-hook.test.mjs \
-            tests/oddly-localization-catalog-audit.test.mjs
+            tests/oddly-localization-catalog-audit.test.mjs \
+            tests/oddly-factual-translation-source.test.mjs
