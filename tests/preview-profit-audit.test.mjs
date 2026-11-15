@@ -316,37 +316,39 @@ test('manual preview audit failure diagnosis reports each guarded step outcome s
 });
 
 
-test('manual preview audit verifies the read-only variant stock endpoint before consolidated audit',()=>{
+test('manual preview audit validates all nine unique CJ variants and their warehouse/factory stock',()=>{
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
  assert.match(wf,/Verify variant stock endpoint safety/);
  assert.match(wf,/id: variant_stock/);
- assert.match(wf,/catalogCoverage\?\.expectedSkus\?\.\[0\]|skuMatrix\?\.\[0\]\?\.sku/);
- assert.match(wf,/api\/cj-variant-stock\?vid=\$VID/);
- assert.match(wf,/"readOnly"/);
- assert.match(wf,/"minimumLaunchInventory"/);
- assert.match(wf,/steps\.variant_stock\.outcome/);
- assert.match(wf,/variant在庫API/);
+ assert.match(wf,/catalogCoverage\\?\\.expectedSkus/);
+ assert.match(wf,/skus\\.length!==9/);
+ assert.match(wf,/new Set\\(skus\\.map\\(String\\)\\)\\.size!==9/);
+ assert.match(wf,/for\\(const vid of ids\\)/);
+ assert.match(wf,/api\\/cj-variant-stock/);
+ assert.match(wf,/stock\\.readOnly!==true/);
+ assert.match(wf,/stock\\.verifiedInventory>=5/);
+ assert.match(wf,/stock\\.requiresFactoryReplenishment!==factoryNeeded/);
+ assert.match(wf,/steps\\.variant_stock\\.outcome/);
 });
 
-
-test('manual preview audit persists the checked variant stock result into the launch artifact',()=>{
+test('manual preview audit persists nine per-variant stock results into the launch artifact',()=>{
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
- assert.match(wf,/variantStockSmoke=/);
- assert.match(wf,/verifiedInventory:Number\(stock\.verifiedInventory\)/);
- assert.match(wf,/minimumLaunchInventory:Number\(stock\.minimumLaunchInventory\)/);
- assert.match(wf,/launchEligible:stock\.launchEligible===true/);
- assert.match(wf,/verifiedAt:String\(stock\.verifiedAt/);
+ assert.match(wf,/variantStockSmoke=\\{/);
+ assert.match(wf,/checked:results\\.length/);
+ assert.match(wf,/rows:results/);
+ assert.match(wf,/verifiedInventory:stock\\.verifiedInventory/);
+ assert.match(wf,/factoryStockQuantity:stock\\.factoryStockQuantity/);
+ assert.match(wf,/launchEligible:stock\\.launchEligible/);
+ assert.match(wf,/verifiedAt:stock\\.verifiedAt/);
  assert.match(wf,/variant在庫確認/);
 });
 
-
 test('variant stock smoke evidence is tied to the workflow commit and run',()=>{
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
- assert.match(wf,/variantStockSmoke=\{/);
- assert.match(wf,/commitSha:String\(process\.env\.GITHUB_SHA/);
- assert.match(wf,/runId:String\(process\.env\.GITHUB_RUN_ID/);
+ assert.match(wf,/variantStockSmoke=\\{/);
+ assert.match(wf,/commitSha:process\\.env\\.GITHUB_SHA/);
+ assert.match(wf,/runId:process\\.env\\.GITHUB_RUN_ID/);
 });
-
 
 test('profit audit rejects duplicate CJ variant IDs before CJ lookup',()=>{
  const source=fs.readFileSync(new URL('../lib/routes/preview-profit-audit.js',import.meta.url),'utf8');
