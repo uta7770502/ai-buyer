@@ -47,3 +47,14 @@ test('unverified CJ response cannot be used as a zero-stock confirmation',()=>{
  assert.equal(x.shopifyAvailable,null);
  assert.equal(x.recommendationEligible,false);
 });
+
+test('mixed CJ and factory stock reaches recommendation threshold without inflating Shopify stock',()=>{
+ const x=classifyCJAvailability(validate(response([row(2,3)])));
+ assert.equal(x.recommendationEligible,true);
+ assert.equal(x.requiresFactoryReplenishment,true);
+ assert.equal(x.shopifyAvailable,2);
+ assert.equal(x.reason,'factory-replenishment');
+ const y=classifyCJAvailability(validate(response([row(2,2)])));
+ assert.equal(y.recommendationEligible,false);
+ assert.equal(y.shopifyAvailable,2);
+});
