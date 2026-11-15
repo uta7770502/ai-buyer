@@ -319,7 +319,7 @@ test('manual preview audit failure diagnosis reports each guarded step outcome s
 test('consolidated preview audit exposes exactly the managed CJ variant IDs for smoke verification',()=>{
  const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
  assert.match(source,/const expectedSkus=PREVIEW_MANAGED_CJ_VIDS/);
- assert.match(source,/catalogCoverage:\\{expected:expectedSkus\\.length,expectedSkus,missingSkus,unexpectedSkus,duplicateSkus\\}/);
+ assert.match(source,/catalogCoverage:\{expected:expectedSkus\.length,expectedSkus,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
 
 test('manual preview audit validates all nine unique CJ variants and their warehouse/factory stock',()=>{
