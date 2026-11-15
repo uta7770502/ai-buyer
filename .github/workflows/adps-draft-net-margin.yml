@@ -5,16 +5,20 @@ on:
     paths:
       - api/shopify-publish.js
       - lib/adps-net-margin.mjs
+      - lib/adps-approved-sku-margin.mjs
       - tests/adps-draft-pipeline-gates.test.mjs
       - tests/adps-net-margin.test.mjs
+      - tests/adps-approved-sku-margin.test.mjs
       - tests/adps-profit-audit-readonly.test.mjs
       - .github/workflows/adps-draft-net-margin.yml
   pull_request:
     paths:
       - api/shopify-publish.js
       - lib/adps-net-margin.mjs
+      - lib/adps-approved-sku-margin.mjs
       - tests/adps-draft-pipeline-gates.test.mjs
       - tests/adps-net-margin.test.mjs
+      - tests/adps-approved-sku-margin.test.mjs
       - .github/workflows/adps-draft-net-margin.yml
   workflow_dispatch:
 jobs:
@@ -31,5 +35,6 @@ jobs:
         run: |
           node --check api/shopify-publish.js
           node --check lib/adps-net-margin.mjs
+          node --check lib/adps-approved-sku-margin.mjs
       - name: Run ADPS regression tests
-        run: node --test tests/adps-draft-pipeline-gates.test.mjs tests/adps-net-margin.test.mjs tests/adps-profit-audit-readonly.test.mjs
+        run: node --test tests/adps-draft-pipeline-gates.test.mjs tests/adps-net-margin.test.mjs tests/adps-approved-sku-margin.test.mjs tests/adps-profit-audit-readonly.test.mjs
