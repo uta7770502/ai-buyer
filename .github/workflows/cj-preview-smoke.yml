@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
           URL="https://ai-buyer-git-safety-gate-20261024-diogolf.vercel.app/api/preview-launch-audit-summary"
           BODY="$(curl -fsS --max-time 240 "$URL")"
-          printf '%s\n' "$BODY"
+          echo "Consolidated audit response received; details saved to artifact"
           export BODY_JSON="$BODY"
           node -e 'const fs=require("fs");const body=JSON.parse(process.env.BODY_JSON);body.auditArtifact={commitSha:process.env.GITHUB_SHA,branch:process.env.GITHUB_REF_NAME,runId:process.env.GITHUB_RUN_ID,recordedAt:new Date().toISOString()};fs.writeFileSync("launch-audit.json",JSON.stringify(body,null,2)+"\n")' 
           printf '%s' "$BODY" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
