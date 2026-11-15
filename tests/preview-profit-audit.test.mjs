@@ -95,7 +95,7 @@ test('consolidated launch audit fails closed when any of the nine managed CJ SKU
  assert.match(block,/const expectedSkus=PREVIEW_MANAGED_CJ_VIDS;/);
  assert.match(block,/const missingSkus=expectedSkus\.filter/);
  assert.match(block,/catalogCoverageComplete:missingSkus\.length===0/);
- assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus,duplicateSkus\}/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,expectedSkus,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
 
 
@@ -107,7 +107,7 @@ test('consolidated launch audit rejects unexpected CJ SKUs in freight stock or p
  assert.match(block,/const unexpectedSkus=/);
  assert.match(block,/!expectedSkus\.includes\(vid\)/);
  assert.match(block,/unexpectedSkus\.length===0/);
- assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus,duplicateSkus\}/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,expectedSkus,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
 
 
@@ -128,7 +128,7 @@ test('consolidated launch audit rejects duplicate SKU rows instead of treating s
  assert.match(block,/duplicateSkus\.freight===0/);
  assert.match(block,/duplicateSkus\.stock===0/);
  assert.match(block,/duplicateSkus\.profit===0/);
- assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,missingSkus,unexpectedSkus,duplicateSkus\}/);
+ assert.match(block,/catalogCoverage:\{expected:expectedSkus\.length,expectedSkus,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
 
 
@@ -148,7 +148,7 @@ test('manual preview audit workflow remains read-only and cannot perform launch 
 
 test('manual preview audit workflow has enough job time for preview verification plus consolidated audit',()=>{
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
- assert.match(wf,/timeout-minutes: 10/);
+ assert.match(wf,/timeout-minutes: 15/);
  assert.match(wf,/for i in \{1\.\.18\}/);
  assert.match(wf,/api\/preview-launch-audit-summary/);
 });
