@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'lib/*translation*.js'
+      - 'lib/english-draft-pipeline-hook.js'
+      - 'api/shopify-publish.js'
       - 'lib/oddly-storefront-locales.js'
       - 'tests/*translation*.test.mjs'
       - 'tests/oddly-storefront-locales.test.mjs'
@@ -27,6 +29,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check Shopify draft route syntax
+        run: node --check api/shopify-publish.js
       - name: Run isolated translation and locale tests (no external API credentials)
         run: |
           node --experimental-default-type=module --test \
@@ -38,4 +42,5 @@ jobs:
             tests/shopify-english-draft-sync.test.mjs \
             tests/gemini-english-translation-provider.test.mjs \
             tests/english-translation-integration.test.mjs \
-            tests/english-translation-batch-gate.test.mjs
+            tests/english-translation-batch-gate.test.mjs \
+            tests/english-draft-pipeline-hook.test.mjs
