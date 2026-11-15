@@ -14,3 +14,9 @@ test('blocks unknown pet suitability rather than deleting the warning',()=>{
 test('rejects incomplete source descriptions',()=>{
  assert.throws(()=>prepareFactualTranslationSource({title:'犬用ボトル',description:''}),/required/);
 });
+
+test('blocks truncated Shopify descriptions rather than treating fragments as verified facts',()=>{
+ const r=prepareFactualTranslationSource({title:'猫用おもちゃ',description:'猫用のボールおもちゃです。日本向け送料目安: ¥1011販売価格・仕入先在庫・配送状況は変動するため、ご注...'});
+ assert.equal(r.readyForTranslation,false);
+ assert.ok(r.reviewReasons.includes('possibly-truncated-source'));
+});
