@@ -374,4 +374,4 @@ test('manual Preview workflow embedded Node scripts parse and audit payload is n
  }
  assert.doesNotMatch(wf,/printf '%s\\n' "\\$BODY"/);
 });
-\n
+
