@@ -16,7 +16,9 @@ test('warehouse stock and factory stock are separate; factory-only stock is not 
 
 test('read-only variant endpoint returns factory inventory without using it for launch threshold',()=>{
  assert.match(endpoint,/factoryStockQuantity:checked\.factoryTotal/);
- assert.match(endpoint,/recommendationStockStatus:checked\.recommendationStockStatus/);
+ assert.match(endpoint,/recommendationStockStatus:availability\.reason/);
+ assert.match(endpoint,/recommendationStockEligible:availability\.recommendationEligible/);
+ assert.match(endpoint,/requiresFactoryReplenishment:availability\.requiresFactoryReplenishment/);
  assert.match(endpoint,/launchEligible:checked\.total>=MIN_LAUNCH_INVENTORY/);
 });
 
