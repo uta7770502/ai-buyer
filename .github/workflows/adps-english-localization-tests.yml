@@ -1,0 +1,33 @@
+name: ADPS English localization tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [safety-gate-20261024]
+    paths:
+      - 'lib/*translation*.js'
+      - 'lib/oddly-storefront-locales.js'
+      - 'tests/*translation*.test.mjs'
+      - 'tests/oddly-storefront-locales.test.mjs'
+      - '.github/workflows/adps-english-localization-tests.yml'
+permissions:
+  contents: read
+jobs:
+  localization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run isolated translation and locale tests (no external API credentials)
+        run: |
+          node --experimental-default-type=module --test \
+            tests/product-localization-preflight.test.mjs \
+            tests/shopify-translation-registration.test.mjs \
+            tests/product-translation-orchestrator.test.mjs \
+            tests/oddly-storefront-locales.test.mjs \
+            tests/shopify-storefront-localization-readiness.test.mjs \
+            tests/shopify-english-draft-sync.test.mjs \
+            tests/gemini-english-translation-provider.test.mjs \
+            tests/english-translation-integration.test.mjs
