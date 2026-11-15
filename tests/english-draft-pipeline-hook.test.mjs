@@ -28,3 +28,16 @@ test('enabled hook calls Gemini and Shopify read-only, never registers translati
  assert.equal(result.registered,false);
  assert.equal(writes,0);
 });
+
+test('unverified shipping copy is blocked before Gemini or Shopify API calls',async()=>{
+ let called=0;
+ const result=await prepareEnglishForSavedDraft({
+  product:{...product,descriptionHtml:'<p>送料目安: ¥696</p>'},
+  env:{ADPS_ENGLISH_TRANSLATIONS_DRY_RUN_ENABLED:'true',GEMINI_API_KEY:'mock'},
+  fetchImpl:async()=>{called++;throw Error('Gemini must not be called');},
+  shopifyGraphql:async()=>{called++;throw Error('Shopify must not be called');}
+ });
+ assert.equal(result.status,'source-review-required');
+ assert.equal(result.registered,false);
+ assert.equal(called,0);
+});
