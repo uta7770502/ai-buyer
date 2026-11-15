@@ -1,10 +1,10 @@
-# ADPS / AI BUYER — Master decisions
+# ADPS — Master decisions
 
 > Current status (2026-11-13): Historical completion percentages below are not release evidence. See [backend verification](docs/backend-verification-2026-11-13.md) for verified changes and remaining acceptance checks.
 
 ## Brand separation (confirmed 2026-10-12)
 - Customer-facing shop: **ODDLY**.
-- Internal automation app: **ADPS / AI BUYER**.
+- Internal automation app: **ADPS**.
 - Never present ADPS PICKS, ADPS, or AI CURATED STORE as the shop brand.
 - Do not market AI selection, generation, or dropshipping automation to customers. Applies to headers, product pages, FAQ, metadata, and structured data.
 
@@ -44,86 +44,14 @@
 
 <!-- Rate-limit retest: 2026-10-14T09:10+09:00 -->
 
-## 2026-10-14 implementation completion status
+## Current release acceptance — 2026-11-15
 
-The following implementation work is complete and is the current baseline:
+Historical 99% / “remaining 1%” claims are withdrawn. Passing CI and a successful deployment do not establish operational readiness. See [launch acceptance](docs/launch-acceptance-2026-11-15.md).
 
-1. **ODDLY storefront design polish** — complete.
-   - Mobile-first layout, search, favorites, cart, product detail and responsive hero treatment are implemented.
-2. **AIO / GEO foundation** — complete.
-   - ODDLY branding is aligned across visible copy, structured data, product URLs and llms.txt.
-   - Unverified reviews, popularity, shipping or delivery claims must not be emitted.
-3. **Shopify real-product storefront integration** — complete in code.
-   - Live storefront data is treated as authoritative; demo content remains isolated to preview mode.
-4. **Japan-first product page enrichment** — complete.
-   - Product summary, intended audience, ODDLY recommendation points, stock, shipping and returns are supported.
-5. **“Select a product and let AI BUYER prepare the rest” flow** — complete through safe draft preparation.
-   - Selection → CJ freight lookup → safe price calculation → Shopify draft → Japan-oriented page optimization → publication queue.
-   - Automatic preparation explicitly sends `publishApproved:false`.
-6. **CJ / Shopify safety layer** — complete in code.
-   - Shopify real orders are rejected by the sandbox webhook.
-   - CJ order creation is sandbox-only.
-   - Durable Redis idempotency, duplicate prevention, HMAC verification, SKU/VID checks, order/freight limits, ambiguous-result stop conditions and tracking preflight checks are implemented.
-
-### Not yet production-approved
-
-The only remaining requirement before enabling any live commerce automation is a **fresh, real end-to-end sandbox verification in the deployed environment**:
-- signed Shopify test-order webhook delivery
-- Shopify variant ↔ CJ VID mapping
-- CJ sandbox order creation/reconciliation
-- durable Redis duplicate protection
-- sandbox tracking simulation
-- Shopify test fulfillment/tracking sync
-- zero unresolved reconciliation items
-
-These checks must be fresh (within 24 hours in the UI readiness gate).
-
-Until that evidence exists:
-- keep `SHOPIFY_LIVE_PUBLISH_ENABLED` disabled
-- keep real CJ ordering/payment disabled
-- do not treat `safeToTest` as production approval
-- keep search indexing gated until real product content is ready for public indexing
-
-## 2026-10-14 pre-production 99% milestone
-
-The application is now considered **99% complete before production lock release**.
-
-### Completed at the 99% milestone
-- ODDLY storefront UI and mobile layout
-- Shopify live-product storefront integration
-- Japan-first product pages
-- AIO/GEO visible copy, structured data, llms.txt and sitemap gating
-- Search indexing safety: incomplete AIO/GEO product pages remain noindex and are excluded from the sitemap
-- Product-selection-only automation through Shopify draft preparation
-- CJ freight lookup and safe price preparation
-- Shopify Admin read-only connectivity verification
-- Shopify ORDERS_PAID webhook registration verification
-- Shopify fulfillment write-scope verification
-- CJ API read-only connectivity verification
-- Redis reachability verification
-- Sandbox-only CJ order creation
-- Safe sandbox E2E preflight button
-- Sandbox payment/tracking simulation
-- Shopify test fulfillment preflight and tracking sync
-- Automatic duplicate-sync verification
-- Automatic reconciliation summary after test tracking sync
-- Fresh-evidence readiness gates
-- Local “live” status blocked unless Shopify product is actually published
-- Live Shopify publication locked behind explicit server opt-in and explicit publish approval
-- Live ad spend blocked unless ADS_LIVE_ENABLED is explicitly enabled
-- Real CJ payment/order flow remains disabled
-
-### Production locks that must remain OFF at 99%
-- `SHOPIFY_LIVE_PUBLISH_ENABLED`
-- `ADS_LIVE_ENABLED`
-- any real CJ ordering/payment path
-- search indexing until real product content is approved
-
-### Remaining 1% to reach 100%
-Do not count this as implementation work. It is the production activation phase:
-1. Run one fresh end-to-end sandbox order in the deployed environment.
-2. Confirm webhook delivery, CJ sandbox creation, tracking, Shopify test fulfillment, duplicate prevention, and zero unresolved reconciliation items.
-3. Approve real product content for indexing.
-4. Only then enable production publication / search / advertising / real-order controls one by one with explicit approval.
-
-Until those checks are complete, the product is **99% complete, production-locked, and safe to continue testing**.
+- App name: **ADPS**. Store name: **ODDLY**.
+- Initial assortment: pet products and related goods; exclude trademark conflicts and unsafe products.
+- Target: product selection → verified preparation → Shopify DRAFT → final manual approval.
+- No main merge, Production deployment, ACTIVE products, checkout, real CJ orders, advertisements or password removal without explicit user approval.
+- Read-only connectivity, product-level evidence, external order/fulfillment verification and returns operations are separate acceptance gates.
+- Code contains sandbox-only order handling; do not represent it as an implemented and verified live-order service.
+- Verification results must identify the commit and the environment; no completion percentage without a defined acceptance denominator.
