@@ -2199,7 +2199,14 @@ async function previewReturnDaysBulk(){
     if(data.readOnly!==true||data.targetCount!==9||!Array.isArray(data.products)||data.products.length!==9)throw Error('9商品の確認が不完全です');
     const conflicts=data.products.filter(p=>p.previousDays!==null&&p.previousDays!==''&&p.previousDays!=='7');
     returnDaysBulkPreview=conflicts.length===0?data:null;
-    if(status)status.textContent=conflicts.length?'既存の返品日数が異なる商品があります。変更を停止しました。':'確認完了：9件中'+data.changeCount+'件を7日間に設定できます';
+    if(status)status.textContent=conflicts.length?'既存の返品日数が異なる商品があります。変更を停止しました。':data.changeCount===0?'確認完了：下書き9商品すべて返品受付7日間に設定済みです':'確認完了：9件中'+data.changeCount+'件を7日間に設定できます';
+    if(!conflicts.length&&data.changeCount===0){
+      const legalDays=document.getElementById('legalReturnDays');
+      if(legalDays&&!String(legalDays.value||'').trim()){
+        legalDays.value='7';
+        if(typeof updateLegalMissingSummary==='function')updateLegalMissingSummary();
+      }
+    }
     if(button)button.disabled=conflicts.length>0||data.changeCount===0;
   }catch(e){if(status)status.textContent='確認失敗：'+String(e.message||e)}
 }
