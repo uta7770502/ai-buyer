@@ -41,3 +41,25 @@ test('unverified shipping copy is blocked before Gemini or Shopify API calls',as
  assert.equal(result.registered,false);
  assert.equal(called,0);
 });
+
+test('recognized shipping boilerplate is removed before Gemini, while Shopify remains read-only',async()=>{
+ let sourceText='';
+ const fetchImpl=async(_url,options)=>{
+  sourceText=JSON.stringify(options.body);
+  return {ok:true,json:async()=>({candidates:[{content:{parts:[{text:JSON.stringify({title:'Dog Water Bottle',description:'Portable 800ml bottle for dog walks.'})}]}}]})};
+ };
+ let writes=0;
+ const shopifyGraphql=async(query,variables)=>{
+  if(query!==TRANSLATABLE_PRODUCT_QUERY){writes++;throw Error('write attempted');}
+  return {translatableResource:{resourceId:variables.resourceId,translatableContent:[{key:'title',digest:'a'},{key:'body_html',digest:'b'}]}};
+ };
+ const result=await prepareEnglishForSavedDraft({
+  product:{...product,descriptionHtml:'犬との散歩に使う800mlボトルです。送料目安: ¥696'},
+  env:{ADPS_ENGLISH_TRANSLATIONS_DRY_RUN_ENABLED:'true',GEMINI_API_KEY:'mock'},
+  fetchImpl,shopifyGraphql
+ });
+ assert.equal(result.status,'dry-run-ready');
+ assert.equal(writes,0);
+ assert.equal(sourceText.includes('¥696'),false);
+ assert.equal(sourceText.includes('800ml'),true);
+});
