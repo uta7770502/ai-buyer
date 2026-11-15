@@ -43,3 +43,10 @@ test('CJ failure responses expose only an allowlisted diagnostic stage', () => {
   assert.match(source, /stage:\['detail','reviews','review-score'\]\.includes\(e\?\.stage\)\?e\.stage:null/);
   assert.doesNotMatch(source, /stage:e\?\.stage[,}]/);
 });
+
+test('CJ evidence mismatches retain safe, specific diagnostic stages', () => {
+  assert.match(source, /new Error\('CJ product identity mismatch'\), \{stage:'detail'\}/);
+  assert.match(source, /new Error\('CJ review score count unavailable'\), \{stage:'review-score'\}/);
+  assert.match(source, /new Error\('CJ review totals inconsistent'\), \{stage:'reviews'\}/);
+  assert.match(source, /stage:\['detail','reviews','review-score'\]\.includes\(e\?\.stage\)/);
+});
