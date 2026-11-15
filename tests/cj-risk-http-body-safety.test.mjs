@@ -38,3 +38,8 @@ test('CJ review does not perform a third request after gateway retry followed by
   assert.match(source, /retried = true;/);
   assert.match(source, /if \(r\.status === 429 && !retried\)/);
 });
+
+test('CJ failure responses expose only an allowlisted diagnostic stage', () => {
+  assert.match(source, /stage:\['detail','reviews','review-score'\]\.includes\(e\?\.stage\)\?e\.stage:null/);
+  assert.doesNotMatch(source, /stage:e\?\.stage[,}]/);
+});
