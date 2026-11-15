@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateCJStockResponse as validate } from '../lib/cj-stock-validation.js';
+import { validateCJStockResponse as validate, classifyCJAvailability } from '../lib/cj-stock-validation.js';
 
 const row = (cj, factory = 0, extra = {}) => ({ cjInventoryNum: cj, factoryInventoryNum: factory, totalInventoryNum: Number(cj) + Number(factory), ...extra });
 const response = data => ({ result: true, data });
@@ -28,4 +28,22 @@ test('rejects overflow across warehouses', () => {
 
 test('both CJ and factory stock zero is out of stock', () => {
  assert.deepEqual(validate(response([row(0,0)])), {ok:true,total:0,factoryTotal:0,recommendationStockStatus:'out-of-stock'});
+});
+
+test('factory-only inventory can be recommended without overstating Shopify availability',()=>{
+ const x=classifyCJAvailability(validate(response([row(0,12)])));
+ assert.equal(x.recommendationEligible,true);
+ assert.equal(x.shopifyAvailable,0);
+ assert.equal(x.requiresFactoryReplenishment,true);
+ assert.equal(x.reason,'factory-replenishment');
+});
+test('CJ warehouse threshold and factory shortage are kept distinct',()=>{
+ assert.equal(classifyCJAvailability(validate(response([row(5,0)]))).recommendationEligible,true);
+ assert.equal(classifyCJAvailability(validate(response([row(4,0)]))).recommendationEligible,false);
+ assert.equal(classifyCJAvailability(validate(response([row(0,4)]))).recommendationEligible,false);
+});
+test('unverified CJ response cannot be used as a zero-stock confirmation',()=>{
+ const x=classifyCJAvailability({ok:false,reason:'cj-rate-limited'});
+ assert.equal(x.shopifyAvailable,null);
+ assert.equal(x.recommendationEligible,false);
 });
