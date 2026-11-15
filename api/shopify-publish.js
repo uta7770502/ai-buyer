@@ -1,5 +1,6 @@
 import { getShopifyAuthContext } from '../lib/shopify-auth-context.js';
 import { validateCJStockResponse } from '../lib/cj-stock-validation.js';
+import { prepareEnglishForSavedDraft } from '../lib/english-draft-pipeline-hook.js';
 const VERSION='2026-10';
 function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))]}))}
 async function gql(shop,token,query,variables={}){
@@ -736,6 +737,14 @@ export default async function handler(req,res){
        !Number.isFinite(Number(savedVariant.price))||Number(savedVariant.price)!==price)
       return res.status(409).json({ok:false,productId:ce.product.id,status:'UNVERIFIED',
         error:'Shopify保存後のDRAFT・SKU・価格を照合できません。管理画面で確認してください'});
+    // Optional read-only English localization preflight; Japanese draft remains authoritative.
+    // No translation write, locale publication or market activation occurs here.
+    if(process.env.ADPS_ENGLISH_TRANSLATIONS_DRY_RUN_ENABLED==='true'){
+      await prepareEnglishForSavedDraft({
+        product:{id:ce.product.id,status:'DRAFT',title,descriptionHtml:description},
+        shopifyGraphql:(query,variables)=>gql(shop,token,query,variables)
+      });
+    }
     // Publishing must be explicit after the CJ variant and Shopify price are validated.
     // Keep the newly created product as a draft until a dedicated approval step.
     if(p.publishApproved!==true||!livePublishEnabled){if(formPublish)return res.redirect(303,'/?publish=done&id='+encodeURIComponent(String(p.id||p.cjProductId||''))+'&productId='+encodeURIComponent(String(ce.product.id||'')));return res.status(200).json({ok:true,productId:ce.product.id,variantId,title:ce.product.title,handle:ce.product.handle,published:false,status:'DRAFT',recommendationToDraft,metadataReady:true,safetyReady,safetyReasons,reviewEvidenceVerified:reviewsVerified,japanShippingVerified,draftProfitVerified,draftRecommendationEligible,draftProfitVerificationReason,livePublishEnabled,cjVariantId:cj.vid,cjVariantSku:cj.sku,cjProductId:cj.productId,verifiedInventory:stock.total,inventoryVerifiedAt:p.inventoryVerifiedAt,minimumLaunchInventory:MIN_LAUNCH_INVENTORY});}
