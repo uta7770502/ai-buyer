@@ -24,3 +24,17 @@ test('unverified evidence and below 20 percent always reject',()=>{
  assert.equal(evaluateApprovedSkuMargin(base,{},approval,'SKU-A').eligible,false);
  assert.equal(evaluateApprovedSkuMargin({...base,costYen:1400},evidence,approval,'SKU-A').eligible,false);
 });
+
+test('malformed or ambiguous SKU identities cannot authorize an exception',()=>{
+ const approvalFor=sku=>({source:'server',approved:true,sku,minimumMargin:0.25});
+ for(const sku of ['', ' ', ' SKU-A', 'SKU-A ', 'SKU-A\n', 'SKU-A\u0000', 'X'.repeat(161)]) {
+  assert.equal(evaluateApprovedSkuMargin(base,evidence,approvalFor(sku),sku).eligible,false,JSON.stringify(sku));
+ }
+ assert.equal(evaluateApprovedSkuMargin(base,evidence,approvalFor('SKU-A'),'SKU-A').eligible,true);
+});
+test('server approval cannot replace verified shipping or fee evidence',()=>{
+ const approval={source:'server',approved:true,sku:'SKU-A',minimumMargin:0.20};
+ for(const proof of [{feeEvidenceVerified:true},{shippingEvidenceVerified:true},{}]) {
+  assert.equal(evaluateApprovedSkuMargin(base,proof,approval,'SKU-A').eligible,false);
+ }
+});
