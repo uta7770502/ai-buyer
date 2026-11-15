@@ -5,7 +5,8 @@ import {summarizeStockAudit} from '../lib/stock-audit-summary.js';
 test('empty audit cannot report verified inventory',()=>{
   assert.deepEqual(summarizeStockAudit([]),{
     variants:0,partial:false,noAuditableVariants:true,allVerified:false,
-    inSync:0,needsSync:0,changed:0,blocked:0,\n    factoryReplenishment:0,recommendationEligible:0,cjStockUnknown:0
+    inSync:0,needsSync:0,changed:0,blocked:0,
+    factoryReplenishment:0,recommendationEligible:0,cjStockUnknown:0
   });
 });
 
