@@ -211,3 +211,17 @@ test('CJ reviews 500 twice cannot authorize recommendation despite valid detail'
  assert.equal(res.body.upstreamStatus,500);
  assert.doesNotMatch(JSON.stringify(res.body),/private review diagnostics/);
 });
+
+
+test('unexpected CJ review envelope reports safe schema diagnostic without granting recommendation', async t => {
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ t.mock.method(globalThis,'fetch',async url=>({ok:true,status:200,headers:new Headers({'content-type':'application/json'}),json:async()=>new URL(url).pathname.endsWith('/product/query')?{result:true,data:{pid:'p1',comprehensiveScore:4.8}}:{success:true,code:'200',data:{total:20,privateMessage:'SECRET'}}}));
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(res.code,502);
+ assert.equal(res.body.ok,false);
+ assert.equal(res.body.stage,'reviews');
+ assert.equal(res.body.diagnosticReason,'cj_response_envelope_unrecognized');
+ assert.doesNotMatch(JSON.stringify(res.body),/SECRET/);
+});
