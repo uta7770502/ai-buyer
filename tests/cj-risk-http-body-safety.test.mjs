@@ -59,3 +59,13 @@ test('CJ malformed JSON and response-body timeout retain safe stage diagnostics'
   assert.match(source, /stage, diagnosticReason: 'cj_response_json_invalid'/);
   assert.doesNotMatch(source, /r\.json\(\)\.catch\(\(\)=>null\)/);
 });
+
+
+test('CJ fetch rejection retains the exact review stage and timeout classification', () => {
+  assert.match(source, /async function fetchAtStage\(\)/);
+  assert.match(source, /error\.stage = stage/);
+  assert.match(source, /signal\?\.aborted \|\| cause\?\.name === 'AbortError'/);
+  assert.match(source, /let r=await fetchAtStage\(\)/);
+  assert.match(source, /r = await fetchAtStage\(\)/);
+  assert.doesNotMatch(source, /r = await fetch\(url, \{headers, signal\}\)/);
+});
