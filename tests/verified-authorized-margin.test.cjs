@@ -48,3 +48,12 @@ test('ambiguous SKU identities never authorize 25% or 20% exceptions', () => {
   }
   assert.equal(verifiedAuthorizedMargin(base,approval).allowed,true);
 });
+
+test('invisible Unicode and separator characters cannot authorize SKU margin exceptions', () => {
+  for (const invisible of ['\u200b','\u200d','\ufeff','\u2060','\u00a0','\u2028','\u2029','\u3000']) {
+    const sku = 'ODDLY-' + invisible + '001';
+    assert.deepEqual(verifiedAuthorizedMargin({...base,sku}, {...approval,sku}),
+      {allowed:false,reason:'exception_approval_missing'},JSON.stringify(sku));
+  }
+  assert.equal(verifiedAuthorizedMargin(base,approval).allowed,true);
+});
