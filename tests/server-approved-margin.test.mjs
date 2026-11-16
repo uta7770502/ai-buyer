@@ -48,3 +48,13 @@ test('stored approval wrapper never trusts caller-supplied approval and fails cl
  const defaultTier=await assessMarginWithStoredApproval({...attacker,threshold:30});
  assert.equal(defaultTier.record,null);
 });
+
+test('margin approval lookup fails closed when Redis configuration throws',async t=>{
+ const oldEnv={VERCEL_ENV:process.env.VERCEL_ENV,VERCEL_GIT_COMMIT_REF:process.env.VERCEL_GIT_COMMIT_REF};
+ t.after(()=>{for(const [k,v] of Object.entries(oldEnv)){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
+ process.env.VERCEL_ENV='preview';process.env.VERCEL_GIT_COMMIT_REF='safety-gate-20261024';
+ const brokenRedis='export const redisConnection=()=>{throw Error("redis configuration unavailable")};';
+ const mocked=loader.replace("'./redis-connection.js'",JSON.stringify('data:text/javascript,'+encodeURIComponent(brokenRedis)));
+ const {loadMarginException}=await import('data:text/javascript,'+encodeURIComponent(mocked));
+ assert.equal(await loadMarginException('1234567890123',{now:Date.now()}),null);
+});
