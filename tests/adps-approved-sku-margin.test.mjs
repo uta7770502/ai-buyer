@@ -38,3 +38,21 @@ test('server approval cannot replace verified shipping or fee evidence',()=>{
   assert.equal(evaluateApprovedSkuMargin(base,proof,approval,'SKU-A').eligible,false);
  }
 });
+
+test('exception approval fails closed for malformed approval thresholds and identity',()=>{
+ const costs={...base,costYen:1250};
+ for(const minimumMargin of [undefined,null,0,0.19,0.2+'',25,NaN,Infinity]) {
+  const approval={source:'server',approved:true,sku:'SKU-A',minimumMargin};
+  assert.equal(evaluateApprovedSkuMargin(costs,evidence,approval,'SKU-A').eligible,false,String(minimumMargin));
+ }
+ for(const sku of ['SKU-A\u200b','SKU-A\ufeff']) {
+  // Invisible characters must never match a distinct canonical SKU approval.
+  assert.equal(evaluateApprovedSkuMargin(costs,evidence,{source:'server',approved:true,sku:'SKU-A',minimumMargin:0.20},sku).eligible,false);
+ }
+});
+test('unverified evidence is never bypassed by a valid 30 percent margin',()=>{
+ const costs={...base,costYen:1000};
+ for(const proof of [{feeEvidenceVerified:true},{shippingEvidenceVerified:true},{feeEvidenceVerified:1,shippingEvidenceVerified:true},{}]) {
+  assert.equal(evaluateApprovedSkuMargin(costs,proof,null,'SKU-A').eligible,false);
+ }
+});
