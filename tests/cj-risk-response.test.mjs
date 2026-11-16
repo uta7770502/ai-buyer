@@ -225,3 +225,33 @@ test('unexpected CJ review envelope reports safe schema diagnostic without grant
  assert.equal(res.body.diagnosticReason,'cj_response_envelope_unrecognized');
  assert.doesNotMatch(JSON.stringify(res.body),/SECRET/);
 });
+
+test('malformed CJ review JSON is safely classified and blocks recommendation', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ t.mock.method(globalThis,'fetch',async url=>({
+  ok:true,status:200,headers:new Headers({'content-type':'application/json'}),
+  json:async()=>{if(new URL(url).pathname.endsWith('/product/query'))return {result:true,data:{pid:'p1',comprehensiveScore:4.7}};throw Error('PRIVATE_INVALID_JSON');}
+ }));
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(res.code,502);
+ assert.equal(res.body.stage,'reviews');
+ assert.equal(res.body.diagnosticReason,'cj_response_json_invalid');
+ assert.doesNotMatch(JSON.stringify(res.body),/PRIVATE_INVALID_JSON/);
+});
+
+test('CJ review HTML is classified without exposing upstream body', async t => {
+ const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ t.mock.method(globalThis,'fetch',async url=>{
+  const detail=new URL(url).pathname.endsWith('/product/query');
+  return {ok:true,status:200,headers:new Headers({'content-type':detail?'application/json':'text/html'}),json:async()=>detail?{result:true,data:{pid:'p1',comprehensiveScore:4.7}}:({private:'SECRET'})};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(res.code,502);
+ assert.equal(res.body.stage,'reviews');
+ assert.equal(res.body.diagnosticReason,'cj_response_media_type_invalid');
+ assert.doesNotMatch(JSON.stringify(res.body),/SECRET/);
+});
