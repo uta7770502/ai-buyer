@@ -27,3 +27,24 @@ test('Redis-backed approval loader accepts matching record and rejects tampering
  assert.equal(await loadMarginException('invalid',{now,fetcher:fetcher(base)}),null);
  assert.equal(await loadMarginException(vid,{now,fetcher:async()=>{throw Error('offline')}}),null);
 });
+
+test('stored approval wrapper never trusts caller-supplied approval and fails closed on mismatched tier',async t=>{
+ const oldEnv={VERCEL_ENV:process.env.VERCEL_ENV,VERCEL_GIT_COMMIT_REF:process.env.VERCEL_GIT_COMMIT_REF};
+ t.after(()=>{for(const [k,v] of Object.entries(oldEnv)){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
+ process.env.VERCEL_ENV='preview';process.env.VERCEL_GIT_COMMIT_REF='safety-gate-20261024';
+ const marginModule='export const assessVerifiedProductMargin=(e)=>({approved:!!e.marginException,threshold:e.threshold,record:e.marginException||null});';
+ const loaderModule='export const loadMarginException=async(id)=>({approved:true,source:"product-specific-owner-approval",vid:id,threshold:25,approvedAt:"2026-11-16T00:00:00Z",approvalId:"approval-test-123"});';
+ const mocked=wrapper
+  .replace("'./server-margin-exception.js'",JSON.stringify('data:text/javascript,'+encodeURIComponent(loaderModule)))
+  .replace("'./verified-product-margin.js'",JSON.stringify('data:text/javascript,'+encodeURIComponent(marginModule)));
+ const {assessMarginWithStoredApproval}=await import('data:text/javascript,'+encodeURIComponent(mocked));
+ const attacker={expectedVid:'1234567890123',threshold:20,marginException:{approved:true,threshold:20,source:'product-specific-owner-approval'}};
+ const rejected=await assessMarginWithStoredApproval(attacker);
+ assert.equal(rejected.approved,false);
+ assert.equal(rejected.record,null);
+ const accepted=await assessMarginWithStoredApproval({...attacker,threshold:25});
+ assert.equal(accepted.approved,true);
+ assert.equal(accepted.record.threshold,25);
+ const defaultTier=await assessMarginWithStoredApproval({...attacker,threshold:30});
+ assert.equal(defaultTier.record,null);
+});
