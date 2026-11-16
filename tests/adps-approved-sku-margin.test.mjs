@@ -56,3 +56,11 @@ test('unverified evidence is never bypassed by a valid 30 percent margin',()=>{
   assert.equal(evaluateApprovedSkuMargin(costs,proof,null,'SKU-A').eligible,false);
  }
 });
+
+test('matching invisible Unicode SKU identities never authorize reduced margin',()=>{
+ const approvalFor=sku=>({source:'server',approved:true,sku,minimumMargin:0.20});
+ for(const sku of ['SKU-A\u200b','SKU-A\ufeff','SKU-A\u2060','SKU-A\u00a0','SKU-A\u2028','SKU-A\u2029','SKU-A\u2003']) {
+  assert.equal(evaluateApprovedSkuMargin({...base,costYen:1250},evidence,approvalFor(sku),sku).eligible,false,JSON.stringify(sku));
+ }
+ assert.equal(evaluateApprovedSkuMargin({...base,costYen:1250},evidence,approvalFor('SKU-A'),'SKU-A').eligible,true);
+});
