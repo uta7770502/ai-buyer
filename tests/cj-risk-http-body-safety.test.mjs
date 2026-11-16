@@ -47,6 +47,6 @@ test('CJ failure responses expose only an allowlisted diagnostic stage', () => {
 test('CJ evidence mismatches retain safe, specific diagnostic stages', () => {
   assert.match(source, /new Error\('CJ product identity mismatch'\), \{stage:'detail'\}/);
   assert.match(source, /new Error\('CJ review score count unavailable'\), \{stage:'review-score',reviewScore:score,diagnosticReason:'cj_review_score_total_invalid'\}/);
-  assert.match(source, /new Error\('CJ review totals inconsistent'\), \{stage:'reviews'\}/);
+  assert.match(source, /new Error\('CJ review totals inconsistent'\), \{stage:'reviews',diagnosticReason:'cj_review_totals_invalid'\}/);
   assert.match(source, /stage:\['detail','reviews','review-score'\]\.includes\(e\?\.stage\)/);
 });
