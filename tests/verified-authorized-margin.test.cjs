@@ -39,3 +39,12 @@ test('expired SKU approval is rejected even when margin meets exception threshol
   const atBoundary = {...approval,approvedAt:new Date(Date.now()-29*24*60*60*1000).toISOString()};
   assert.equal(verifiedAuthorizedMargin(base,atBoundary).allowed,true);
 });
+
+test('ambiguous SKU identities never authorize 25% or 20% exceptions', () => {
+  for (const sku of ['', ' ', ' ODDLY-001', 'ODDLY-001 ', 'ODDLY-001\\n', 'ODDLY-001\\u0000', 'X'.repeat(161)]) {
+    const actualSku = sku.replace('\\n', '\n').replace('\\u0000', '\u0000');
+    assert.equal(verifiedAuthorizedMargin({...base,sku:actualSku},
+      {...approval,sku:actualSku}).allowed,false,JSON.stringify(actualSku));
+  }
+  assert.equal(verifiedAuthorizedMargin(base,approval).allowed,true);
+});
