@@ -6,7 +6,7 @@ const source = readFileSync(new URL('../lib/routes/cj-risk.js', import.meta.url)
 
 test('CJ review HTTP errors are rejected before JSON body parsing', () => {
   const rejectAt = source.indexOf('if (!r.ok) {');
-  const parseAt = source.indexOf('const j=await r.json().catch(()=>null);');
+  const parseAt = source.indexOf('let j;');
   assert.ok(rejectAt >= 0 && parseAt > rejectAt);
   assert.match(source.slice(rejectAt, parseAt), /await r\.body\?\.cancel\(\)\.catch/);
   assert.match(source.slice(rejectAt, parseAt), /error\.upstreamStatus = r\.status/);
@@ -49,4 +49,13 @@ test('CJ evidence mismatches retain safe, specific diagnostic stages', () => {
   assert.match(source, /new Error\('CJ review score count unavailable'\), \{stage:'review-score',reviewScore:score,diagnosticReason:'cj_review_score_total_invalid'\}/);
   assert.match(source, /new Error\('CJ review totals inconsistent'\), \{stage:'reviews',diagnosticReason:'cj_review_totals_invalid'\}/);
   assert.match(source, /stage:\['detail','reviews','review-score'\]\.includes\(e\?\.stage\)/);
+});
+
+
+test('CJ malformed JSON and response-body timeout retain safe stage diagnostics', () => {
+  assert.match(source, /catch \(cause\) \{/);
+  assert.match(source, /signal\?\.aborted \|\| cause\?\.name === 'AbortError'/);
+  assert.match(source, /name: 'TimeoutError', stage/);
+  assert.match(source, /stage, diagnosticReason: 'cj_response_json_invalid'/);
+  assert.doesNotMatch(source, /r\.json\(\)\.catch\(\(\)=>null\)/);
 });
