@@ -107,8 +107,15 @@ test('missing CJ response content type blocks review evidence without parsing', 
 });
 
 test('CJ gateway 502 followed by auth 401 stops after two attempts and fails closed', async t => {
- const previous=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
- t.after(()=>{if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;});
+ // Force the static-token path: CJ_API_KEY takes precedence and would add an auth fetch.
+ const previous=process.env.CJ_ACCESS_TOKEN;
+ const previousKey=process.env.CJ_API_KEY;
+ delete process.env.CJ_API_KEY;
+ process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{
+  if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;
+  if(previousKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=previousKey;
+ });
  let calls=0;
  t.mock.method(globalThis,'fetch',async()=>{
   calls++;
