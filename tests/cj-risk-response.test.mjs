@@ -270,3 +270,26 @@ test('CJ review HTML is classified without exposing upstream body', async t => {
  assert.equal(res.body.diagnosticReason,'cj_response_media_type_invalid');
  assert.doesNotMatch(JSON.stringify(res.body),/SECRET/);
 });
+
+test('CJ authentication rejection is diagnosed without requesting product reviews', async t => {
+ const previousKey=process.env.CJ_API_KEY;
+ const previousToken=process.env.CJ_ACCESS_TOKEN;
+ process.env.CJ_API_KEY='test-auth-diagnostic-key';
+ delete process.env.CJ_ACCESS_TOKEN;
+ t.after(()=>{
+  if(previousKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=previousKey;
+  if(previousToken===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previousToken;
+ });
+ const paths=[];
+ t.mock.method(globalThis,'fetch',async url=>{
+  paths.push(new URL(url).pathname);
+  return {ok:false,status:401,json:async()=>({result:false})};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
+ assert.equal(res.code,503);
+ assert.equal(res.body.code,'CJ_AUTH_REJECTED');
+ assert.equal(res.body.upstreamStatus,401);
+ assert.deepEqual(paths,['/api2.0/v1/authentication/getAccessToken']);
+ assert.match(res.body.error,/推薦を保留/);
+});
