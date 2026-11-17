@@ -116,14 +116,19 @@ test('CJ gateway 502 followed by auth 401 stops after two attempts and fails clo
   if(previous===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=previous;
   if(previousKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=previousKey;
  });
- let calls=0;
- t.mock.method(globalThis,'fetch',async()=>{
-  calls++;
-  return {ok:false,status:calls===1?502:401,headers:new Headers(),body:{cancel:async()=>{}},json:async()=>{throw Error('must not parse private upstream error');}};
+ const requestPaths=[];
+ t.mock.method(globalThis,'fetch',async url=>{
+  const path=new URL(url).pathname;
+  requestPaths.push(path);
+  const detailAttempts=requestPaths.filter(value=>value.endsWith('/product/query')).length;
+  return {ok:false,status:detailAttempts===1?502:401,headers:new Headers(),body:{cancel:async()=>{}},json:async()=>{throw Error('must not parse private upstream error');}};
  });
  const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
  await handler({method:'GET',query:{id:'p1'}},res);
- assert.equal(calls,2);
+ assert.deepEqual(requestPaths, [
+  '/api2.0/v1/product/query',
+  '/api2.0/v1/product/query'
+ ]);
  assert.equal(res.code,503);
  assert.equal(res.body.code,'CJ_AUTH_REJECTED');
  assert.equal(res.body.upstreamStatus,401);
