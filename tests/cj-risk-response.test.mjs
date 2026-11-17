@@ -125,7 +125,10 @@ test('CJ gateway 502 followed by auth 401 stops after two attempts and fails clo
  });
  const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
  await handler({method:'GET',query:{id:'p1'}},res);
- assert.deepEqual(requestPaths, [
+ // An earlier concurrent review-score request can finish after its test returns.
+ // Count only this scenario's detail attempts; unrelated in-flight review calls
+ // must not be mistaken for an extra authentication or detail retry.
+ assert.deepEqual(requestPaths.filter(path=>path.endsWith('/product/query')), [
   '/api2.0/v1/product/query',
   '/api2.0/v1/product/query'
  ]);
