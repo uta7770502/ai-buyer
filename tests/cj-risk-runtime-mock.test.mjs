@@ -137,3 +137,10 @@ test('CJ review success envelope cannot be substituted for product detail identi
     e.stage === 'detail' && e.diagnosticReason === 'cj_response_envelope_unrecognized');
   assert.equal(h.calls(), 1);
 });
+
+// Keep independent low-star lookups concurrent: serial requests can exhaust the
+// shared 10-second deadline before the final evidence gate is evaluated.
+test('CJ one-star and two-star evidence requests share the same deadline concurrently', () => {
+  assert.match(source, /Promise\.all\(\[countByScore\(1\),\s*countByScore\(2\)\]\)/);
+  assert.match(source, /score1\s*\+\s*score2\s*>\s*total/);
+});
