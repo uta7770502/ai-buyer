@@ -65,3 +65,33 @@ test('CJ retry deadline preserves stage without issuing another request', async 
     e.name === 'TimeoutError' && e.stage === 'detail');
   assert.equal(h.calls(), 1);
 });
+
+test('CJ 429 with short Retry-After retries once and accepts verified JSON', async () => {
+  const rateLimited = response(429);
+  rateLimited.headers.get = (key) => key.toLowerCase() === 'retry-after' ? '1' : null;
+  const waits = [];
+  const h = harness([rateLimited, response(200)], async (ms) => { waits.push(ms); });
+  const result = await h.getJson(url, headers, undefined, 'reviews');
+  assert.equal(result.total, 12);
+  assert.equal(h.calls(), 2);
+  assert.deepEqual(waits, [1000]);
+});
+
+test('CJ non-JSON content type is rejected without parsing response body', async () => {
+  const r = response(200);
+  r.headers.get = () => 'text/html';
+  r.json = async () => { throw new Error('must not parse HTML'); };
+  const h = harness([r]);
+  await assert.rejects(h.getJson(url, headers, undefined, 'detail'), (e) =>
+    e.stage === 'detail' && e.diagnosticReason === 'cj_response_media_type_invalid');
+  assert.equal(h.calls(), 1);
+});
+
+test('CJ malformed JSON retains the review stage and fails closed', async () => {
+  const r = response(200);
+  r.json = async () => { throw new SyntaxError('invalid JSON'); };
+  const h = harness([r]);
+  await assert.rejects(h.getJson(url, headers, undefined, 'reviews'), (e) =>
+    e.stage === 'reviews' && e.diagnosticReason === 'cj_response_json_invalid');
+  assert.equal(h.calls(), 1);
+});
