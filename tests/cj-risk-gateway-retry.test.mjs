@@ -26,3 +26,9 @@ test('CJ review retries at most once across gateway and rate-limit responses', (
   assert.match(getJson, /r\.status === 429 && !retried/);
   assert.match(getJson, /Number\.isFinite\(waitMs\) && waitMs >= 0 && waitMs <= 2000/);
 });
+
+
+test('CJ retry backoff timeout preserves failing stage for diagnostics', () => {
+  assert.match(getJson, /catch \{ throw Object\.assign\(new Error\('CJ retry deadline exceeded'\), \{ name: 'TimeoutError', stage \}\); \}/);
+  assert.match(getJson, /catch \{ throw Object\.assign\(new Error\('CJ rate-limit retry deadline exceeded'\), \{ name: 'TimeoutError', stage \}\); \}/);
+});
