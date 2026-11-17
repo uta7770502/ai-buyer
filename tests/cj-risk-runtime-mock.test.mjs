@@ -119,3 +119,21 @@ test('CJ second gateway failure is not retried indefinitely', async () => {
     e.stage === 'reviews' && e.upstreamStatus === 502);
   assert.equal(h.calls(), 2);
 });
+
+test('CJ 429 Retry-After above bounded retry window fails closed without waiting', async () => {
+  const rateLimited = response(429);
+  rateLimited.headers.get = (key) => key.toLowerCase() === 'retry-after' ? '120' : null;
+  const waits = [];
+  const h = harness([rateLimited, response(200)], async (ms) => { waits.push(ms); });
+  await assert.rejects(h.getJson(url, headers, undefined, 'reviews'), (e) =>
+    e.stage === 'reviews' && e.upstreamStatus === 429);
+  assert.equal(h.calls(), 1);
+  assert.deepEqual(waits, []);
+});
+
+test('CJ review success envelope cannot be substituted for product detail identity evidence', async () => {
+  const h = harness([response(200, { success: true, code: 0, data: { pid: 'example' } })]);
+  await assert.rejects(h.getJson(url, headers, undefined, 'detail'), (e) =>
+    e.stage === 'detail' && e.diagnosticReason === 'cj_response_envelope_unrecognized');
+  assert.equal(h.calls(), 1);
+});
