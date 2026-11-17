@@ -294,3 +294,41 @@ test('CJ authentication rejection is diagnosed without requesting product review
  assert.deepEqual(paths,['/api2.0/v1/authentication/getAccessToken']);
  assert.match(res.body.error,/推薦を保留/);
 });
+
+test('failed score request waits for sibling review request to settle before responding', async t => {
+ const prior=process.env.CJ_ACCESS_TOKEN;
+ const priorKey=process.env.CJ_API_KEY;
+ process.env.CJ_ACCESS_TOKEN='test';
+ delete process.env.CJ_API_KEY;
+ t.after(()=>{
+  if(prior===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=prior;
+  if(priorKey===undefined)delete process.env.CJ_API_KEY;else process.env.CJ_API_KEY=priorKey;
+ });
+ let finishSecond;
+ const secondFinished=new Promise(resolve=>{finishSecond=resolve;});
+ let siblingSettled=false;
+ t.mock.method(globalThis,'fetch',async url=>{
+  const u=new URL(url);
+  if(u.pathname.endsWith('/product/query'))
+   return {ok:true,status:200,headers:new Headers({'content-type':'application/json'}),json:async()=>({result:true,data:{pid:'p1',comprehensiveScore:4.7}})};
+  const score=u.searchParams.get('score');
+  if(score==='1')
+   return {ok:false,status:401,headers:new Headers(),body:{cancel:async()=>{}}};
+  if(score==='2'){
+   await secondFinished;
+   siblingSettled=true;
+  }
+  return {ok:true,status:200,headers:new Headers({'content-type':'application/json'}),json:async()=>({result:true,data:{total:score?'0':'100'}})};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ const pending=handler({method:'GET',query:{id:'p1'}},res);
+ // Give the first score failure time to reject; the response must still wait.
+ await new Promise(resolve=>setTimeout(resolve,25));
+ assert.equal(res.body,undefined);
+ finishSecond();
+ await pending;
+ assert.equal(siblingSettled,true);
+ assert.equal(res.code,503);
+ assert.equal(res.body.code,'CJ_AUTH_REJECTED');
+ assert.equal(res.body.stage,'review-score');
+});
