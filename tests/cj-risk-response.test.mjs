@@ -290,6 +290,7 @@ test('CJ authentication rejection is diagnosed without requesting product review
  assert.equal(res.code,503);
  assert.equal(res.body.code,'CJ_AUTH_REJECTED');
  assert.equal(res.body.upstreamStatus,401);
+ assert.equal(res.body.stage,'auth');
  assert.deepEqual(paths,['/api2.0/v1/authentication/getAccessToken']);
  assert.match(res.body.error,/推薦を保留/);
 });
