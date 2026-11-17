@@ -95,3 +95,27 @@ test('CJ malformed JSON retains the review stage and fails closed', async () => 
     e.stage === 'reviews' && e.diagnosticReason === 'cj_response_json_invalid');
   assert.equal(h.calls(), 1);
 });
+
+
+test('CJ fetch rejection preserves stage without exposing upstream exception text', async () => {
+  const h = harness([new Error('private upstream diagnostic')]);
+  await assert.rejects(h.getJson(url, headers, undefined, 'review-score'), (e) =>
+    e.stage === 'review-score' && e.name === 'CJFetchError' && !e.message.includes('private'));
+  assert.equal(h.calls(), 1);
+});
+
+test('CJ aborted response body is classified as timeout at its review stage', async () => {
+  const r = response(200);
+  r.json = async () => { throw Object.assign(new Error('aborted'), { name: 'AbortError' }); };
+  const h = harness([r]);
+  await assert.rejects(h.getJson(url, headers, undefined, 'reviews'), (e) =>
+    e.stage === 'reviews' && e.name === 'TimeoutError');
+  assert.equal(h.calls(), 1);
+});
+
+test('CJ second gateway failure is not retried indefinitely', async () => {
+  const h = harness([response(503), response(502), response(200)]);
+  await assert.rejects(h.getJson(url, headers, undefined, 'reviews'), (e) =>
+    e.stage === 'reviews' && e.upstreamStatus === 502);
+  assert.equal(h.calls(), 2);
+});
