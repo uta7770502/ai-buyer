@@ -141,6 +141,7 @@ test('CJ review success envelope cannot be substituted for product detail identi
 // Keep independent low-star lookups concurrent: serial requests can exhaust the
 // shared 10-second deadline before the final evidence gate is evaluated.
 test('CJ one-star and two-star evidence requests share the same deadline concurrently', () => {
-  assert.match(source, /Promise\.all\(\[countByScore\(1\),\s*countByScore\(2\)\]\)/);
+  assert.match(source, /Promise\.allSettled\(\[countByScore\(1\),\s*countByScore\(2\)\]\)/);
+  assert.match(source, /scoreResults\.find\(result => result\.status === 'rejected'\)/);
   assert.match(source, /score1\s*\+\s*score2\s*>\s*total/);
 });
