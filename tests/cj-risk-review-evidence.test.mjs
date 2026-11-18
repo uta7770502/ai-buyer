@@ -12,7 +12,7 @@ test('CJ review API failures must not become zero-review success',()=>{
 });
 
 test('missing review evidence blocks recommendation',()=>{
- assert.match(source,/total<10\|\|!rated/);
+ assert.match(source,/total<=0\|\|!rated/);
  assert.match(source,/reason:'review-evidence-insufficient'/);
  assert.match(source,/exclude:true/);
 });
@@ -37,14 +37,13 @@ test('CJ ratings outside five-star scale are excluded',()=>{
 });
 
 test('live CJ review total cannot fall back to stale catalog comment count',()=>{
- assert.match(source,/const total=parseReviewCount\(all\?\.total\)/);
+ assert.match(source,/const total=parseReviewCount\(first\?\.total\)/);
  assert.doesNotMatch(source,/all\?\.total\?\?detail\?\.commentCount/);
 });
 
 test('risk scorer fails closed for missing and inconsistent live review evidence',()=>{
  for(const args of [
   {low:0,mid:0,total:0,rating:4.9},
-  {low:0,mid:0,total:9,rating:5},
   {low:2,mid:1,total:2,rating:4.9},
   {low:-1,mid:0,total:20,rating:4.9},
   {low:0,mid:0,total:20,rating:NaN},
@@ -53,7 +52,9 @@ test('risk scorer fails closed for missing and inconsistent live review evidence
  ]) assert.equal(scoreRisk(args).exclude,true,JSON.stringify(args));
 });
 
-test('ten verified reviews are the minimum evidence threshold',()=>{
- assert.equal(scoreRisk({low:0,mid:0,total:9,rating:5}).exclude,true);
- assert.equal(scoreRisk({low:0,mid:0,total:10,rating:5}).exclude,false);
+test('clean small samples may pass but any low-star review blocks them',()=>{
+ assert.equal(scoreRisk({low:0,mid:0,total:3,rating:5}).exclude,false);
+ assert.equal(scoreRisk({low:1,mid:0,total:3,rating:4.8}).exclude,true);
+ assert.equal(scoreRisk({low:0,mid:1,total:9,rating:4.8}).exclude,true);
+ assert.equal(scoreRisk({low:0,mid:0,total:10,rating:4.5}).exclude,false);
 });
