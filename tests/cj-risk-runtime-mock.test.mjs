@@ -78,5 +78,5 @@ test('CJ second gateway failure is not retried indefinitely', async () => {
 test('risk handler no longer depends on score-filter concurrency',()=>{
   assert.doesNotMatch(source,/Promise\.allSettled\(\[countByScore/);
   assert.match(source,/pageSize','100'/);
-  assert.match(source,/for\(const review of all\.list\)/);
+  assert.match(source,/for\(const review of reviews\.slice\(0,total\)\)/);
 });
