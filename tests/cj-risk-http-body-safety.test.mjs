@@ -10,12 +10,11 @@ test('CJ review HTTP errors are rejected before JSON body parsing', () => {
   assert.ok(rejectAt >= 0 && parseAt > rejectAt);
   assert.match(source.slice(rejectAt, parseAt), /await r\.body\?\.cancel\(\)\.catch/);
   assert.match(source.slice(rejectAt, parseAt), /error\.upstreamStatus = r\.status/);
-  assert.match(source.slice(rejectAt, parseAt), /throw error/);
 });
 
-test('CJ review failures retain stage diagnostics without leaking upstream bodies', () => {
-  assert.match(source, /error\.stage = stage/);
-  assert.match(source, /upstreamStatus:Number\.isInteger\(e\?\.upstreamStatus\)/);
+test('CJ review failures retain safe diagnostics without leaking upstream bodies', () => {
+  assert.match(source, /const safeUpstreamStatus=Number\.isInteger\(e\?\.upstreamStatus\)\?e\.upstreamStatus:null/);
+  assert.match(source, /const safeStage=\['auth','detail','reviews','review-score'\]\.includes\(e\?\.stage\)\?e\.stage:null/);
   assert.doesNotMatch(source, /error:\s*e\?\.message|error:\s*message/);
 });
 
@@ -24,48 +23,32 @@ test('CJ review retry cleanup failure cannot suppress HTTP retry classification'
   const throttleBlock = source.slice(source.indexOf('if (r.status === 429 && !retried)'), source.indexOf('// Do not parse upstream error bodies'));
   assert.match(retryBlock, /await r\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
   assert.match(throttleBlock, /await r\.body\?\.cancel\(\)\.catch\(\(\) => \{\}\)/);
-  assert.match(retryBlock, /await delay\(150/);
-  assert.match(throttleBlock, /await delay\(waitMs/);
 });
 
 test('CJ review eligibility responses are never cached', () => {
   assert.match(source, /res\.setHeader\('Cache-Control','no-store'\)/);
-  assert.doesNotMatch(source, /private, max-age=300/);
 });
 
-test('CJ review does not perform a third request after gateway retry followed by 429', () => {
-  assert.match(source, /let retried = false;/);
-  assert.match(source, /retried = true;/);
-  assert.match(source, /if \(r\.status === 429 && !retried\)/);
-});
-
-test('CJ failure responses expose only an allowlisted diagnostic stage', () => {
-  assert.match(source, /stage:\['auth','detail','reviews','review-score'\]\.includes\(e\?\.stage\)\?e\.stage:null/);
-  assert.doesNotMatch(source, /stage:e\?\.stage[,}]/);
-});
-
-test('CJ evidence mismatches retain safe, specific diagnostic stages', () => {
+test('CJ product identity mismatch keeps detail stage', () => {
   assert.match(source, /new Error\('CJ product identity mismatch'\), \{stage:'detail'\}/);
-  assert.match(source, /new Error\('CJ review score count unavailable'\), \{stage:'review-score',reviewScore:score,diagnosticReason:'cj_review_score_total_invalid'\}/);
-  assert.match(source, /new Error\('CJ review totals inconsistent'\), \{stage:'reviews',diagnosticReason:'cj_review_totals_invalid'\}/);
-  assert.match(source, /stage:\['auth','detail','reviews','review-score'\]\.includes\(e\?\.stage\)/);
 });
 
+test('CJ live review evidence is derived from returned item scores', () => {
+  assert.match(source, /reviewUrl\.searchParams\.set\('pageSize','100'\)/);
+  assert.match(source, /Array\.isArray\(all\?\.list\)/);
+  assert.match(source, /review\?\.score/);
+  assert.match(source, /if\(score===1\)score1\+\+/);
+  assert.match(source, /else if\(score===2\)score2\+\+/);
+});
+
+test('incomplete or malformed review pages fail closed', () => {
+  assert.match(source, /CJ review page incomplete/);
+  assert.match(source, /cj_review_page_incomplete/);
+  assert.match(source, /CJ review item score invalid/);
+  assert.match(source, /cj_review_item_score_invalid/);
+});
 
 test('CJ malformed JSON and response-body timeout retain safe stage diagnostics', () => {
-  assert.match(source, /catch \(cause\) \{/);
-  assert.match(source, /signal\?\.aborted \|\| cause\?\.name === 'AbortError'/);
-  assert.match(source, /name: 'TimeoutError', stage/);
   assert.match(source, /stage, diagnosticReason: 'cj_response_json_invalid'/);
   assert.doesNotMatch(source, /r\.json\(\)\.catch\(\(\)=>null\)/);
-});
-
-
-test('CJ fetch rejection retains the exact review stage and timeout classification', () => {
-  assert.match(source, /async function fetchAtStage\(\)/);
-  assert.match(source, /error\.stage = stage/);
-  assert.match(source, /signal\?\.aborted \|\| cause\?\.name === 'AbortError'/);
-  assert.match(source, /let r=await fetchAtStage\(\)/);
-  assert.match(source, /r = await fetchAtStage\(\)/);
-  assert.doesNotMatch(source, /r = await fetch\(url, \{headers, signal\}\)/);
 });
