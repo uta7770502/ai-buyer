@@ -275,10 +275,10 @@ async function enrichRiskList(list,limit=6){
  const batch=reviewQueue.then(async()=>{
   for(const p of targets){
    try{
-    const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id),{signal:AbortSignal.timeout(12000)});
+    const r=await fetch('/api/cj-risk?id='+encodeURIComponent(p.id),{signal:AbortSignal.timeout(35000)});
     const j=await r.json();
     p.complaintRisk=r.ok&&j.ok&&j.risk?j.risk:{level:'unknown',exclude:true,label:'レビュー取得不可（HTTP '+r.status+' / '+String(j?.errorCode||j?.code||j?.error||j?.message||'応答形式不一致').replace(/[<>]/g,'').slice(0,90)+'）'};
-   }catch(e){p.complaintRisk={level:'unknown',exclude:true,label:e?.name==='TimeoutError'?'レビューAPI時間切れ（12秒）':e?.name==='AbortError'?'レビューAPI通信中断':'レビュー通信・解析エラー（'+String(e?.message||'不明').replace(/[<>]/g,'').slice(0,70)+'）'};}
+   }catch(e){p.complaintRisk={level:'unknown',exclude:true,label:e?.name==='TimeoutError'?'レビューAPI時間切れ（35秒）':e?.name==='AbortError'?'レビューAPI通信中断':'レビュー通信・解析エラー（'+String(e?.message||'不明').replace(/[<>]/g,'').slice(0,70)+'）'};}
   }
  });
  reviewQueue=batch.catch(()=>{});
