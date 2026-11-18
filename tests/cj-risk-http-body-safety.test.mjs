@@ -35,7 +35,7 @@ test('CJ product identity mismatch keeps detail stage', () => {
 
 test('CJ live review evidence is derived from returned item scores', () => {
   assert.match(source, /reviewUrl\.searchParams\.set\('pageSize','100'\)/);
-  assert.match(source, /Array\.isArray\(all\?\.list\)/);
+  assert.match(source, /Array\.isArray\(first\?\.list\)/);
   assert.match(source, /review\?\.score/);
   assert.match(source, /if\(score===1\)score1\+\+/);
   assert.match(source, /else if\(score===2\)score2\+\+/);
