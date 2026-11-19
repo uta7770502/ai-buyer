@@ -1,3 +1,4 @@
+import { redisConnection } from '../lib/redis-connection.js';
 import crypto from 'crypto';
 const BASE='https://developers.cjdropshipping.com/api2.0/v1';
 export const config={api:{bodyParser:false}};
@@ -9,8 +10,8 @@ function str(v,n=200){return String(v||'').trim().slice(0,n)}
 // Persistent, atomic order reservation. Never expire automatically: uncertain CJ outcomes
 // must be reconciled manually instead of allowing a duplicate purchase.
 async function reserveOrder(shop,orderId){
-  const url=process.env.UPSTASH_REDIS_REST_URL;
-  const token=process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url=redisConnection().url;
+  const token=redisConnection().token;
   if(!url||!token)throw Error('Durable idempotency storage is not configured');
   const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
   const r=await fetch(url.replace(/\/$/,'')+'/',{
@@ -23,8 +24,8 @@ async function reserveOrder(shop,orderId){
   return j.result==='OK';
 }
 async function markOrder(shop,orderId,status){
-  const url=process.env.UPSTASH_REDIS_REST_URL;
-  const token=process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url=redisConnection().url;
+  const token=redisConnection().token;
   const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
   const r=await fetch(url.replace(/\/$/,'')+'/',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(['SET',key,status])});
   if(!r.ok)throw Error('Failed to persist order state');const j=await r.json();if(j.error||j.result!=='OK')throw Error('Failed to persist order state');
@@ -70,7 +71,7 @@ export default async function handler(req,res){
     // Fail closed: sandbox CJ order creation is opt-in until durable idempotency is configured.
     if(process.env.CJ_SANDBOX_ORDER_ENABLED!=='true')return res.status(503).json({ok:false,error:'CJ sandbox order automation is disabled'});
     // Refuse processing before any CJ API call if durable deduplication is unavailable.
-    if(!process.env.UPSTASH_REDIS_REST_URL||!process.env.UPSTASH_REDIS_REST_TOKEN)
+    if(!redisConnection().url||!redisConnection().token)
       return res.status(503).json({ok:false,error:'Durable order deduplication is not configured'});
     if(!process.env.CJ_ACCESS_TOKEN&&!process.env.CJ_API_KEY)
       return res.status(503).json({ok:false,error:'CJ authentication is not configured'});

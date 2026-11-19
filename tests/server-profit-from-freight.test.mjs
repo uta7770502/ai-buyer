@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('../lib/profit-estimate.js',import.meta.url),'utf8');
+const wrapper=readFileSync(new URL('../lib/server-profit-from-freight.js',import.meta.url),'utf8').replace("'./profit-estimate.js'",JSON.stringify('data:text/javascript;charset=utf-8,'+encodeURIComponent(src)));
+const {estimateProfitFromServerFreight}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(wrapper));
+const now=Date.parse('2026-10-24T00:00:00Z');
+const freight={ok:true,quoteSource:'cj-server',destination:'JP',currency:'USD',vid:'v1',shippingJpyVerified:true,fxVerified:true,fxSource:'open.er-api.com',fetchedAt:new Date(now-1000).toISOString(),fxVerifiedAt:new Date(now-1000).toISOString(),shippingCostJpy:632,usdJpyRate:150,options:[{name:'CJ',usd:4.21,jpy:632}]};
+const costs={salePriceJpy:3000,productCostJpy:900,paymentFeeRatePercent:3.6,paymentFixedFeeJpy:0,adCostPerOrderJpy:400,returnReservePerOrderJpy:100};
+test('server-verified CJ freight yields profit',()=>{const r=estimateProfitFromServerFreight(freight,costs,{now,expectedVid:'v1'});assert.equal(r.ready,true);assert.equal(r.profitJpy,860)});
+test('mismatched variant and tampered yen quote are blocked',()=>{
+ assert.equal(estimateProfitFromServerFreight(freight,costs,{now,expectedVid:'v2'}).ready,false);
+ assert.equal(estimateProfitFromServerFreight({...freight,shippingCostJpy:100},costs,{now,expectedVid:'v1'}).ready,false);
+});
+test('expired quote and absent FX verification are blocked',()=>{
+ assert.equal(estimateProfitFromServerFreight({...freight,fetchedAt:new Date(now-3600000).toISOString()},costs,{now,expectedVid:'v1'}).ready,false);
+ assert.equal(estimateProfitFromServerFreight({...freight,fxVerified:false},costs,{now,expectedVid:'v1'}).ready,false);
+});
+
+test('margin near 30% must not round up into a 30% recommendation',()=>{
+ const nearThreshold={salePriceJpy:1000,productCostJpy:600,paymentFeeRatePercent:0,paymentFixedFeeJpy:0,adCostPerOrderJpy:100.05,returnReservePerOrderJpy:0};
+ const zeroFreight={...freight,shippingCostJpy:0,options:[{name:'CJ',usd:0,jpy:0}]};
+ const result=estimateProfitFromServerFreight(zeroFreight,nearThreshold,{now,expectedVid:'v1'});
+ assert.equal(result.ready,true);
+ assert.equal(result.profitJpy,299);
+ assert.equal(result.marginPercent,29.9);
+ assert.ok(result.marginPercent<30);
+});
+
+test('20, 25 and 30 percent gates cannot be passed by rounding up',()=>{
+ const zeroFreight={...freight,shippingCostJpy:0,options:[{name:'CJ',usd:0,jpy:0}]};
+ for(const threshold of [20,25,30]){
+  const input={salePriceJpy:1000,productCostJpy:1000-threshold*10, paymentFeeRatePercent:0,paymentFixedFeeJpy:0,adCostPerOrderJpy:0.01,returnReservePerOrderJpy:0};
+  const result=estimateProfitFromServerFreight(zeroFreight,input,{now,expectedVid:'v1'});
+  assert.equal(result.ready,true);
+  assert.ok(result.marginPercent<threshold,`rounded margin must stay below ${threshold}%`);
+  assert.equal(result.profitJpy,threshold*10-1);
+ }
+});
+
+test('fractional payment fee is conservatively displayed as whole yen',()=>{
+ const zeroFreight={...freight,shippingCostJpy:0,options:[{name:'CJ',usd:0,jpy:0}]};
+ const input={salePriceJpy:101,productCostJpy:0,paymentFeeRatePercent:0.5,paymentFixedFeeJpy:0,adCostPerOrderJpy:0,returnReservePerOrderJpy:0};
+ const result=estimateProfitFromServerFreight(zeroFreight,input,{now,expectedVid:'v1'});
+ assert.equal(result.ready,true);
+ assert.equal(result.breakdown.paymentFeeJpy,1);
+ assert.equal(result.profitJpy,100);
+});

@@ -1,0 +1,43 @@
+name: ADPS CJ inventory classification tests
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'lib/cj-stock-validation.js'
+      - 'lib/stock-audit-summary.js'
+      - 'lib/routes/cj-shopify-stock-sync.js'
+      - 'lib/routes/cj-variant-stock.js'
+      - 'tests/cj-stock-validation.test.mjs'
+      - 'tests/stock-audit-summary.test.mjs'
+      - 'tests/cj-variant-stock-endpoint.test.mjs'
+      - 'tests/factory-stock-candidate.test.mjs'
+      - '.github/workflows/adps-cj-inventory-tests.yml'
+  push:
+    branches: [safety-gate-20261024]
+    paths:
+      - 'lib/cj-stock-validation.js'
+      - 'lib/stock-audit-summary.js'
+      - 'tests/stock-audit-summary.test.mjs'
+      - 'tests/cj-variant-stock-endpoint.test.mjs'
+      - 'tests/factory-stock-candidate.test.mjs'
+      - 'lib/routes/cj-shopify-stock-sync.js'
+      - 'lib/routes/cj-variant-stock.js'
+      - 'tests/cj-stock-validation.test.mjs'
+      - '.github/workflows/adps-cj-inventory-tests.yml'
+permissions:
+  contents: read
+jobs:
+  cj-stock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate stock sync route syntax
+        run: |
+          node --check lib/routes/cj-shopify-stock-sync.js
+          node --check lib/routes/cj-variant-stock.js
+      - name: Test warehouse and factory stock safety without live credentials
+        run: node --experimental-default-type=module --test tests/cj-stock-validation.test.mjs tests/stock-audit-summary.test.mjs tests/cj-variant-stock-endpoint.test.mjs tests/factory-stock-candidate.test.mjs

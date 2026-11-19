@@ -6,7 +6,7 @@ const html=fs.readFileSync(new URL('../storefront.html',import.meta.url),'utf8')
 const source=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1].replace('render();loadStorefrontLaunchConfig();loadShopifyProducts();','').replace('render();loadShopifyProducts();','');
 function app({preview=false,saved={},fetcher=async()=>{throw Error('offline')}}={}){
  const nodes=new Map(),storage=new Map();storage.set('adps-shop-'+(preview?'preview':'live')+'-v1',JSON.stringify(saved));
- function node(){const classes=new Set();return {style:{},value:'',innerHTML:'',textContent:'',isConnected:true,classList:{contains:x=>classes.has(x),add:x=>classes.add(x),remove:x=>classes.delete(x)},setAttribute(){},focus(){},remove(){},closest(){return null},querySelector(){return null}}}
+ function node(){const classes=new Set();return {style:{},value:'',innerHTML:'',textContent:'',isConnected:true,classList:{contains:x=>classes.has(x),toggle:(x,on)=>on?classes.add(x):classes.delete(x),add:x=>classes.add(x),remove:x=>classes.delete(x)},setAttribute(){},focus(){},remove(){},closest(){return null},querySelector(){return null}}}
  const document={getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},activeElement:node(),body:{...node(),children:[]},head:{appendChild(){}},createElement:node,addEventListener(){},querySelector(){return null},querySelectorAll(){return []}};
  const ctx=vm.createContext({document,URL,URLSearchParams,AbortController,setTimeout,clearTimeout,setInterval:()=>0,clearInterval:()=>{},CSS:{escape:value=>String(value).replace(/[^a-zA-Z0-9_-]/g,'\\matchMedia:()=>({matches:true')},matchMedia:()=>({matches:true,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}}),location:{search:preview?'?preview=1':'',href:'https://example.com/shop'},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},addEventListener(){},fetch:fetcher});
  vm.runInContext(source,ctx);return {run:code=>vm.runInContext(code,ctx),nodes,storage};
@@ -73,3 +73,11 @@ test('dialog background preserves preexisting inert state and inactive closes do
  a.run("closeLayer('productModal')");assert.equal(a.run('background.inert'),true);
  a.run("closeLayer('searchLayer')");assert.equal(a.run('background.inert'),false);assert.equal(a.run('hiddenSection.inert'),true);
 });
+
+ test('search keeps query and sorting across close and favorites navigation',()=>{
+ const a=app({preview:true});a.run("openSearch();selectSearch('ペット');document.getElementById('searchSort').value='price-desc';closeSearch();openSearch()");
+ assert.equal(a.nodes.get('searchInput').value,'ペット');assert.equal(a.nodes.get('searchSort').value,'price-desc');
+ a.run("closeSearch();openSearch('favorites')");assert.equal(a.nodes.get('searchInput').value,'');
+ a.run("closeSearch();openSearch()");assert.equal(a.nodes.get('searchInput').value,'ペット');assert.equal(a.nodes.get('searchSort').value,'price-desc');
+ a.run("selectSearch('');closeSearch();openSearch()");assert.equal(a.nodes.get('searchInput').value,'');
+ });
