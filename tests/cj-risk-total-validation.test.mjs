@@ -10,10 +10,13 @@ test('invalid total review evidence fails closed before arithmetic', () => {
   }
 });
 
-test('valid but insufficient review counts cannot authorize recommendation', () => {
-  const result = scoreRisk({ low: 0, mid: 0, total: 9, rating: 5 });
-  assert.equal(result.exclude, true);
-  assert.equal(result.reason, 'review-evidence-insufficient');
+test('clean small-sample reviews may pass but low-star evidence blocks them', () => {
+  const clean = scoreRisk({ low: 0, mid: 0, total: 9, rating: 5 });
+  assert.equal(clean.exclude, false);
+  assert.equal(clean.reason, 'small-sample-clean');
+  const unsafe = scoreRisk({ low: 1, mid: 0, total: 9, rating: 4.8 });
+  assert.equal(unsafe.exclude, true);
+  assert.equal(unsafe.reason, 'small-sample-low-review');
 });
 
 test('ten valid positive reviews can pass the isolated review-risk gate', () => {
