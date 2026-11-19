@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 
 const source=readFileSync(new URL('../lib/routes/cj-risk.js',import.meta.url),'utf8');
 
-test('CJ review auth is included in a single ten-second budget',()=>{
-  assert.match(source,/const deadline=Date\.now\(\)\+10000/);
+test('CJ review auth uses a bounded auth window inside a thirty-second review budget',()=>{
+  assert.match(source,/const deadline=Date\.now\(\)\+30000/);
   assert.match(source,/Promise\.race\(\[/);
   assert.match(source,/getCJAccessToken\(\)/);
   assert.match(source,/authTimer=setTimeout\(/);
