@@ -47,8 +47,19 @@ test('documented review list provides exact low-star counts',async t=>{
  assert.equal(res.body.risk.exclude,true);
 });
 
-test('incomplete review page cannot authorize recommendation',async t=>{
- const {res}=await run(t,{reviews:{total:20,list:Array.from({length:10},()=>({score:'5'}))}});
+test('incomplete review pagination cannot authorize recommendation',async t=>{
+ const old=process.env.CJ_ACCESS_TOKEN;process.env.CJ_ACCESS_TOKEN='test';
+ t.after(()=>{if(old===undefined)delete process.env.CJ_ACCESS_TOKEN;else process.env.CJ_ACCESS_TOKEN=old;});
+ t.mock.method(globalThis,'fetch',async url=>{
+  const u=new URL(url);
+  const detail=u.pathname.endsWith('/product/query');
+  if(detail)return {ok:true,status:200,headers:new Headers({'content-type':'application/json'}),body:{cancel:async()=>{}},json:async()=>({result:true,data:{pid:'p1',comprehensiveScore:4.5}})};
+  const page=Number(u.searchParams.get('pageNum')||1);
+  const data=page===1?{total:20,pageSize:10,list:Array.from({length:10},()=>({score:'5'}))}:{total:20,pageSize:10,list:[]};
+  return {ok:true,status:200,headers:new Headers({'content-type':'application/json'}),body:{cancel:async()=>{}},json:async()=>({success:true,code:0,data})};
+ });
+ const res={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+ await handler({method:'GET',query:{id:'p1'}},res);
  assert.equal(res.code,424);
  assert.equal(res.body.code,'CJ_REVIEW_EVIDENCE_UNAVAILABLE');
  assert.equal(res.body.diagnosticReason,'cj_review_page_incomplete');
