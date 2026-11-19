@@ -5,7 +5,8 @@ import { scoreRisk } from '../lib/routes/cj-risk.js';
 // Synthetic boundary cases only; never interpret as live CJ evidence.
 const cases = [
   ['missing reviews', {low:0,mid:0,total:0,rating:5}, true, 'review-evidence-insufficient'],
-  ['nine reviews', {low:0,mid:0,total:9,rating:5}, true, 'review-evidence-insufficient'],
+  ['nine clean reviews', {low:0,mid:0,total:9,rating:5}, false, 'small-sample-clean'],
+  ['nine reviews with one low rating', {low:1,mid:0,total:9,rating:4.8}, true, 'small-sample-low-review'],
   ['missing rating', {low:0,mid:0,total:10,rating:0}, true, 'review-evidence-insufficient'],
   ['rating below four', {low:0,mid:0,total:10,rating:3.99}, true, 'rating-below-four'],
   ['rating over five', {low:0,mid:0,total:10,rating:5.01}, true, 'rating-out-of-range'],
