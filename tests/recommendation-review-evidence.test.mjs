@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const start=html.indexOf('function recommendationReviewReady('),end=html.indexOf('\nfunction ',html.indexOf('async function enrichRiskList(',start));
 function setup(fetch=async()=>{throw Error('timeout')}){
- const c=vm.createContext({fetch,AbortSignal});vm.runInContext(html.slice(start,end),c);return c;
+ const c=vm.createContext({fetch,AbortSignal,waitMs:async()=>{}});vm.runInContext(html.slice(start,end),c);return c;
 }
 const good=()=>({id:'p1',complaintRisk:{level:'low',exclude:false,checkedAt:new Date().toISOString(),reviewCount:100,lowReviews:0,twoStarReviews:0,rating:4.5}});
 test('recommendations require current complete review evidence',()=>{
