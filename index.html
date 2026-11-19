@@ -2238,13 +2238,18 @@ async function runOneActionPrelaunch(){
   const status=document.getElementById('oneActionPrelaunchStatus');
   const blockersBox=document.getElementById('oneActionPrelaunchBlockers');
   const badge=document.getElementById('oneActionPrelaunchBadge');
-  const key=getTestAdminKey();
-  if(!key)return;
+  if(btn?.disabled)return;
   if(btn)btn.disabled=true;
   if(status)status.textContent='1/6 CJ価格・在庫・販売状態を安全確認中…';
   if(blockersBox)blockersBox.innerHTML='';
   if(badge)badge.textContent='確認中';
   try{
+    const key=getTestAdminKey();
+    if(!key){
+      if(badge)badge.textContent='入力待ち';
+      if(status)status.textContent='未実行：下のテスト管理者キーを入力して、もう一度実行してください。';
+      return;
+    }
     if(active.length)await runMarketMonitor(true);
 
     if(status)status.textContent='2/6 Shopify・CJ・Redis・Webhook・法務を確認中…';
