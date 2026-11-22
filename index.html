@@ -492,7 +492,7 @@ function setRecentlyRemovedCandidate(product,removed){
 const oddlyMarginOverrides=(()=>{try{return JSON.parse(localStorage.getItem('oddlyMarginOverrides')||'{}')}catch{return {}}})();
 function recommendationStockReady(p,now=Date.now()){
  const checked=Date.parse(p?.variantInventoryVerifiedAt||'');
- return p?.variantInventoryVerified===true&&/^\d{10,25}$/.test(String(p?.verifiedVariantId||''))&&Number.isSafeInteger(p?.verifiedInventory)&&p.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY&&Number.isFinite(checked)&&checked<=now&&now-checked<=15*60*1000;
+ return p?.variantInventoryVerified===true&&/^(?:\d{10,25}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(String(p?.verifiedVariantId||''))&&Number.isSafeInteger(p?.verifiedInventory)&&p.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY&&Number.isFinite(checked)&&checked<=now&&now-checked<=15*60*1000;
 }
 function verifiedMarginRecommendation(p){
  // CJ discovery estimates must never be mistaken for verified final profit.
