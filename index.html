@@ -536,10 +536,10 @@ function toggleCandidate(id){
  if(x){x.uiSelected=x.uiSelected===false; if(x.uiSelected&&x.autoExcludedReason)return showCandidateToast(x.autoExcludedReason==='verified_inventory_below_launch_floor'?'在庫ゲートで除外された商品のため再選択できません':'利益ゲートで除外された商品のため再選択できません'); if(!x.uiSelected)cancelAutoPreparationRetry(id);setRecentlyRemovedCandidate(x,!x.uiSelected);save();if(results.length)applyFilters();renderAll();renderToday();if(x.uiSelected&&!x.shopifyProductId&&!x.shopifyPublished){x.shippingVariantChoice=String(x.verifiedVariantId||x.shippingVariantChoice||x.cjVariantId||'');x.autoSetupState='queued';x.autoSetupMessage='Shopify下書き登録を再開';save();autoPrepareSelectedProduct(x,0)}return showCandidateToast(x.uiSelected?'販売候補に戻しました。Shopify下書きを準備します':'販売候補から外しました')}
  setRecentlyRemovedCandidate(p,false);
  const m=metrics(p);
- const x={...p,costUsd:m.cost,price:m.sell,qty:0,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',shippingVariantChoice:String(p.verifiedVariantId||p.shippingVariantChoice||p.cjVariantId||''),autoSetupState:'queued',autoSetupMessage:'Shopify下書き登録を開始',autoSetupAttempts:0,uiSelected:true};
- active.push(x);
+ const candidate={...p,costUsd:m.cost,price:m.sell,qty:0,status:'candidate',aiScore:m.score,aiReasons:m.reasons,shippingDestination:'JP',shippingVariantChoice:String(p.verifiedVariantId||p.shippingVariantChoice||p.cjVariantId||''),autoSetupState:'queued',autoSetupMessage:'Shopify下書き登録を開始',autoSetupAttempts:0,uiSelected:true};
+ active.push(candidate);
  save();if(results.length)applyFilters();renderAll();renderToday();showCandidateToast('販売候補に追加しました。Shopify下書きを準備します');
- autoPrepareSelectedProduct(x,0);
+ autoPrepareSelectedProduct(candidate,0);
 }
 function openShopifyProductPreview(id){
  const x=findActive(id);
