@@ -152,7 +152,7 @@ test('replacement recommendations exclude auto-blocked products and require veri
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/function recommendationStockReady\(p/);
   assert.match(html,/p\.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
-  assert.match(html,/const refillSafe=safe\.filter\(x=>\{const a=findActive\(x\.id\);return \(!a\|\|!a\.autoExcludedReason\)&&verifiedMarginRecommendation\(x\)\}\)/);
+  assert.match(html,/const refillSafe=safe\.filter\(x=>\{const a=findActive\(x\.id\);return \(!a\|\|!a\.autoExcludedReason\)&&recommendationProfitReady\(x\)\}\)/);
   assert.match(html,/在庫・レビュー・利益安全ゲート通過/);
 });
 
@@ -295,13 +295,13 @@ test('recommendation preview reconciles matching CJ SKU quotes and remains non-p
  assert.match(html,/販売候補への追加・公開はできません/);
 });
 
-test('discovery shows all three provisional margin tiers without granting recommendation eligibility',()=>{
+test('discovery shows all three provisional margin tiers while keeping publication blocked',()=>{
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
  const start=html.indexOf('async function inspectDiscoveryVariantStock');
  const end=html.indexOf('function renderDiscoveryPreview',start);
  const block=html.slice(start,end);
  assert.match(block,/\[30,25,20\]\.map\(targetMarginPercent/);
  assert.match(block,/決済手数料4\.5%・広告費・返品引当は仮定/);
- assert.match(block,/25%・20%は商品別承認が必要。販売不可/);
+ assert.match(block,/25%・20%は商品別承認が必要。本番公開不可/);
  assert.match(html,/販売候補への追加・公開はできません/);
 });
