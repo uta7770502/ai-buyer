@@ -41,7 +41,7 @@ test('overlapping review batches send one request at a time',async()=>{
  assert.deepEqual(requested,['/api/cj-risk?id=p1','/api/cj-risk?id=p2','/api/cj-risk?id=p3']);
 });
 test('saved recommendations and recently removed items cannot bypass review gate',()=>{
- const c=setup();c.today={products:[good(),{id:'unchecked'}]};c.verifiedMarginRecommendation=()=>true;c.recommendationStockReady=p=>p.id==='p1';c.recentlyRemovedCandidates=()=>[{product:{id:'removed'}}];c.findActive=()=>null;c.catalogRisk=()=>({exclude:false});
+ const c=setup();c.today={products:[good(),{id:'unchecked'}]};c.recommendationProfitReady=()=>true;c.recommendationStockReady=p=>p.id==='p1';c.recentlyRemovedCandidates=()=>[{product:{id:'removed'}}];c.findActive=()=>null;c.catalogRisk=()=>({exclude:false});
  vm.runInContext(html.slice(html.indexOf('function orderedRecommendedProducts('),html.indexOf('function toggleCandidate(')),c);
  assert.deepEqual(Array.from(c.orderedRecommendedProducts(),p=>p.id),['p1']);
 });
