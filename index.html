@@ -631,33 +631,49 @@ async function inspectDiscoveryVariantStock(pool){
    const variants=detail?.product?.variants;
    if(!detailResponse.ok||detail?.ok!==true){p.discoveryStockLabel='CJ商品詳細APIエラー（HTTP '+detailResponse.status+'）';continue;}
    if(!Array.isArray(variants)){p.discoveryStockLabel='CJ商品詳細にSKU一覧なし';continue;}
+   let selectedVariant=variants[0]||null;
+   let selectedStock=null;
    if(variants.length!==1){
     const inspected=[];
-    for(const variant of variants.slice(0,3)){
+    selectedVariant=null;
+    for(const variant of variants.slice(0,6)){
      const variantId=String(variant?.id||'');
      if(!/^(?:\d{10,25}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(variantId))continue;
      try{
       const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(variantId),{signal:AbortSignal.timeout(12000)});
       const stock=await response.json();
       const checkedAt=Date.parse(stock?.verifiedAt||'');
-      if(response.ok&&stock?.ok===true&&stock.readOnly===true&&stock.vid===variantId&&Number.isSafeInteger(stock.verifiedInventory)&&stock.verifiedInventory>=0&&Number.isFinite(checkedAt)&&checkedAt<=Date.now()&&Date.now()-checkedAt<=15*60*1000){
+      if(response.ok&&stock?.ok===true&&stock.readOnly===true&&String(stock.vid)===variantId&&Number.isSafeInteger(stock.verifiedInventory)&&stock.verifiedInventory>=0&&Number.isFinite(checkedAt)&&checkedAt<=Date.now()&&Date.now()-checkedAt<=15*60*1000){
        inspected.push((variant.name||variant.sku||variantId)+' '+stock.verifiedInventory+'件');
+       if(!selectedVariant&&stock.launchEligible===true&&stock.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY){
+        selectedVariant=variant;
+        selectedStock=stock;
+        break;
+       }
       }
      }catch{}
+     await waitMs(700);
     }
-    p.discoveryStockLabel='SKU選択が必要（全'+variants.length+'件）'+(inspected.length?' / CJ在庫 '+inspected.join('、'):' / SKU在庫未確認');
-    continue;
+    if(!selectedVariant){
+     p.discoveryStockLabel='販売可能SKU未確認（全'+variants.length+'件）'+(inspected.length?' / CJ在庫 '+inspected.join('、'):' / SKU在庫未確認');
+     continue;
+    }
+    p.discoveryStockLabel='在庫基準を満たすSKUを自動選択';
    }
-   const vid=String(variants[0].id||'');
+   const vid=String(selectedVariant?.id||'');
    const supplierQuote=Array.isArray(detail.product.quoteEvidence)?detail.product.quoteEvidence.find(q=>String(q?.vid)===vid):null;
    p.discoverySupplierQuote=supplierQuote?.quoteCurrencyVerified===true&&supplierQuote.currency==='USD'&&Number.isFinite(supplierQuote.quotedAmount)&&supplierQuote.quotedAmount>0?supplierQuote:null;
    p.discoveryPriceLabel=p.discoverySupplierQuote?'CJ仕入見積 '+p.discoverySupplierQuote.quotedAmount.toFixed(2)+' USD（確定原価ではありません）':'CJ仕入見積の通貨・金額未確認';
 
    if(!/^(?:\d{10,25}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(vid)){p.discoveryStockLabel='在庫確認対象外';continue;}
-   const response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(vid),{signal:AbortSignal.timeout(12000)});
-   const stock=await response.json();
+   let stock=selectedStock;
+   let response=null;
+   if(!stock){
+    response=await fetch('/api/cj-variant-stock?vid='+encodeURIComponent(vid),{signal:AbortSignal.timeout(12000)});
+    stock=await response.json();
+    if(!response.ok||stock?.ok!==true){p.discoveryStockLabel='CJ在庫APIエラー（HTTP '+response.status+'）';continue;}
+   }
    const stockCheckedAt=Date.parse(stock?.verifiedAt||'');
-   if(!response.ok||stock?.ok!==true){p.discoveryStockLabel='CJ在庫APIエラー（HTTP '+response.status+'）';continue;}
    if(stock.readOnly!==true||String(stock.vid)!==vid||!Number.isSafeInteger(stock.verifiedInventory)||stock.verifiedInventory<0){p.discoveryStockLabel='CJ在庫データ形式・SKU不一致';continue;}
    if(!Number.isFinite(stockCheckedAt)||stockCheckedAt>Date.now()||Date.now()-stockCheckedAt>15*60*1000){p.discoveryStockLabel='CJ在庫の確認時刻が無効・期限切れ';continue;}
    p.verifiedInventory=stock.verifiedInventory;
