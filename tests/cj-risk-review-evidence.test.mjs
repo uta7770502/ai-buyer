@@ -18,7 +18,7 @@ test('missing review evidence blocks recommendation',()=>{
 });
 
 test('live low-star counts come from returned review item scores',()=>{
- assert.match(source,/reviewUrl\.searchParams\.set\('pageSize','100'\)/);
+ assert.doesNotMatch(source,/reviewUrl\.searchParams\.set\('pageSize'/);
  assert.match(source,/const score=parseReviewCount\(review\?\.score\)/);
  assert.match(source,/score===1/);
  assert.match(source,/score===2/);
