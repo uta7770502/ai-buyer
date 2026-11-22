@@ -71,9 +71,10 @@ test('freight supplier quote belongs to selected CJ variant and is never asserte
  assert.doesNotMatch(route,/finalProfitVerified:true/);
 });
 
-test('explicitly non-USD CJ supplier quotes cannot be treated as USD draft cost',()=>{
+test('documented variantSellPrice is USD while fallback price fields still require explicit USD',()=>{
  const route=readFileSync(new URL('../lib/routes/cj-freight.js',import.meta.url),'utf8');
- assert.match(route,/declaredPriceCurrency=String\(v\.currency\|\|v\.currencyCode\|\|v\.priceCurrency\|\|p\.currency\|\|p\.currencyCode/);
+ assert.match(route,/hasDocumentedVariantSellPrice=v\.variantSellPrice!==undefined/);
+ assert.match(route,/declaredPriceCurrency=hasDocumentedVariantSellPrice\?'USD':String\(/);
  assert.match(route,/declaredPriceCurrency==='USD'/);
 });
 
