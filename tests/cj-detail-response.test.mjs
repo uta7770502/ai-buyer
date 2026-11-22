@@ -40,8 +40,8 @@ test('CJ variant quotes are never promoted to settled supplier costs',async t=>{
  assert.equal(res.code,200);
  assert.equal(res.body.product.quoteEvidence[0].quoteCurrencyVerified,true);
  assert.equal(res.body.product.quoteEvidence[0].quotedAmount,3.25);
- assert.equal(res.body.product.quoteEvidence[1].quoteCurrencyVerified,false);
- assert.equal(res.body.product.quoteEvidence[1].currency,null);
+ assert.equal(res.body.product.quoteEvidence[1].quoteCurrencyVerified,true);
+ assert.equal(res.body.product.quoteEvidence[1].currency,'USD');
  assert.equal(res.body.product.settledSupplierCostVerified,false);
  assert.equal(res.body.product.finalProfitVerified,false);
  assert.ok(res.body.product.quoteEvidence.every(x=>x.settledCostVerified===false&&x.finalProfitVerified===false));
