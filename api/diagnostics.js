@@ -522,6 +522,7 @@ const handlers={
   'prelaunch-one-action':prelaunchOneAction,
   'prelaunch-return-days-bulk':prelaunchReturnDaysBulk
 };
+// Preview redeploy marker: refresh branch-scoped environment after encryption-key scope update.
 export default async function handler(req,res){
   const action=String(req.query.action||'');
   const selected=Object.hasOwn(handlers,action)?handlers[action]:null;
