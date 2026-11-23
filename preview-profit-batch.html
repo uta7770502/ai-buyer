@@ -36,8 +36,15 @@ async function run(){
   statusEl.textContent=(completed+1)+' / '+vids.length+' を監査中…';
   try{
    const qs=new URLSearchParams({action:'preview-profit-audit-single',vid,scenario:'1',feeRatePercent:'3.55',fixedFeeJpy:'0',platformFeeJpy:'0',adCostJpy:'0',returnReserveJpy:'0'});
-   const r=await fetch('/api/diagnostics?'+qs.toString(),{cache:'no-store'});
-   const j=await r.json();
+   const controller=new AbortController();
+   const timeout=setTimeout(()=>controller.abort(),15000);
+   let r,j;
+   try{
+     r=await fetch('/api/diagnostics?'+qs.toString(),{cache:'no-store',signal:controller.signal});
+     j=await r.json();
+   }finally{
+     clearTimeout(timeout);
+   }
    const x=Array.isArray(j.rows)?j.rows[0]:null;
    const tr=document.createElement('tr');
    if(!r.ok||!j.ok||!x){
@@ -51,9 +58,13 @@ async function run(){
    }
    tbody.appendChild(tr);
   }catch(e){
-   const tr=document.createElement('tr');tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">通信失敗</td><td colspan="6">再試行対象</td>';tbody.appendChild(tr);
+   const tr=document.createElement('tr');
+   const timeout=e&&e.name==='AbortError';
+   tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">'+(timeout?'15秒超過':'通信失敗')+'</td><td colspan="6">'+(timeout?'この商品を保留して次の商品へ進みました':'再試行対象')+'</td>';
+   tbody.appendChild(tr);
   }
   completed++;bar.style.width=(completed/vids.length*100)+'%';
+  statusEl.textContent='完了 '+completed+' / '+vids.length+(completed<vids.length?'、次へ進みます…':'');
   if(completed<vids.length)await sleep(1800);
  }
  statusEl.textContent='完了：'+completed+' / '+vids.length;
