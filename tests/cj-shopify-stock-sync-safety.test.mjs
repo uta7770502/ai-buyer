@@ -166,11 +166,10 @@ test('empty Shopify stock audit returns without requesting a CJ token',()=>{
   assert.ok(source.indexOf('if(products.length===0)')<source.indexOf('const token=await cjToken();'));
 });
 
-test('stock sync rejects entire batch if any product is not an approved draft',()=>{
-  assert.match(source,/products\.some\(p=>p\.status!=='DRAFT'/);
-  assert.match(source,/Inventory audit contains unapproved products/);
-  assert.match(source,/blockedProducts:products\.filter/);
-  assert.ok(source.indexOf('Inventory audit contains unapproved products')<source.indexOf('const token=await cjToken();'));
+test('stock sync excludes other vendors and non-draft products before supplier calls',()=>{
+  assert.match(source,/const products=fetchedProducts\.filter\(p=>p\?\.status==='DRAFT'&&\['ODDLY','AI BUYER'\]\.includes\(String\(p\?\.vendor\|\|''\)\)\)/);
+  assert.ok(source.indexOf('const products=fetchedProducts.filter(')<source.indexOf('const token=await cjToken();'));
+  assert.match(source,/if\(p\.status!=='DRAFT'\|\|!\['ODDLY','AI BUYER'\]\.includes\(p\.vendor\)\)/);
 });
 
 test('apply mode preflights every variant SKU and inventory policy before supplier calls',()=>{
