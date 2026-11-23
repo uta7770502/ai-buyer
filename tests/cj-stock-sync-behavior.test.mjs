@@ -31,17 +31,23 @@ async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplica
   await handler({method:dry?'GET':'POST',query:{apply:'true'},headers:{authorization:'Bearer test-key'}},res);
   return {res,events,input};
 }
-test('late CJ failure prevents every Shopify write',async t=>{
- const {res,events}=await run(t,{failure:true});assert.equal(res.code,409);assert.equal(res.body.changed,0);assert.equal(res.body.readOnly,true);assert.ok(!events.includes('write'));
+test('apply is fail-closed before Shopify or CJ requests, including supplier failure scenarios',async t=>{
+ for(const scenario of [{failure:true},{throws:true},{}]){
+  const {res,events}=await run(t,scenario);
+  assert.equal(res.code,409);
+  assert.equal(res.body.ok,false);
+  assert.equal(res.body.readOnly,true);
+  assert.equal(res.body.mutationPerformed,false);
+  assert.equal(res.body.code,'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED');
+  assert.deepEqual(events,[]);
+ }
 });
-test('late CJ timeout prevents every Shopify write',async t=>{
- const {res,events}=await run(t,{throws:true});assert.equal(res.code,503);assert.ok(!events.includes('write'));
-});
-test('all supplier checks precede a single CAS batch',async t=>{
- const {res,events,input}=await run(t);assert.deepEqual(events,['read','cj','cj','write']);assert.equal(input.quantities.length,2);assert.ok(input.quantities.every(q=>q.changeFromQuantity===0&&q.quantity===5));assert.equal(res.body.changed,2);assert.equal(res.body.inSync,2);
-});
-for(const mutation of ['timeout','missing','reject'])test('mutation '+mutation+' is not success or retried',async t=>{
- const {res,events}=await run(t,{mutation});assert.equal(res.code,503);assert.equal(res.body.ok,false);assert.equal(res.body.changed,0);assert.equal(res.body.retrySafe,false);assert.equal(events.filter(x=>x==='write').length,1);
+for(const mutation of ['timeout','missing','reject'])test('apply never reaches '+mutation+' mutation while inventory write lock is active',async t=>{
+ const {res,events}=await run(t,{mutation});
+ assert.equal(res.code,409);
+ assert.equal(res.body.code,'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED');
+ assert.equal(res.body.mutationPerformed,false);
+ assert.deepEqual(events,[]);
 });
 test('dry-run verifies all rows without writes',async t=>{const {res,events}=await run(t,{dry:true});assert.equal(res.body.ok,true);assert.equal(res.body.needsSync,2);assert.ok(!events.includes('write'));});
 test('partial dry-run is not successful',async t=>{const {res}=await run(t,{dry:true,failure:true});assert.equal(res.body.ok,false);assert.equal(res.body.partial,true);});
