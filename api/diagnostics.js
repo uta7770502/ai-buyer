@@ -37,7 +37,7 @@ function shopifyEnvCheck(req,res){
 async function previewPrelaunchSummary(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
   if(!admin)return res.status(503).json({ok:false,error:'Preview admin key missing'});
@@ -66,7 +66,7 @@ async function previewPrelaunchSummary(req,res){
 async function previewCjDraftAudit(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const vids=PREVIEW_MANAGED_CJ_VIDS;
   const rows=[];
@@ -93,7 +93,7 @@ async function previewCjDraftAudit(req,res){
 async function previewCjStockAudit(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const vids=PREVIEW_MANAGED_CJ_VIDS;
   const BASE='https://developers.cjdropshipping.com/api2.0/v1';
@@ -153,7 +153,7 @@ async function previewCjStockAudit(req,res){
 async function previewLaunchAuditSummary(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const capture=()=>({code:200,status(n){this.code=n;return this},setHeader(){return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}});
   const freight=capture(),stock=capture(),profit=capture(),prelaunch=capture();
