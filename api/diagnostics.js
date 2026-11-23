@@ -216,6 +216,39 @@ async function previewShopifySessionStatus(req,res){
   });
 }
 
+async function previewMigrateShopifySession(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/prelaunch-audit-timeout-20261123';
+  if(!allowed)return res.status(404).json({ok:false});
+  const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
+  const provided=String(req.headers?.authorization||'');
+  if(!admin||provided!=='Bearer '+admin)return res.status(401).json({ok:false,error:'Admin authorization required'});
+  const shop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+  if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop))return res.status(503).json({ok:false,error:'Shopify allowed shop is not configured'});
+  const {url,token}=redisConnection();
+  if(!url||!token)return res.status(503).json({ok:false,error:'Preview Redis is not configured'});
+  const shopHash=crypto.createHash('sha256').update(shop).digest('hex');
+  const keyFor=ref=>'ai-buyer:preview:'+crypto.createHash('sha256').update(ref).digest('hex')+':ai-buyer:shopify:offline:'+shopHash;
+  const sourceRef='safety-gate-20261024';
+  const currentRef='fix/prelaunch-audit-timeout-20261123';
+  const sourceKey=keyFor(sourceRef),currentKey=keyFor(currentRef);
+  async function cmd(command){
+    const r=await fetch(url+'/',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(command),signal:AbortSignal.timeout(10000)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||j.error)throw Error('Preview Redis operation failed');
+    return j.result;
+  }
+  const existing=await cmd(['GET',currentKey]);
+  if(existing!==null)return res.status(409).json({ok:false,readOnly:false,error:'Current Preview session already exists',tokenExposed:false});
+  const payload=await cmd(['GET',sourceKey]);
+  if(payload===null)return res.status(404).json({ok:false,error:'Source Preview session not found',tokenExposed:false});
+  if(typeof payload!=='string'||payload.length<20)return res.status(503).json({ok:false,error:'Source Preview session payload invalid',tokenExposed:false});
+  const result=await cmd(['SET',currentKey,payload]);
+  if(result!=='OK')return res.status(503).json({ok:false,error:'Preview session migration failed',tokenExposed:false});
+  return res.status(200).json({ok:true,migrated:true,sourceRef,currentRef,tokenExposed:false});
+}
+
 async function previewLaunchAuditSummary(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -435,6 +468,7 @@ const handlers={
   'preview-launch-audit-summary':previewLaunchAuditSummary,
   'preview-audit-plan':previewAuditPlan,
   'preview-shopify-session-status':previewShopifySessionStatus,
+  'preview-migrate-shopify-session':previewMigrateShopifySession,
   'cj-shopify-stock-sync':cjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
