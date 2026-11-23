@@ -1323,7 +1323,15 @@ async function runAdminStockDryRun(){
       if(typeof data.factoryReplenishment==='number')lines.push('工場取り寄せ: '+data.factoryReplenishment);
       if(Array.isArray(data.rows)){
         const reasons={};
-        for(const row of data.rows)if(row?.ok!==true){const reason=String(row?.reason||row?.error||'unknown');reasons[reason]=(reasons[reason]||0)+1;}
+        let differences=0;
+        for(const row of data.rows){
+          if(row?.ok!==true){const reason=String(row?.reason||row?.error||'unknown');reasons[reason]=(reasons[reason]||0)+1;}
+          if(row?.ok===true&&Number.isSafeInteger(row.shopifyStock)&&Number.isSafeInteger(row.cjStock)&&row.shopifyStock!==row.cjStock){
+            differences++;
+            lines.push('差異 '+differences+': '+String(row.title||'商品名なし').slice(0,65));
+            lines.push('  Shopify '+row.shopifyStock+' → CJ '+row.cjStock+' / 工場在庫 '+String(row.factoryStock??'不明')+(row.factoryReplenishmentRequired?' / 工場取り寄せ':''));
+          }
+        }
         for(const [reason,count] of Object.entries(reasons))lines.push('停止理由 '+reason+': '+count);
       }
       lines.push('在庫変更: なし（読み取り専用）');
