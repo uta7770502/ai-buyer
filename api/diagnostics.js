@@ -159,13 +159,53 @@ async function previewLaunchAuditSummary(req,res){
   const freight=capture(),stock=capture(),profit=capture(),prelaunch=capture();
   // Run supplier-backed checks sequentially. CJ enforces a strict request rate and
   // concurrent stock/profit audits can otherwise rate-limit each other.
-  await previewPrelaunchSummary({method:'GET',headers:{},query:{}},prelaunch);
-  await new Promise(r=>setTimeout(r,1500));
-  await previewCjDraftAudit({method:'GET',headers:{},query:{}},freight);
-  await new Promise(r=>setTimeout(r,1500));
-  await previewCjStockAudit({method:'GET',headers:{},query:{}},stock);
-  await new Promise(r=>setTimeout(r,1500));
-  await previewProfitAudit({method:'GET',headers:{},query:{}},profit);
+  // The full CJ audit can exceed the Vercel request budget. Fail closed with a
+  // structured partial result instead of leaving the browser on a blank page.
+  // Do not start the next supplier request after a timeout: a timed-out promise
+  // may still be running, and concurrent CJ requests can trigger rate limits.
+  const deadline=Date.now()+18000;
+  const stages=[
+    ['prelaunch',()=>previewPrelaunchSummary({method:'GET',headers:{},query:{}},prelaunch)],
+    ['freight',()=>previewCjDraftAudit({method:'GET',headers:{},query:{}},freight)],
+    ['stock',()=>previewCjStockAudit({method:'GET',headers:{},query:{}},stock)],
+    ['profit',()=>previewProfitAudit({method:'GET',headers:{},query:{}},profit)]
+  ];
+  const completedStages=[];
+  for(const [name,run] of stages){
+    const remaining=deadline-Date.now();
+    if(remaining<1500)break;
+    let timer;
+    try{
+      await Promise.race([
+        run(),
+        new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('audit-stage-timeout')),remaining)})
+      ]);
+      completedStages.push(name);
+    }catch(e){
+      return res.status(200).json({
+        ok:true,readOnly:true,ready:false,partial:true,
+        reason:'AUDIT_TIME_BUDGET_EXCEEDED',stage:name,
+        completedStages,checkedAt:new Date().toISOString(),
+        nextActions:['一括監査が時間制限に達しました。商品別監査を分割実行してください'],
+        publicationApproved:false
+      });
+    }finally{clearTimeout(timer)}
+    if(name!=='profit'){
+      const remainingAfter=deadline-Date.now();
+      if(remainingAfter<1500)break;
+      await new Promise(r=>setTimeout(r,Math.min(1500,Math.max(0,remainingAfter-1000))));
+    }
+  }
+  if(completedStages.length!==stages.length){
+    return res.status(200).json({
+      ok:true,readOnly:true,ready:false,partial:true,
+      reason:'AUDIT_TIME_BUDGET_EXCEEDED',completedStages,
+      pendingStages:stages.map(x=>x[0]).filter(x=>!completedStages.includes(x)),
+      checkedAt:new Date().toISOString(),
+      nextActions:['未実行の監査を分割実行してください'],
+      publicationApproved:false
+    });
+  }
   const f=freight.body||{},s=stock.body||{},p=profit.body||{},q=prelaunch.body||{};
   const expectedSkus=PREVIEW_MANAGED_CJ_VIDS;
   const freightRows=Array.isArray(f.rows)?f.rows:[];
