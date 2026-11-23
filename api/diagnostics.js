@@ -195,7 +195,7 @@ async function previewProfitAuditSingle(req,res){
 async function previewReleaseReadiness(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/prelaunch-audit-timeout-20261123';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['fix/prelaunch-audit-timeout-20261123','safety-gate-20261024'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
   if(!admin)return res.status(503).json({ok:false,error:'Preview admin key is not configured'});
@@ -205,7 +205,7 @@ async function previewReleaseReadiness(req,res){
 async function previewShopifyWebhookCleanup(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/prelaunch-audit-timeout-20261123';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['fix/prelaunch-audit-timeout-20261123','safety-gate-20261024'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
   if(!admin)return res.status(503).json({ok:false,error:'Preview admin key is not configured'});
@@ -215,7 +215,7 @@ async function previewShopifyWebhookCleanup(req,res){
 async function previewShopifyWebhookAudit(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/prelaunch-audit-timeout-20261123';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['fix/prelaunch-audit-timeout-20261123','safety-gate-20261024'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
   if(!admin)return res.status(503).json({ok:false,error:'Preview admin key is not configured'});
@@ -252,7 +252,7 @@ async function previewShopifySessionStatus(req,res){
 async function previewMigrateShopifySession(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});
-  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/prelaunch-audit-timeout-20261123';
+  const allowed=process.env.VERCEL_ENV==='preview'&&['fix/prelaunch-audit-timeout-20261123','safety-gate-20261024'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
   const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
   const provided=String(req.headers?.authorization||'');
