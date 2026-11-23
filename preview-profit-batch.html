@@ -21,6 +21,7 @@ code{font-size:11px;word-break:break-all}
 <div id="status" class="muted" style="margin-top:8px">開始前</div>
 </div>
 <div class="card"><button id="run">9商品を順番に監査</button></div>
+<div class="card"><div id="summary" class="muted">結果集計：未実行</div></div>
 <div class="card" style="overflow:auto">
 <table><thead><tr><th>SKU</th><th>判定</th><th>在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>30/25/20最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
@@ -31,7 +32,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const tbody=document.getElementById('rows'),statusEl=document.getElementById('status'),bar=document.getElementById('bar'),btn=document.getElementById('run');
 function yen(v){return Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
 async function run(){
- btn.disabled=true;tbody.innerHTML='';let completed=0;
+ btn.disabled=true;tbody.innerHTML='';let completed=0,pass=0,exceptionReview=0,blocked=0;
  for(const vid of vids){
   statusEl.textContent=(completed+1)+' / '+vids.length+' を監査中…';
   try{
@@ -51,10 +52,27 @@ async function run(){
     tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="6">'+String(j.error||'監査失敗')+'</td>';
    }else{
     const tier=x.estimatedMarginTier;
-    const cls=tier===30?'pass':tier===25||tier===20?'hold':'bad';
-    const label=tier===30?'30% PASS':tier===25?'25% 要例外承認':tier===20?'20% 要例外承認':'除外/保留';
+    const auditStatus=String(x.estimatedAuditStatus||'');
+    const stockOk=x.cjStockVerified===true&&x.cjStockAvailable===true&&Number(x.cjStockQuantity)>=5;
+    const freightOk=x.cjFreightVerified===true;
+    const costOk=x.supplierQuoteVerified===true;
+    let cls='bad',label='除外/保留';
+    if(stockOk&&freightOk&&costOk&&auditStatus==='provisional-pass'&&tier===30){
+      cls='pass';label='30% PASS';
+    }else if(stockOk&&freightOk&&costOk&&auditStatus==='exception-review'&&(tier===25||tier===20)){
+      cls='hold';label=tier+'% 要例外承認';
+    }else if(!stockOk){
+      cls='bad';label='在庫不足/未確認';
+    }else if(!freightOk){
+      cls='hold';label='送料未確認';
+    }else if(!costOk){
+      cls='hold';label='原価未確認';
+    }else{
+      cls='hold';label='保留';
+    }
     const p=x.requiredSalePriceByMargin||{};
     tr.innerHTML='<td><code>'+vid+'</code></td><td class="'+cls+'">'+label+'</td><td>'+String(x.cjStockQuantity??'—')+'</td><td>'+yen(x.salePriceJpy)+'</td><td>'+yen(x.productCostJpy)+'</td><td>'+yen(x.cjFreightJpy)+'</td><td>'+String(x.finalMarginPercent??'—')+'%</td><td>'+yen(p['30'])+' / '+yen(p['25'])+' / '+yen(p['20'])+'</td>';
+    if(label==='30% PASS')pass++;else if(label.includes('要例外承認'))exceptionReview++;else blocked++;
    }
    tbody.appendChild(tr);
   }catch(e){
@@ -68,6 +86,7 @@ async function run(){
   if(completed<vids.length)await sleep(1800);
  }
  statusEl.textContent='完了：'+completed+' / '+vids.length;
+ document.getElementById('summary').textContent='結果集計：30% PASS '+pass+'件 / 例外承認候補 '+exceptionReview+'件 / 保留・除外 '+blocked+'件';
  btn.disabled=false;
 }
 btn.addEventListener('click',run);run();
