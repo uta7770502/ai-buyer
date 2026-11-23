@@ -192,6 +192,20 @@ async function previewProfitAuditSingle(req,res){
   return previewProfitAudit({method:'GET',headers:{authorization:'Bearer '+admin},query:{...req.query,vid}},res);
 }
 
+async function previewCjShopifyStockSync(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='safety-gate-20261024';
+  if(!allowed)return res.status(404).json({ok:false});
+  const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
+  if(!admin)return res.status(503).json({ok:false,error:'Preview admin key is not configured'});
+  return cjShopifyStockSync({
+    method:'GET',
+    headers:{...req.headers,authorization:'Bearer '+admin},
+    query:{}
+  },res);
+}
+
 async function previewReleaseReadiness(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -507,6 +521,7 @@ const handlers={
   'preview-shopify-session-status':previewShopifySessionStatus,
   'preview-migrate-shopify-session':previewMigrateShopifySession,
   'cj-shopify-stock-sync':cjShopifyStockSync,
+  'preview-cj-shopify-stock-sync':previewCjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
   'automation-reconciliation':automationReconciliation,
