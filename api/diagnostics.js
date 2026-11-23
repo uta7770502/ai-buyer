@@ -14,6 +14,7 @@ import prelaunchProductAudit from '../lib/routes/prelaunch-product-audit.js';
 import prelaunchOneAction from '../lib/routes/prelaunch-one-action.js';
 import prelaunchReturnDaysBulk from '../lib/routes/prelaunch-return-days-bulk.js';
 import previewProfitAudit from '../lib/routes/preview-profit-audit.js';
+import shopifyOrderFeeAudit from '../lib/routes/shopify-order-fee-audit.js';
 import crypto from 'node:crypto';
 import { redisConnection } from '../lib/redis-connection.js';
 
@@ -464,6 +465,7 @@ const handlers={
   'preview-cj-draft-audit':previewCjDraftAudit,
   'preview-cj-stock-audit':previewCjStockAudit,
   'preview-profit-audit':previewProfitAudit,
+  'shopify-order-fee-audit':shopifyOrderFeeAudit,
   'preview-profit-audit-single':previewProfitAuditSingle,
   'preview-launch-audit-summary':previewLaunchAuditSummary,
   'preview-audit-plan':previewAuditPlan,
