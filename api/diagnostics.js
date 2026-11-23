@@ -192,6 +192,16 @@ async function previewProfitAuditSingle(req,res){
   return previewProfitAudit({method:'GET',headers:{authorization:'Bearer '+admin},query:{...req.query,vid}},res);
 }
 
+async function previewReleaseReadiness(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/prelaunch-audit-timeout-20261123';
+  if(!allowed)return res.status(404).json({ok:false});
+  const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
+  if(!admin)return res.status(503).json({ok:false,error:'Preview admin key is not configured'});
+  return releaseReadiness({method:'GET',headers:{...req.headers,authorization:'Bearer '+admin},query:req.query||{}},res);
+}
+
 async function previewShopifyWebhookCleanup(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -503,6 +513,7 @@ const handlers={
   'cj-health':cjHealth,
   'shopify-fulfillment-sync':shopifyFulfillmentSync,
   'release-readiness':releaseReadiness,
+  'preview-release-readiness':previewReleaseReadiness,
   'shopify-sandbox-order':shopifySandboxOrder,
   'shopify-env-check':shopifyEnvCheck,
   'storefront-checkout':storefrontCheckout,
