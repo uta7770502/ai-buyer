@@ -191,6 +191,16 @@ async function previewProfitAuditSingle(req,res){
   return previewProfitAudit({method:'GET',headers:{authorization:'Bearer '+admin},query:{...req.query,vid}},res);
 }
 
+async function previewShopifyWebhookAudit(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/prelaunch-audit-timeout-20261123';
+  if(!allowed)return res.status(404).json({ok:false});
+  const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
+  if(!admin)return res.status(503).json({ok:false,error:'Preview admin key is not configured'});
+  return shopifyWebhookAudit({method:'GET',headers:{...req.headers,authorization:'Bearer '+admin},query:req.query||{}},res);
+}
+
 async function previewShopifySessionStatus(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -468,6 +478,7 @@ const handlers={
   'preview-profit-audit':previewProfitAudit,
   'shopify-order-fee-audit':shopifyOrderFeeAudit,
   'shopify-webhook-audit':shopifyWebhookAudit,
+  'preview-shopify-webhook-audit':previewShopifyWebhookAudit,
   'preview-profit-audit-single':previewProfitAuditSingle,
   'preview-launch-audit-summary':previewLaunchAuditSummary,
   'preview-audit-plan':previewAuditPlan,
