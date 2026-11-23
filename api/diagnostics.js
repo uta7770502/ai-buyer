@@ -68,7 +68,10 @@ async function previewCjDraftAudit(req,res){
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
   const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
-  const vids=PREVIEW_MANAGED_CJ_VIDS;
+  const requestedVid=String(req.query?.vid||'').trim();
+  if(requestedVid&&!PREVIEW_MANAGED_CJ_VIDS.includes(requestedVid))
+    return res.status(400).json({ok:false,error:'Unknown managed CJ variant'});
+  const vids=requestedVid?[requestedVid]:PREVIEW_MANAGED_CJ_VIDS;
   const rows=[];
   for(const vid of vids){
     const cap={code:200,headers:{},setHeader(k,v){this.headers[k]=v;return this},status(n){this.code=n;return this},json(v){this.body=v;return this},send(v){this.body=v;return this},end(){return this}};
@@ -95,7 +98,10 @@ async function previewCjStockAudit(req,res){
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
   const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
   if(!allowed)return res.status(404).json({ok:false});
-  const vids=PREVIEW_MANAGED_CJ_VIDS;
+  const requestedVid=String(req.query?.vid||'').trim();
+  if(requestedVid&&!PREVIEW_MANAGED_CJ_VIDS.includes(requestedVid))
+    return res.status(400).json({ok:false,error:'Unknown managed CJ variant'});
+  const vids=requestedVid?[requestedVid]:PREVIEW_MANAGED_CJ_VIDS;
   const BASE='https://developers.cjdropshipping.com/api2.0/v1';
   async function token(){
     if(process.env.CJ_ACCESS_TOKEN)return process.env.CJ_ACCESS_TOKEN;
@@ -142,7 +148,7 @@ async function previewCjStockAudit(req,res){
         }
         break;
       }
-      await new Promise(r=>setTimeout(r,1500));
+      if(rows.length<vids.length)await new Promise(r=>setTimeout(r,1500));
     }
     const launchEligible=rows.filter(x=>x.ok&&Number.isSafeInteger(x.totalInventory)&&x.totalInventory>=5).length;
     for(const row of rows)row.launchEligible=row.ok&&Number.isSafeInteger(row.totalInventory)&&row.totalInventory>=5;
