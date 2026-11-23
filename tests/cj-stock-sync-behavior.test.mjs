@@ -18,6 +18,7 @@ async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplica
       return reply({result:true,data:[{cjInventoryNum:5,factoryInventoryNum:0,totalInventoryNum:5}]});
     }
     const body=JSON.parse(opts.body);
+    if(body.query.includes('currentAppInstallation'))return reply({data:{currentAppInstallation:{accessScopes:[{handle:'read_inventory'},{handle:'write_inventory'}]}}});
     if(body.query.includes('mutation')){
       events.push('write');input=body.variables.input;
       if(mutation==='timeout')throw Error('timeout');
