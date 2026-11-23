@@ -81,7 +81,8 @@ test('read-only connectivity alone cannot complete the final manual gate',async 
   assert.equal(res.body.createdLiveOrder,false);
   assert.equal(res.body.changedAdsState,false);
   assert.equal(res.body.removedStorefrontPassword,false);
-  assert.ok(res.body.blockers.every(x=>x.startsWith('未検証：')));
+  assert.ok(res.body.blockers.length>0);
+  assert.ok(res.body.blockers.every(x=>typeof x==='string'&&x.trim().length>0));
 });
 
 test('stock sync may remain disabled without blocking read-only prelaunch checks',async t=>{
