@@ -71,12 +71,20 @@ function services(failed){return async(url,options={})=>{
  if(url.endsWith('/ping')){kind='redis';data={result:'PONG'}}
  else if(url.includes('/getCategory')){kind='cj';data={result:true,data:[]}}
  else if(query.includes('ReadinessShop')){kind='admin';data={data:{shop:{id:'gid://shopify/Shop/1',name:'ODDLY'}}}}
- else if(query.includes('ReadinessScopes')){kind='scope';data={data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}}}
+ else if(query.includes('ReadinessScopes')){kind='scope';data={data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'},{handle:'read_inventory'},{handle:'write_inventory'}]}}}}
  else if(query.includes('ReadinessWebhooks')){kind='webhook';data={data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://preview.example/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}}}
  else if(query.includes('ReadinessStorefront')){kind='storefront';data={data:{shop:{name:'ODDLY'}}}}
  else throw Error('Unexpected external request');
  return {ok:kind!==failed,json:async()=>kind===failed?{errors:[{message:'private-service-error'}]}:data};
 };}
+test('storefront outage is a warning, not a blocker for backend sandbox checks',async()=>{
+ const {body}=await run(launchEnv,async()=>null,services('storefront'));
+ assert.equal(body.prelaunchReady,true);
+ assert.equal(body.safeToTest,true);
+ assert.equal(body.readyForLive,false);
+ assert.ok(body.warnings.includes('Shopify Storefront API connection unverified; backend sandbox validation can continue'));
+ assert.ok(!body.blockers.includes('Shopify Storefront API connection unverified'));
+});
 test('complete read-only diagnostics pass without claiming live acceptance',async()=>{
  const {body}=await run(launchEnv,async()=>null,services());
  assert.deepEqual(body.blockers,[]);assert.equal(body.prelaunchReady,true);
@@ -88,7 +96,6 @@ for(const [failure,reason] of [
  ['scope','Shopify fulfillment write scope unverified'],
  ['webhook','Shopify ORDERS_PAID webhook registration unverified'],
  ['cj','CJ API connection unverified'],
- ['storefront','Shopify Storefront API connection unverified'],
  ['redis','Redis']
 ])test('release blocks and explains unavailable '+failure,async()=>{
  const {body}=await run(launchEnv,async()=>null,services(failure));
