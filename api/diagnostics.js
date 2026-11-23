@@ -150,6 +150,25 @@ async function previewCjStockAudit(req,res){
   }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
 }
 
+function previewAuditPlan(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
+  if(!allowed)return res.status(404).json({ok:false});
+  // Lightweight, read-only discovery: no CJ/Shopify requests or credentials.
+  return res.status(200).json({
+    ok:true,readOnly:true,publicationApproved:false,
+    auditMode:'separate-requests',expectedProductCount:PREVIEW_MANAGED_CJ_VIDS.length,
+    checks:[
+      {name:'prelaunch',action:'preview-prelaunch-summary'},
+      {name:'freight',action:'preview-cj-draft-audit'},
+      {name:'stock',action:'preview-cj-stock-audit'},
+      {name:'profit',action:'preview-profit-audit'}
+    ],
+    note:'Each check runs independently. A successful plan response does not indicate audit completion.'
+  });
+}
+
 async function previewLaunchAuditSummary(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -366,6 +385,7 @@ const handlers={
   'preview-cj-stock-audit':previewCjStockAudit,
   'preview-profit-audit':previewProfitAudit,
   'preview-launch-audit-summary':previewLaunchAuditSummary,
+  'preview-audit-plan':previewAuditPlan,
   'cj-shopify-stock-sync':cjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
