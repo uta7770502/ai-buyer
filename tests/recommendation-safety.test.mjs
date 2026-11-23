@@ -75,7 +75,9 @@ test('discovery allows factory-stock candidates but verified inventory is still 
   assert.match(html,/SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY=5/);
   assert.match(html,/minVerifiedInventory=0/);
   assert.match(html,/function recommendationStockReady\(p/);
-  assert.match(html,/p\.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
+  assert.match(html,/Number\.isSafeInteger\(direct\)&&direct>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
+  assert.match(html,/return oddlyFactoryOrderState\(p\)/);
+  assert.match(html,/variantInventoryVerified===true/);
   assert.match(search,/minVerifiedInventory/);
   const {createRequire}=await import('node:module');
   const require=createRequire(import.meta.url);
@@ -151,7 +153,9 @@ test('auto-excluded unprofitable products cannot re-enter recommendations throug
 test('replacement recommendations exclude auto-blocked products and require verified inventory before refill',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/function recommendationStockReady\(p/);
-  assert.match(html,/p\.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
+  assert.match(html,/Number\.isSafeInteger\(direct\)&&direct>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
+  assert.match(html,/return oddlyFactoryOrderState\(p\)/);
+  assert.match(html,/variantInventoryVerified===true/);
   assert.match(html,/const refillSafe=safe\.filter\(x=>\{const a=findActive\(x\.id\);return \(!a\|\|!a\.autoExcludedReason\)&&recommendationProfitReady\(x\)\}\)/);
   assert.match(html,/在庫・レビュー・利益安全ゲート通過/);
 });
