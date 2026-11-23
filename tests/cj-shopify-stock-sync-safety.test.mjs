@@ -27,6 +27,15 @@ test('stock sync requires admin authorization',()=>{
   assert.match(source,/authorization!=='Bearer '\+admin/);
 });
 
+test('Shopify stock audit reads location-specific available quantity',()=>{
+  assert.match(source,/quantities\(names:\["available"\]\)\{name quantity\}/);
+  assert.match(source,/level\.quantities\.filter\(x=>x\?\.name==='available'\)/);
+  assert.match(source,/available\?\.length===1\?available\[0\]\?\.quantity:null/);
+  assert.match(source,/Number\.isSafeInteger\(rawCurrent\)/);
+  assert.match(source,/changeFromQuantity:current/);
+  assert.match(source,/code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'/);
+});
+
 test('stock sync uses verified CJ warehouse inventory only',()=>{
   assert.match(source,/validateCJStockResponse\(j\)/);
   assert.match(source,/cj-stock-validation\.js/);
