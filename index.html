@@ -1307,7 +1307,7 @@ async function runAdminStockDryRun(){
     const data=await response.json();
     if(result){
       const lines=['HTTP '+response.status,'診断段階: '+String(data.diagnosticStage||'完了'),'診断コード: '+String(data.diagnosticCode||data.code||'なし'),'結果: '+String(data.error||data.detail||((data.ok===true)?'取得成功':'診断失敗'))];
-      if(data.ok===true)lines.push('対象商品: '+String(data.products??'未確認'),'更新対象: '+String(data.pendingUpdates??'結果に記載なし'),'在庫変更: なし');
+      if(Array.isArray(data.productQueryProbes))for(const probe of data.productQueryProbes){lines.push('商品取得検査 '+String(probe.name||'')+': '+(probe.ok?'PASS':'FAIL '+String(probe.code||'')));}if(data.ok===true)lines.push('対象商品: '+String(data.products??'未確認'),'更新対象: '+String(data.pendingUpdates??'結果に記載なし'),'在庫変更: なし');
       result.textContent=lines.join('\\n');
     }
   }catch(e){if(result)result.textContent='診断通信エラー: '+(e?.name==='TimeoutError'?'時間切れ':'通信に失敗しました')}
