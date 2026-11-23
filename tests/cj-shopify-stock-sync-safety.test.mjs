@@ -13,6 +13,15 @@ test('stock sync is dry-run by default and requires an explicit feature flag to 
   assert.match(source,/readOnly:!apply/);
 });
 
+test('inventory apply stays fail-closed until location-specific available CAS is verified',()=>{
+  assert.match(source,/code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'/);
+  assert.match(source,/mutationPerformed:false/);
+  const lock=source.indexOf("code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'");
+  const mutation=source.indexOf("if(apply&&pending.length){");
+  assert.ok(lock>0&&mutation>lock);
+  assert.match(source,/if\(apply\)\s*\{\s*return res\.status\(409\)\.json\(\{[\s\S]*?LOCATION_AVAILABLE_QUANTITY_UNVERIFIED/);
+});
+
 test('stock sync requires admin authorization',()=>{
   assert.match(source,/AI_BUYER_ADMIN_KEY/);
   assert.match(source,/authorization!=='Bearer '\+admin/);
