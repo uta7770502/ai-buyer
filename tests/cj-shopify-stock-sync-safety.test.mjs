@@ -65,7 +65,8 @@ test('supplier stock failures never write a zero to Shopify',()=>{
 
 test('only draft ODDLY or AI BUYER products are targeted',()=>{
   assert.match(source,/status:draft/);
-  assert.match(source,/vendor:ODDLY/);
+  assert.match(source,/p\?\.status==='DRAFT'/);
+  assert.match(source,/\['ODDLY','AI BUYER'\]\.includes\(String\(p\?\.vendor\|\|''\)\)/);
   assert.match(source,/AI BUYER/);
 });
 
@@ -141,8 +142,8 @@ test('stock sync rejects malformed Shopify GraphQL envelopes before trusting inv
 test('stock sync refuses missing or duplicate available inventory quantities',()=>{
   assert.match(source,/Array\.isArray\(level\.quantities\)/);
   assert.match(source,/level\.quantities\.filter\(x=>x\?\.name==='available'\)/);
-  assert.match(source,/available\.length!==1/);
-  assert.match(source,/const rawCurrent=available\[0\]\.quantity/);
+  assert.match(source,/available\?\.length===1/);
+  assert.match(source,/const rawCurrent=available\?\.length===1\?available\[0\]\?\.quantity:null/);
 });
 
 test('stock sync exposes incomplete row audits explicitly',()=>{
