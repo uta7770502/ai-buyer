@@ -186,7 +186,7 @@ async function previewProfitAuditSingle(req,res){
   if(!PREVIEW_MANAGED_CJ_VIDS.includes(vid))return res.status(400).json({ok:false,error:'Unknown managed CJ variant'});
   const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
   if(!admin)return res.status(503).json({ok:false,error:'Preview admin key missing'});
-  return previewProfitAudit({method:'GET',headers:{authorization:'Bearer '+admin},query:{vid}},res);
+  return previewProfitAudit({method:'GET',headers:{authorization:'Bearer '+admin},query:{...req.query,vid}},res);
 }
 
 async function previewShopifySessionStatus(req,res){
