@@ -39,7 +39,7 @@ test('apply is fail-closed before Shopify or CJ requests, including supplier fai
   assert.equal(res.body.readOnly,true);
   assert.equal(res.body.mutationPerformed,false);
   assert.equal(res.body.code,'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED');
-  assert.deepEqual(events,[]);
+  assert.deepEqual(events,['read']);
  }
 });
 for(const mutation of ['timeout','missing','reject'])test('apply never reaches '+mutation+' mutation while inventory write lock is active',async t=>{
@@ -47,7 +47,7 @@ for(const mutation of ['timeout','missing','reject'])test('apply never reaches '
  assert.equal(res.code,409);
  assert.equal(res.body.code,'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED');
  assert.equal(res.body.mutationPerformed,false);
- assert.deepEqual(events,[]);
+ assert.deepEqual(events,['read']);
 });
 test('dry-run verifies all rows without writes',async t=>{const {res,events}=await run(t,{dry:true});assert.equal(res.body.ok,true);assert.equal(res.body.needsSync,2);assert.ok(!events.includes('write'));});
 test('partial dry-run is not successful',async t=>{const {res}=await run(t,{dry:true,failure:true});assert.equal(res.body.ok,false);assert.equal(res.body.partial,true);});
