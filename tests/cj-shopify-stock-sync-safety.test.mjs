@@ -27,6 +27,13 @@ test('stock sync requires admin authorization',()=>{
   assert.match(source,/authorization!=='Bearer '\+admin/);
 });
 
+test('read-only stock audit does not require write_inventory permission',()=>{
+  assert.match(source,/const requiredInventoryScopes=apply\?\['read_inventory','write_inventory'\]:\['read_inventory'\]/);
+  assert.match(source,/const missingInventoryScopes=requiredInventoryScopes\.filter/);
+  assert.match(source,/CJ_SHOPIFY_STOCK_SYNC_ENABLED!=='true'/);
+  assert.match(source,/code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'/);
+});
+
 test('Shopify stock audit reads location-specific available quantity',()=>{
   assert.match(source,/quantities\(names:\["available"\]\)\{name quantity\}/);
   assert.match(source,/level\.quantities\.filter\(x=>x\?\.name==='available'\)/);
