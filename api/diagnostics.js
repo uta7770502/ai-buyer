@@ -175,6 +175,18 @@ function previewAuditPlan(req,res){
   });
 }
 
+async function previewProfitAuditSingle(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
+  if(!allowed)return res.status(404).json({ok:false});
+  const vid=String(req.query?.vid||'').trim();
+  if(!PREVIEW_MANAGED_CJ_VIDS.includes(vid))return res.status(400).json({ok:false,error:'Unknown managed CJ variant'});
+  const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
+  if(!admin)return res.status(503).json({ok:false,error:'Preview admin key missing'});
+  return previewProfitAudit({method:'GET',headers:{authorization:'Bearer '+admin},query:{vid}},res);
+}
+
 async function previewLaunchAuditSummary(req,res){
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
@@ -390,6 +402,7 @@ const handlers={
   'preview-cj-draft-audit':previewCjDraftAudit,
   'preview-cj-stock-audit':previewCjStockAudit,
   'preview-profit-audit':previewProfitAudit,
+  'preview-profit-audit-single':previewProfitAuditSingle,
   'preview-launch-audit-summary':previewLaunchAuditSummary,
   'preview-audit-plan':previewAuditPlan,
   'cj-shopify-stock-sync':cjShopifyStockSync,
