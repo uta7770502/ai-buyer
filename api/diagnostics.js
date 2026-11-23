@@ -14,6 +14,8 @@ import prelaunchProductAudit from '../lib/routes/prelaunch-product-audit.js';
 import prelaunchOneAction from '../lib/routes/prelaunch-one-action.js';
 import prelaunchReturnDaysBulk from '../lib/routes/prelaunch-return-days-bulk.js';
 import previewProfitAudit from '../lib/routes/preview-profit-audit.js';
+import crypto from 'node:crypto';
+import { redisConnection } from '../lib/redis-connection.js';
 
 const PREVIEW_MANAGED_CJ_VIDS=[
   '1421057421656330240','1657322876615274496','1641339380621119488',
@@ -185,6 +187,33 @@ async function previewProfitAuditSingle(req,res){
   const admin=String(process.env.AI_BUYER_ADMIN_KEY||'');
   if(!admin)return res.status(503).json({ok:false,error:'Preview admin key missing'});
   return previewProfitAudit({method:'GET',headers:{authorization:'Bearer '+admin},query:{vid}},res);
+}
+
+async function previewShopifySessionStatus(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({ok:false,error:'Method not allowed'});
+  const allowed=process.env.VERCEL_ENV==='preview'&&['safety-gate-20261024','fix/prelaunch-audit-timeout-20261123'].includes(process.env.VERCEL_GIT_COMMIT_REF);
+  if(!allowed)return res.status(404).json({ok:false});
+  const shop=String(process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN||'').trim().toLowerCase();
+  if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop))return res.status(503).json({ok:false,error:'Shopify allowed shop is not configured'});
+  const {url,token}=redisConnection();
+  if(!url||!token)return res.status(503).json({ok:false,error:'Preview Redis is not configured'});
+  const shopHash=crypto.createHash('sha256').update(shop).digest('hex');
+  const storageKeyFor=ref=>'ai-buyer:preview:'+crypto.createHash('sha256').update(ref).digest('hex')+':ai-buyer:shopify:offline:'+shopHash;
+  async function exists(ref){
+    const r=await fetch(url+'/',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(['EXISTS',storageKeyFor(ref)]),signal:AbortSignal.timeout(10000)});
+    const j=await r.json().catch(()=>({}));
+    return r.ok&&Number(j.result)===1;
+  }
+  const currentRef=String(process.env.VERCEL_GIT_COMMIT_REF||'').trim();
+  const sourceRef='safety-gate-20261024';
+  const [currentSessionExists,sourceSessionExists]=await Promise.all([exists(currentRef),exists(sourceRef)]);
+  return res.status(200).json({
+    ok:true,readOnly:true,shopConfigured:true,currentRef,sourceRef,
+    currentSessionExists,sourceSessionExists,
+    migrationCandidate:!currentSessionExists&&sourceSessionExists,
+    tokenExposed:false
+  });
 }
 
 async function previewLaunchAuditSummary(req,res){
@@ -405,6 +434,7 @@ const handlers={
   'preview-profit-audit-single':previewProfitAuditSingle,
   'preview-launch-audit-summary':previewLaunchAuditSummary,
   'preview-audit-plan':previewAuditPlan,
+  'preview-shopify-session-status':previewShopifySessionStatus,
   'cj-shopify-stock-sync':cjShopifyStockSync,
   'automation-health':automationHealth,
   'automation-order-status':automationOrderStatus,
