@@ -156,7 +156,7 @@ button,input,select{font-family:inherit}button{touch-action:manipulation}
   <div style="margin-top:10px;border-top:1px solid #ddd;padding-top:10px">
 <b>下書き9商品の広告費・返品引当</b><div class="tiny">1注文あたりの想定額（円）。既存値は上書きしません。利益確定や広告開始は行いません。</div>
 <button class="ghost" onclick="previewDraftCosts()">9商品の費用設定を確認</button>
-<div id="draftCostRows" class="tiny"></div>
+<div id="draftCostRows" class="tiny"></div><div class="settingsGrid"><label>想定広告費率（%）<input id="draftAdRate" type="number" min="0" max="99" step="1"></label><label>想定返品引当率（%）<input id="draftReturnRate" type="number" min="0" max="99" step="1"></label></div><button class="ghost" onclick="previewDraftCostScenario()">商品別費用を自動試算（保存なし）</button><div id="draftCostScenarioResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div>
 <label>広告費（円）<input id="draftAdCost" type="number" min="0" max="100000000" step="1"></label>
 <label>返品引当（円）<input id="draftReturnReserve" type="number" min="0" max="100000000" step="1"></label>
 <button class="ghost" id="draftCostSave" disabled onclick="saveDraftCosts()">未設定項目に一括保存</button>
@@ -2293,6 +2293,17 @@ async function draftCostRequest(body){
  if(!key)throw Error('管理者キーが必要です');
  const r=await fetch('/api/prelaunch-return-days-bulk',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(body)});
  const j=await r.json();if(!r.ok||j.ok!==true)throw Error(j.error||'費用設定確認失敗');return j;
+}
+async function previewDraftCostScenario(){
+ const out=document.getElementById('draftCostScenarioResult');
+ const a=document.getElementById('draftAdRate').value.trim(),b=document.getElementById('draftReturnRate').value.trim();
+ if(![a,b].every(v=>/^\d+$/.test(v)&&Number(v)<=99)||Number(a)+Number(b)>=100){out.textContent='両方の想定率を整数で入力してください（合計100%未満）';return}
+ out.textContent='試算中…';
+ try{
+ const j=await draftCostRequest({costScenario:true,adRatePercent:Number(a),returnRatePercent:Number(b)});
+ if(j.readOnly!==true||j.estimated!==true||j.targetCount!==9||!Array.isArray(j.products)||j.products.length!==9)throw Error('試算結果が不完全です');
+ out.textContent=j.products.map(p=>p.title+'：販売価格 '+p.priceJpy+'円／広告 '+p.proposedAdCostJpy+'円／返品 '+p.proposedReturnReserveJpy+'円').join('\n')+'\n想定値のみ・保存なし・利益未確定';
+ }catch(e){out.textContent=String(e.message||e)}
 }
 async function previewDraftCosts(){
  const status=document.getElementById('draftCostStatus'),btn=document.getElementById('draftCostSave');
