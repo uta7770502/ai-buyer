@@ -102,7 +102,7 @@ test('missing client ID and noninteger quantity limit fail release gate',async t
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
-  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
+  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'},{handle:'read_inventory'},{handle:'write_inventory'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
  if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
@@ -173,7 +173,7 @@ test('release readiness distinguishes Redis ping from unverified external integr
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
-  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
+  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'},{handle:'read_inventory'},{handle:'write_inventory'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
  if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
@@ -199,7 +199,7 @@ test('release readiness fails closed for missing numeric safety limits',async t=
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
-  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
+  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'},{handle:'read_inventory'},{handle:'write_inventory'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
  if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
