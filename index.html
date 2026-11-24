@@ -156,7 +156,7 @@ button,input,select{font-family:inherit}button{touch-action:manipulation}
   <div style="margin-top:10px;border-top:1px solid #ddd;padding-top:10px">
 <b>下書き9商品の広告費・返品引当</b><div class="tiny">1注文あたりの想定額（円）。既存値は上書きしません。利益確定や広告開始は行いません。</div>
 <button class="ghost" onclick="previewDraftCosts()">9商品の費用設定を確認</button>
-<div id="draftCostRows" class="tiny"></div><div class="settingsGrid"><label>想定広告費率（%）<input id="draftAdRate" type="number" min="0" max="99" step="1"></label><label>想定返品引当率（%）<input id="draftReturnRate" type="number" min="0" max="99" step="1"></label></div><button class="ghost" onclick="previewDraftCostScenario()">商品別費用を自動試算（保存なし）</button><div id="draftCostScenarioResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div><button class="ghost" id="draftScenarioSave" disabled onclick="saveDraftCostScenario()">試算した商品別費用を保存</button>
+<div id="draftCostRows" class="tiny"></div><div class="settingsGrid"><label>想定広告費率（%）<input id="draftAdRate" type="number" min="0" max="99" step="1"></label><label>想定返品引当率（%）<input id="draftReturnRate" type="number" min="0" max="99" step="1"></label></div><button class="ghost" onclick="previewDraftCostScenario()">商品別費用を自動試算（保存なし）</button><div id="draftCostScenarioResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div><button class="ghost" id="draftScenarioSave" disabled onclick="saveDraftCostScenario()">試算した商品別費用を保存</button><button class="ghost" onclick="runDraftMarginAudit()">保存済み費用で利益率を再判定（変更なし）</button><div id="draftMarginAuditResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div>
 <label>広告費（円）<input id="draftAdCost" type="number" min="0" max="100000000" step="1"></label>
 <label>返品引当（円）<input id="draftReturnReserve" type="number" min="0" max="100000000" step="1"></label>
 <button class="ghost" id="draftCostSave" disabled onclick="saveDraftCosts()">未設定項目に一括保存</button>
@@ -2307,6 +2307,18 @@ async function previewDraftCostScenario(){
  draftScenario=j;document.getElementById('draftScenarioSave').disabled=!j.products.some(p=>p.existingAdCostJpy===null||p.existingReturnReserveJpy===null);
  out.textContent=j.products.map(p=>p.title+'：販売価格 '+p.priceJpy+'円／広告 '+p.proposedAdCostJpy+'円／返品 '+p.proposedReturnReserveJpy+'円').join('\n')+'\n想定値のみ・保存なし・利益未確定';
  }catch(e){out.textContent=String(e.message||e)}
+}
+async function runDraftMarginAudit(){
+ const out=document.getElementById('draftMarginAuditResult'),key=getTestAdminKey();
+ if(!key){out.textContent='管理者キーが必要です';return}
+ out.textContent='利益監査中…';
+ try{
+ const r=await fetch('/api/cj-profit-audit',{headers:{Authorization:'Bearer '+key},cache:'no-store'});
+ const j=await r.json();
+ if(!r.ok||j.ok!==true||j.readOnly!==true||!Array.isArray(j.rows)||j.rows.length!==9||new Set(j.rows.map(p=>p.sku)).size!==9)throw Error(j.error||'9商品の監査が不完全です');
+ const labels={'provisional-pass':'30%基準を試算上クリア','exception-review':'25%・20%例外承認が必要','exclude':'20%未満：候補除外対象','hold':'保留：在庫・送料・費用未確認'};
+ out.textContent=j.rows.map(p=>p.title+'：'+(p.ok===true?(labels[p.estimatedAuditStatus]||'保留'):'保留：取得失敗')+'／利益率 '+(Number.isFinite(p.finalMarginPercent)?p.finalMarginPercent+'%':'未確定')).join('\n')+'\n試算結果のみ。公開・価格・候補状態は変更しません。';
+ }catch(e){out.textContent='監査停止：'+String(e.message||e)}
 }
 async function saveDraftCostScenario(){
  const j=draftScenario,btn=document.getElementById('draftScenarioSave'),out=document.getElementById('draftCostScenarioResult');
