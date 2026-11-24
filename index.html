@@ -156,7 +156,7 @@ button,input,select{font-family:inherit}button{touch-action:manipulation}
   <div style="margin-top:10px;border-top:1px solid #ddd;padding-top:10px">
 <b>下書き9商品の広告費・返品引当</b><div class="tiny">1注文あたりの想定額（円）。既存値は上書きしません。利益確定や広告開始は行いません。</div>
 <button class="ghost" onclick="previewDraftCosts()">9商品の費用設定を確認</button>
-<div id="draftCostRows" class="tiny"></div><div class="settingsGrid"><label>想定広告費率（%）<input id="draftAdRate" type="number" min="0" max="99" step="1"></label><label>想定返品引当率（%）<input id="draftReturnRate" type="number" min="0" max="99" step="1"></label></div><button class="ghost" onclick="previewDraftCostScenario()">商品別費用を自動試算（保存なし）</button><div id="draftCostScenarioResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div><button class="ghost" id="draftScenarioSave" disabled onclick="saveDraftCostScenario()">試算した商品別費用を保存</button><button class="ghost" onclick="runDraftMarginAudit()">保存済み費用で利益率を再判定（変更なし）</button><div id="draftMarginAuditResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div>
+<div id="draftCostRows" class="tiny"></div><div class="settingsGrid"><label>想定広告費率（%）<input id="draftAdRate" type="number" min="0" max="99" step="1"></label><label>想定返品引当率（%）<input id="draftReturnRate" type="number" min="0" max="99" step="1"></label></div><button class="ghost" onclick="previewDraftCostScenario()">商品別費用を自動試算（保存なし）</button><div id="draftCostScenarioResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div><button class="ghost" id="draftScenarioSave" disabled onclick="saveDraftCostScenario()">試算した商品別費用を保存</button><div style="margin-top:10px;border-top:1px solid #ddd;padding-top:10px"><b>決済手数料の想定値</b><div class="tiny">Shopify Payments利用を想定した試算値です。実決済手数料の確定値ではありません。</div><div class="settingsGrid"><label>決済手数料率（%）<input id="paymentFeeRateAssumption" type="number" min="0" max="69.99" step="0.01" value="3.55"></label><label>固定手数料（円）<input id="paymentFixedFeeAssumption" type="number" min="0" max="1000000" step="1" value="0"></label></div><label>プラットフォーム手数料（円）<input id="platformFeeAssumption" type="number" min="0" max="1000000" step="1" value="0"></label><button class="ghost" onclick="previewPaymentFeeAssumptions()">決済手数料設定を確認</button><button class="ghost" id="paymentFeeSaveBtn" disabled onclick="savePaymentFeeAssumptions()">想定値を保存</button><div id="paymentFeeStatus" class="tiny"></div></div><button class="ghost" onclick="runDraftMarginAudit()">保存済み費用で利益率を再判定（変更なし）</button><div id="draftMarginAuditResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div>
 <label>広告費（円）<input id="draftAdCost" type="number" min="0" max="100000000" step="1"></label>
 <label>返品引当（円）<input id="draftReturnReserve" type="number" min="0" max="100000000" step="1"></label>
 <button class="ghost" id="draftCostSave" disabled onclick="saveDraftCosts()">未設定項目に一括保存</button>
@@ -2307,6 +2307,29 @@ async function previewDraftCostScenario(){
  draftScenario=j;document.getElementById('draftScenarioSave').disabled=!j.products.some(p=>p.existingAdCostJpy===null||p.existingReturnReserveJpy===null);
  out.textContent=j.products.map(p=>p.title+'：販売価格 '+p.priceJpy+'円／広告 '+p.proposedAdCostJpy+'円／返品 '+p.proposedReturnReserveJpy+'円').join('\n')+'\n想定値のみ・保存なし・利益未確定';
  }catch(e){out.textContent=String(e.message||e)}
+}
+async function previewPaymentFeeAssumptions(){
+ const out=document.getElementById('paymentFeeStatus'),btn=document.getElementById('paymentFeeSaveBtn');
+ btn.disabled=true;out.textContent='確認中…';
+ try{
+  const j=await draftCostRequest({feePreview:true});
+  if(j.readOnly!==true||j.shopLevel!==true||j.currencyCode!=='JPY')throw Error('店舗単位の設定確認に失敗しました');
+  const vals=[j.paymentFeeRatePercent,j.paymentFixedFeeJpy,j.platformFeePerOrderJpy];
+  out.textContent='現在値：手数料率 '+(vals[0]??'未設定')+'%／固定 '+(vals[1]??'未設定')+'円／プラットフォーム '+(vals[2]??'未設定')+'円';
+  btn.disabled=vals.every(v=>v!==null);
+ }catch(e){out.textContent=String(e.message||e)}
+}
+async function savePaymentFeeAssumptions(){
+ const out=document.getElementById('paymentFeeStatus'),btn=document.getElementById('paymentFeeSaveBtn');
+ const rate=Number(document.getElementById('paymentFeeRateAssumption').value),fixed=Number(document.getElementById('paymentFixedFeeAssumption').value),platform=Number(document.getElementById('platformFeeAssumption').value);
+ if(!Number.isFinite(rate)||rate<0||rate>=70||!Number.isSafeInteger(fixed)||fixed<0||!Number.isSafeInteger(platform)||platform<0){out.textContent='入力値を確認してください';return}
+ if(!window.confirm('決済手数料率 '+rate+'%、固定 '+fixed+'円、プラットフォーム '+platform+'円を店舗共通の想定値として保存します。実決済手数料の確定値ではありません。'))return;
+ btn.disabled=true;
+ try{
+  const j=await draftCostRequest({feeApply:true,confirmation:'SET_PAYMENT_FEE_ASSUMPTIONS',paymentFeeRatePercent:rate,paymentFixedFeeJpy:fixed,platformFeePerOrderJpy:platform});
+  await previewPaymentFeeAssumptions();
+  out.textContent='保存応答：'+j.updatedCount+'項目。店舗共通の想定値として保存しました。';
+ }catch(e){out.textContent='保存停止：'+String(e.message||e)}
 }
 async function runDraftMarginAudit(){
  const out=document.getElementById('draftMarginAuditResult'),key=getTestAdminKey();
