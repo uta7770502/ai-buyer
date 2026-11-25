@@ -96,3 +96,17 @@ test('partial supplier audit yields no executable CAS preview',async t=>{
  assert.deepEqual(res.body.syncPlan.quantities,[]);
  assert.equal(res.body.syncPlan.mutationPerformed,false);
 });
+
+test('supplier network failure preserves verified rows but blocks CAS and signed evidence',async t=>{
+ const {res,events}=await run(t,{dry:true,throws:true});
+ assert.equal(res.code,200);
+ assert.equal(res.body.ok,false);
+ assert.equal(res.body.partial,true);
+ assert.equal(res.body.rows.length,2);
+ assert.equal(res.body.rows[0].ok,true);
+ assert.equal(res.body.rows[1].reason,'cj-network-error');
+ assert.equal(res.body.stockEvidence,null);
+ assert.equal(res.body.syncPlan.ready,false);
+ assert.deepEqual(res.body.syncPlan.quantities,[]);
+ assert.ok(!events.includes('write'));
+});
