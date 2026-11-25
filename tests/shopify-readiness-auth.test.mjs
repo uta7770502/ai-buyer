@@ -115,7 +115,7 @@ test('internal legal fields do not certify Shopify policy registration',async()=
  assert.equal(body.shopifyPolicyAudit.verified,true);
  assert.equal(body.shopifyPolicyAudit.storeNameMatches,true);
  assert.deepEqual(body.shopifyPolicyAudit.registeredTypes,['PRIVACY_POLICY']);
- assert.deepEqual(body.shopifyPolicyAudit.missingTypes,['REFUND_POLICY','SHIPPING_POLICY','TERMS_OF_SERVICE']);
+ assert.deepEqual(body.shopifyPolicyAudit.missingTypes,['REFUND_POLICY','SHIPPING_POLICY','TERMS_OF_SERVICE','LEGAL_NOTICE']);
  assert.ok(body.remainingLiveVerification.includes('Shopifyポリシー未登録：REFUND_POLICY'));
  assert.equal(body.readyForLive,false);
 });
@@ -129,4 +129,33 @@ test('policy query error remains unknown and is not reported as missing registra
  assert.equal(body.shopifyPolicyAudit.verified,false);
  assert.deepEqual(body.shopifyPolicyAudit.missingTypes,[]);
  assert.ok(body.remainingLiveVerification.includes('Shopifyポリシーの実環境確認'));
+});
+
+test('delivery and market audit exposes actual coverage without changing merchant settings',async()=>{
+ const base=services();
+ const {body}=await run(launchEnv,async()=>null,async(url,options={})=>{
+  const query=JSON.parse(options.body||'{}').query||'';
+  if(query.includes('ReadinessDeliveryProfiles'))return {ok:true,json:async()=>({data:{deliveryProfiles:{pageInfo:{hasNextPage:false},nodes:[{name:'General',coversAllItems:false,locationsWithoutRatesCount:1,activeMethodDefinitionsCount:4,zoneCountryCount:28}]}}})};
+  if(query.includes('ReadinessMarkets'))return {ok:true,json:async()=>({data:{markets:{pageInfo:{hasNextPage:false},nodes:[{name:'Japan',status:'ACTIVE',type:'REGION'}]}}})};
+  return base(url,options);
+ });
+ assert.equal(body.shopifyDeliveryAudit.verified,true);
+ assert.equal(body.shopifyDeliveryAudit.locationsWithoutRates,1);
+ assert.equal(body.shopifyMarketsAudit.verified,true);
+ assert.equal(body.shopifyMarketsAudit.activeCount,1);
+ assert.ok(body.remainingLiveVerification.includes('Shopify配送料未設定のロケーション確認'));
+ assert.equal(body.readyForLive,false);
+});
+test('partial delivery and market results are not verification',async()=>{
+ const base=services();
+ const {body}=await run(launchEnv,async()=>null,async(url,options={})=>{
+  const query=JSON.parse(options.body||'{}').query||'';
+  if(query.includes('ReadinessDeliveryProfiles'))return {ok:true,json:async()=>({data:{deliveryProfiles:{pageInfo:{hasNextPage:true},nodes:[]}}})};
+  if(query.includes('ReadinessMarkets'))return {ok:true,json:async()=>({data:{markets:{pageInfo:{hasNextPage:true},nodes:[]}}})};
+  return base(url,options);
+ });
+ assert.equal(body.shopifyDeliveryAudit.verified,false);
+ assert.equal(body.shopifyMarketsAudit.verified,false);
+ assert.ok(body.remainingLiveVerification.includes('Shopify配送設定の実環境確認'));
+ assert.ok(body.remainingLiveVerification.includes('Shopify販売市場の実環境確認'));
 });
