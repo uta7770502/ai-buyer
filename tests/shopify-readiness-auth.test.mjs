@@ -115,7 +115,7 @@ test('internal legal fields do not certify Shopify policy registration',async()=
  assert.equal(body.shopifyPolicyAudit.verified,true);
  assert.equal(body.shopifyPolicyAudit.storeNameMatches,true);
  assert.deepEqual(body.shopifyPolicyAudit.registeredTypes,['PRIVACY_POLICY']);
- assert.deepEqual(body.shopifyPolicyAudit.missingTypes,['REFUND_POLICY','SHIPPING_POLICY','TERMS_OF_SERVICE','LEGAL_NOTICE']);
+ assert.deepEqual(body.shopifyPolicyAudit.missingTypes,['REFUND_POLICY','SHIPPING_POLICY','TERMS_OF_SERVICE','LEGAL_NOTICE','CONTACT_INFORMATION']);
  assert.ok(body.remainingLiveVerification.includes('Shopifyポリシー未登録：REFUND_POLICY'));
  assert.equal(body.readyForLive,false);
 });
@@ -158,4 +158,16 @@ test('partial delivery and market results are not verification',async()=>{
  assert.equal(body.shopifyMarketsAudit.verified,false);
  assert.ok(body.remainingLiveVerification.includes('Shopify配送設定の実環境確認'));
  assert.ok(body.remainingLiveVerification.includes('Shopify販売市場の実環境確認'));
+});
+
+test('OAuth requests only read access for new store audits and identifies missing grants',async()=>{
+ const oauth=readFileSync(new URL('../api/shopify-auth.js',import.meta.url),'utf8');
+ for(const scope of ['read_legal_policies','read_shipping','read_markets']){
+  assert.ok(oauth.includes(scope));
+  assert.ok(!oauth.includes(scope.replace('read_','write_')));
+ }
+ const {body}=await run(launchEnv,async()=>null,services());
+ assert.equal(body.auditScopeStatus.verified,true);
+ assert.deepEqual(body.auditScopeStatus.missing,['read_legal_policies','read_shipping','read_markets']);
+ assert.ok(body.remainingLiveVerification.includes('Shopify監査権限不足：read_legal_policies'));
 });
