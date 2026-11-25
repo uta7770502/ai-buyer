@@ -44,3 +44,16 @@ test('factory replenishment and unknown CJ stock remain distinct',()=>{
  assert.equal(summary.needsSync,1);
  assert.equal(summary.blocked,1);
 });
+
+
+test('preview stock audit exposes factory quantities without counting them as launch inventory',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const source=readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const block=source.slice(source.indexOf('async function previewCjStockAudit'),source.indexOf('function previewAuditPlan'));
+ assert.match(block,/classifyCJAvailability\(valid,5\)/);
+ assert.match(block,/factoryStockQuantity:valid.ok\?valid.factoryTotal:null/);
+ assert.match(block,/requiresFactoryReplenishment:candidate.requiresFactoryReplenishment/);
+ assert.match(block,/factoryLeadTimeVerified:false/);
+ assert.match(block,/row.launchEligible=row.ok&&Number.isSafeInteger\(row.totalInventory\)&&row.totalInventory>=5/);
+ assert.match(block,/stockCandidateCount:rows.filter/);
+});
