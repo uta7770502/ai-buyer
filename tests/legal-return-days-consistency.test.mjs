@@ -69,3 +69,21 @@ test('CJ preflight reads exact selected lines and refund limits without creating
  const r=await run(data);assert.equal(r.ok,true);assert.equal(r.maxRefundUSD,9.99);assert.equal(r.submissionAllowed,false);
  for(const bad of [{...data,orderId:'wrong'},{...data,maxAmount:-1},{...data,expectResultOptionList:['3']},{...data,productInfoList:[]}])assert.equal((await run(bad)).ok,false);
 });
+
+test('integrated CJ draft preflight uses supplier prices and stops before creation',async()=>{
+ const {prepareDisputeDraft}=await import('../lib/routes/shopify-return-audit.js');
+ const orderId='J123456',line={lineItemId:'12345',quantity:2,price:9.99,canChoose:true};
+ const input={orderId,businessDisputeId:'return-123',disputeReasonId:1,expectType:1,refundType:1,messageText:'Item damaged',items:[{lineItemId:'12345',quantity:1,price:999}]};
+ const calls=[];
+ const fetcher=async(u,o)=>{
+  calls.push(String(u));
+  if(String(u).includes('/disputeProducts?'))return {ok:true,json:async()=>({code:200,result:true,data:{orderId,productInfoList:[line]}})};
+  assert.ok(String(u).endsWith('/disputeConfirmInfo'));
+  const selected=JSON.parse(o.body).productInfoList;
+  assert.deepEqual(selected,[{lineItemId:'12345',quantity:1,price:9.99}]);
+  return {ok:true,json:async()=>({code:200,result:true,data:{orderId,productInfoList:selected,expectResultOptionList:['1'],disputeReasonList:[{disputeReasonId:1,reasonName:'Damage'}],maxProductPrice:9.99,maxPostage:0,maxIossTaxAmount:0,maxIossHandTaxAmount:0,maxAmount:9.99}})};
+ };
+ const r=await prepareDisputeDraft(input,{token:'test',fetcher});assert.equal(r.ok,true);assert.equal(r.payload.productInfoList[0].price,9.99);assert.equal(r.submissionAllowed,false);assert.equal(r.shopifyReturnLineLinkVerified,false);assert.equal(calls.length,2);
+ calls.length=0;assert.equal((await prepareDisputeDraft({...input,items:[{lineItemId:'12345',quantity:3}]},{token:'test',fetcher})).ok,false);assert.equal(calls.length,1);
+ calls.length=0;assert.equal((await prepareDisputeDraft({...input,expectType:2},{token:'test',fetcher})).ok,false);assert.equal(calls.length,2);
+});
