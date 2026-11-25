@@ -246,7 +246,7 @@ test('consolidated launch audit returns prioritized next actions for blocker res
  assert.match(block,/const nextActions=\[\]/);
  assert.match(block,/監査対象SKUの不整合を解消/);
  assert.match(block,/送料未確認SKUを再取得/);
- assert.match(block,/在庫5未満SKUを販売候補から外し代替候補を補充/);
+ assert.match(block,/即納在庫5未満SKUの工場補充可否を確認し、補充不可の商品は代替候補を補充/);
  assert.match(block,/最終利益条件未達SKUを価格調整または候補除外/);
  assert.match(block,/最終手動承認待ち/);
  assert.match(block,/nextActions,/);
@@ -384,3 +384,24 @@ test('manual Preview workflow embedded Node scripts parse and audit payload is n
  assert.doesNotMatch(wf,/printf '%s\\n' "\\$BODY"/);
 });
 
+
+test('legacy diagnostics use exact net margin tiers, server exception evidence and retain publication lock',()=>{
+ const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
+ const start=source.indexOf('  const catalogTriage=expectedSkus.map');
+ const end=source.indexOf('  const skuSummary=',start);
+ const run=Function('expectedSkus','stockRows','profitRows','freightRows',source.slice(start,end)+';return catalogTriage[0]');
+ const sku='1234567890123456',stock=[{vid:sku,launchEligible:true}],freight=[{vid:sku,ok:true,shippingVerified:true}];
+ const row={sku,ok:true,assumptionsReady:true,contributionMarginPercent:40,finalMarginPercent:25,estimatedMarginTier:20};
+ const check=p=>run([sku],stock,[p],freight);
+ assert.equal(check(row).defaultMinimumMarginPercent,25);
+ assert.equal(check(row).recommendedByMargin,false);
+ assert.equal(check(row).requiresManualMarginOverride,true);
+ assert.equal(check({...row,marginExceptionApproved:true}).recommendedByMargin,false);
+ assert.equal(check({...row,marginExceptionApproved:true,marginExceptionApprovalId:'server-id'}).recommendedByMargin,true);
+ assert.equal(check({...row,estimatedMarginTier:null,finalMarginPercent:20}).recommendationExcludedByMargin,true);
+ assert.equal(check({...row,estimatedMarginTier:25}).publicationApproved,false);
+ const factory=run([sku],[{vid:sku,launchEligible:false,recommendationStockEligible:true,requiresFactoryReplenishment:true}],[row],freight);
+ assert.equal(factory.factoryCandidate,true);
+ assert.equal(factory.nextAction,'verify_factory_replenishment_lead_time');
+ assert.match(source,/saleReady:x\.launchEconomicsEligible===true&&x\.finalProfitVerified===true/);
+});
