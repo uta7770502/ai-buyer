@@ -96,3 +96,18 @@ test('simulated return submission reserves once and requires exact readback',asy
   assert.equal(result.ok,scenario==='ok');assert.equal(result.simulated,true);assert.equal(result.customerRefundAuthorized,false);assert.equal(result.automaticRetry,false);assert.equal(writes,scenario==='duplicate'?0:1);assert.equal(reads,['duplicate','timeout'].includes(scenario)?0:1);assert.equal(saves,['ok','persist-failure'].includes(scenario)?1:0);
  }
 });
+
+test('customer refund plan never exceeds original payment or verified return entitlement',async()=>{
+ const {planCustomerRefund}=await import('../lib/routes/shopify-return-audit.js');
+ const x={orderId:'gid://shopify/Order/1',returnId:'gid://shopify/Return/2',currency:'JPY',paidJPY:4400,priorRefundJPY:1000,verifiedReturnAmountJPY:2000,requestedJPY:2000};
+ assert.equal(planCustomerRefund(x).ok,true);assert.equal(planCustomerRefund(x).refundAuthorized,false);
+ for(const patch of [{requestedJPY:2001},{requestedJPY:0},{requestedJPY:1.5},{priorRefundJPY:3000},{currency:'USD'},{verifiedReturnAmountJPY:null}])assert.equal(planCustomerRefund({...x,...patch}).ok,false);
+});
+test('simulated customer refund never sends notifications or retries uncertain writes',async()=>{
+ const {planCustomerRefund,simulateCustomerRefund}=await import('../lib/routes/shopify-return-audit.js');
+ const plan=planCustomerRefund({orderId:'gid://shopify/Order/1',returnId:'gid://shopify/Return/2',currency:'JPY',paidJPY:4400,priorRefundJPY:1000,verifiedReturnAmountJPY:2000,requestedJPY:2000});
+ for(const scenario of ['ok','duplicate','timeout','mismatch','persist-failure']){
+  let writes=0;const id='gid://shopify/Refund/3';const r=await simulateCustomerRefund(plan,{reserve:async(key)=>{assert.equal(key,plan.orderId);return scenario!=='duplicate';},refundMock:async()=>{writes++;if(scenario==='timeout')throw Error('timeout');return {ok:true,refundId:id};},readMock:async()=>({...plan,refundId:id,status:'SUCCESS',amountJPY:scenario==='mismatch'?1999:2000}),persist:async()=>scenario!=='persist-failure'});
+  assert.equal(r.ok,scenario==='ok');assert.equal(r.notificationAllowed,false);assert.equal(r.automaticRetry,false);assert.equal(writes,scenario==='duplicate'?0:1);assert.equal(Boolean(r.notificationPreview),scenario==='ok');
+ }
+});
