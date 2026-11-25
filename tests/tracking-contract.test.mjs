@@ -66,3 +66,12 @@ test('tracking read endpoint rejects unsafe CJ tracking before sync eligibility'
  assert.match(source,/tracking_needs_review/);
  assert.match(source,/trackingSafe,/);
 });
+
+test('tracking read uses the shared Shopify OAuth context rather than requiring a static token',()=>{
+ assert.match(source,/await getShopifyAuthContext\(req\)/);
+ assert.doesNotMatch(source,/process\.env\.SHOPIFY_ADMIN_ACCESS_TOKEN/);
+ assert.match(source,/auth\.shop!==shop/);
+});
+test('delivery confirmation requires verified shipment tracking',()=>{
+ assert.ok(source.includes("delivered:shipmentConfirmed&&"));
+});
