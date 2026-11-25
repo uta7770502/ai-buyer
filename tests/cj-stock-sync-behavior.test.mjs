@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-shopify-stock-sync.js';
 import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
-async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
+async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
   const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'safety-gate-20261024',SHOPIFY_TOKEN_ENCRYPTION_KEY:'ab'.repeat(32)};
   for(const [k,v] of Object.entries(env)){const old=process.env[k];process.env[k]=v;t.after(()=>old===undefined?delete process.env[k]:process.env[k]=old);}
   t.mock.method(globalThis,'setTimeout',fn=>{fn();return 0;});
@@ -12,8 +12,9 @@ async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplica
     const reply=data=>({ok:true,status:200,json:async()=>data});
     if(String(url).includes('queryByVid')){
       events.push('cj');
+      if(throws&&String(url).includes('1421057421656330242'))throw Error('timeout');
       if(events.filter(x=>x==='cj').length===2){
-        if(throws)throw Error('timeout');
+        if(transient)throw Error('timeout');
         if(failure)return reply({result:false});
       }
       return reply({result:true,data:[{cjInventoryNum:5,factoryInventoryNum:0,totalInventoryNum:5}]});
@@ -118,5 +119,15 @@ test('stock audit needs only the location ID, not the restricted location name',
  assert.equal(res.body.ok,true);
  assert.equal(res.body.rows[0].location,'gid://shopify/Location/1');
  assert.equal(res.body.syncPlan.ready,true);
+ assert.ok(!events.includes('write'));
+});
+
+test('transient CJ network error retries only the failed SKU and restores full evidence',async t=>{
+ const {res,events}=await run(t,{dry:true,transient:true});
+ assert.equal(res.body.ok,true);
+ assert.equal(res.body.allVerified,true);
+ assert.equal(events.filter(x=>x==='cj').length,3);
+ assert.equal(res.body.syncPlan.ready,true);
+ assert.ok(verifyStockEvidence(res.body.stockEvidence,res.body.rows.map(row=>row.vid)));
  assert.ok(!events.includes('write'));
 });
