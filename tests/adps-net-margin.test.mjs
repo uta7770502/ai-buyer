@@ -11,8 +11,8 @@ test('unverified fee and shipping always block recommendation',()=>{
 test('round fractional payment fee upward',()=>{
   assert.equal(calculateNetMargin({...costs,priceYen:101,percentageFee:0.035}).paymentFeeYen,4);
 });
-test('select 30, 25, 20 percent tier, or reject',()=>{
-  assert.equal(evaluateMarginTiers(costs,verified).tier,0.30);
+test('select 25 or 20 percent tier, or reject',()=>{
+  assert.equal(evaluateMarginTiers(costs,verified).tier,0.25);
   assert.equal(evaluateMarginTiers({...costs,costYen:1150},verified).tier,0.25);
   assert.equal(evaluateMarginTiers({...costs,costYen:1250},verified).tier,0.20);
   assert.equal(evaluateMarginTiers({...costs,costYen:1400},verified).eligible,false);
@@ -46,13 +46,13 @@ test('fee rate cannot be missing, negative, nonfinite or 100 percent',()=>{
   assert.equal(calculateNetMargin({...costs,percentageFee}).ok,false,String(percentageFee));
  }
 });
-test('fee rounding at 30 percent boundary never inflates margin',()=>{
- const input={priceYen:101,costYen:66,shippingYen:0,percentageFee:0.035,fixedFeeYen:0};
+test('fee rounding at 25 percent boundary never inflates margin',()=>{
+ const input={priceYen:101,costYen:71,shippingYen:0,percentageFee:0.035,fixedFeeYen:0};
  const r=calculateNetMargin(input);
  assert.equal(r.paymentFeeYen,4);
- assert.equal(r.netProfitYen,31);
- assert.equal(evaluateMarginTiers(input,verified).tier,0.30);
- assert.equal(evaluateMarginTiers({...input,costYen:67},verified).tier,0.25);
+ assert.equal(r.netProfitYen,26);
+ assert.equal(evaluateMarginTiers(input,verified).tier,0.25);
+ assert.equal(evaluateMarginTiers({...input,costYen:72},verified).tier,0.20);
 });
 
 test('omitted optional reserves and fee use zero, but never prove fee or freight evidence',()=>{
