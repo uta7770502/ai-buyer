@@ -27,6 +27,10 @@ function fixture(t,{sandbox=1,simulationTimeout=false,cjTimeout=false}={}){
    }
    throw Error('Unexpected Redis command');
   }
+  if(String(url).includes('/product/stock/queryByVid?')){
+   assert.equal(String(url).split('?')[1],'vid=CJ-VID123');
+   return response({result:true,data:[{cjInventoryNum:10,factoryInventoryNum:0,totalInventoryNum:10}]});
+  }
   if(String(url).endsWith('/logistic/freightCalculate'))return response({result:true,data:[{logisticName:'Mock shipping',totalPostageFee:2}]});
   if(String(url).endsWith('/shopping/order/createOrderV2')){
    assert.equal(body.isSandbox,1);assert.equal(body.payType,3);creates++;
