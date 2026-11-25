@@ -21,7 +21,7 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 <div class="bar" style="margin-top:14px"><i id="bar"></i></div>
 <div id="status" class="muted" style="margin-top:8px">開始前</div>
 </div>
-<div class="card"><label for="batchAdminKey"><b>管理者キー</b></label><input id="batchAdminKey" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="管理者キーを入力"><div id="authStatus" class="muted" role="status" aria-live="polite">この画面で認証できます。キーは監査時の認証にのみ使用します。</div><button class="secondary" type="button" id="clearKey">キーを消去</button><button type="button" id="run" style="margin-top:12px">現在の下書き商品を順番に監査</button></div>
+<div class="card"><label for="batchAdminKey"><b>管理者キー</b></label><input id="batchAdminKey" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="管理者キーを入力"><div id="authStatus" class="muted" role="status" aria-live="polite">この画面で認証できます。キーは監査時の認証にのみ使用します。</div><button class="secondary" type="button" id="clearKey">キーを消去</button><button type="button" id="run" style="margin-top:12px">現在の下書き商品を順番に監査</button><button class="secondary" type="button" id="retry" hidden>未確認商品だけ再監査</button><div id="scopeStatus" class="muted" role="status" style="margin-top:8px"></div></div>
 <div class="card"><div id="summary" class="muted">結果集計：未実行</div><div id="decision" class="muted" style="margin-top:8px"></div></div>
 <div class="card" style="overflow:auto">
 <table><thead><tr><th>商品／SKU</th><th>利益判定</th><th>在庫判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
@@ -33,10 +33,15 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const tbody=document.getElementById('rows'),statusEl=document.getElementById('status'),bar=document.getElementById('bar'),btn=document.getElementById('run');
 const keyInput=document.getElementById('batchAdminKey'),authStatus=document.getElementById('authStatus'),clearKey=document.getElementById('clearKey');
+const retryBtn=document.getElementById('retry'),scopeStatus=document.getElementById('scopeStatus');
+let retryVids=[];
+const requested=new URLSearchParams(location.search).get('vids');
+const initialVids=requested===null?[]:requested.split(',').map(s=>s.trim());
+if(initialVids.length){retryBtn.hidden=false;retryBtn.textContent='指定 '+initialVids.length+' 商品だけ再監査';scopeStatus.textContent='指定商品のみの再監査が可能です。全商品監査とは別の結果になります。';}
 try{keyInput.value=sessionStorage.getItem('aiBuyerAdminKey')||''}catch{}
 if(keyInput.value)authStatus.textContent='同じタブの管理者キーを引き継ぎました。監査開始時に認証します。';
 clearKey.addEventListener('click',()=>{keyInput.value='';try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者キーを消去しました。';});
-function setBusy(busy){btn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
+function setBusy(busy){btn.disabled=busy;retryBtn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
 function yen(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
 function buildFactoryInquiry(rows){
  const vids=[...new Set(rows.filter(r=>r?.ok===true&&r.cjStockVerified===true&&r.stockCandidateEligible===true&&r.requiresFactoryReplenishment===true&&r.supplierQuoteVerified===true&&r.cjFreightVerified===true&&r.assumptionsReady===true&&[25,20,15].includes(r.estimatedMarginTier)&&/^\d{10,25}$/.test(r.sku)).map(r=>r.sku))];
@@ -45,7 +50,7 @@ function buildFactoryInquiry(rows){
 }
 const inquiryCard=document.getElementById('factoryInquiryCard'),inquiry=document.getElementById('factoryInquiry'),copyStatus=document.getElementById('factoryCopyStatus');
 document.getElementById('copyFactoryInquiry').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(inquiry.value);copyStatus.textContent='コピーしました。';}catch{inquiry.focus();inquiry.select();copyStatus.textContent='選択された文章を手動でコピーしてください。';}});
-async function run(){
+async function run(onlyPending=false){
  if(btn.disabled)return;
  const key=keyInput.value.trim();
  if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return}
@@ -61,6 +66,13 @@ async function run(){
   vids=j.rows.map(x=>x.sku);
   try{sessionStorage.setItem('aiBuyerAdminKey',key)}catch{}
   authStatus.textContent='認証済み・現在の下書き '+vids.length+' 件を確認しました。';
+  if(onlyPending){
+   const selection=retryVids.length?retryVids:initialVids;
+   if(!selection.length||selection.length>vids.length||new Set(selection).size!==selection.length||!selection.every(s=>/^\d{10,25}$/.test(s)&&vids.includes(s)))throw Error('再監査対象が現在の下書きと一致しません');
+   vids=vids.filter(vid=>selection.includes(vid));
+  }
+  scopeStatus.textContent=onlyPending?'指定 '+vids.length+' 商品のみの監査結果（全商品監査ではありません）':'現在の全 '+vids.length+' 商品の監査結果';
+  retryVids=[];retryBtn.hidden=true;
  }catch{authStatus.textContent='認証・下書き一覧を確認できませんでした。';statusEl.textContent='監査停止：現在の下書き一覧を確認できません。';setBusy(false);return;}
  for(const vid of vids){
   statusEl.textContent=(completed+1)+' / '+vids.length+' を監査中…';
@@ -78,7 +90,7 @@ async function run(){
    const x=Array.isArray(j.rows)?j.rows[0]:null;
    const tr=document.createElement('tr');
    if(!r.ok||j.ok!==true||j.readOnly!==true||!x||x.ok!==true||x.sku!==vid||j.rows.length!==1){
-    unknown++;
+    unknown++;retryVids.push(vid);
     const labels={'cj-cost-unverified':'CJ仕入原価・SKU・通貨を確認できません','shopify-product-unverified':'Shopify商品情報を確認できません','duplicate-cj-variant-id':'CJ SKU重複','price-or-variant-unverified':'販売価格またはSKU未確認'};
     tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="7"></td>';
     tr.lastElementChild.textContent=r.status===401||r.status===403?'管理者認証を確認してください':r.status===429?'アクセス集中・再監査対象':Object.hasOwn(labels,x?.reason)?labels[x.reason]:'監査失敗（HTTP '+r.status+'）・確認が必要';
@@ -93,6 +105,7 @@ async function run(){
     else if(costReady&&tier===15){label=x.marginExceptionApproved===true?'15% 承認記録あり':'15% 要例外承認';exception15++;}
     else if(costReady&&tier===null){cls='bad';label='利益率15%未満：候補除外';excluded++;}
     else unknown++;
+    if(!costReady||x.cjStockVerified!==true)retryVids.push(vid);
     const stockLabel=stockOk?'CJ倉庫在庫あり':x.cjStockVerified===true&&x.stockCandidateEligible===true&&x.requiresFactoryReplenishment===true?'工場取り寄せ候補・発送準備3〜7営業日目安':x.cjStockVerified===true?'在庫不足':'在庫未確認';
     if(!stockOk)stockHold++;
     const p=x.requiredSalePriceByMargin||{};
@@ -102,7 +115,7 @@ async function run(){
    tbody.appendChild(tr);
   }catch(e){
    const tr=document.createElement('tr');
-   unknown++;
+   unknown++;retryVids.push(vid);
    const timeout=e&&(e.name==='AbortError'||e.name==='TimeoutError');
    tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">'+(timeout?'60秒超過':'通信失敗')+'</td><td colspan="7">'+(timeout?'この商品を保留して次の商品へ進みました':'再試行対象')+'</td>';
    tbody.appendChild(tr);
@@ -115,9 +128,13 @@ async function run(){
  document.getElementById('summary').textContent='利益判定：25%以上 '+pass+'件 / 20%例外 '+exception20+'件 / 15%例外 '+exception15+'件 / 15%未満 '+excluded+'件 / 未確認 '+unknown+'件。別集計：在庫・納期保留 '+stockHold+'件（取得成功行）';
  document.getElementById('decision').textContent='運用判断：25% PASSは利益試算の条件達成のみ。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは候補として保持し、発送準備3〜7営業日を目安に管理。即納在庫には加算せず、公開は別審査。';
  inquiry.value=buildFactoryInquiry(successfulRows);inquiryCard.hidden=!inquiry.value;
+ retryVids=[...new Set(retryVids)];
+ retryBtn.hidden=retryVids.length===0;
+ retryBtn.textContent='未確認 '+retryVids.length+' 商品だけ再監査';
  setBusy(false);
 }
-btn.addEventListener('click',run);
+btn.addEventListener('click',()=>run(false));
+retryBtn.addEventListener('click',()=>run(true));
 keyInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();run();}});
 </script>
 </main></body></html>
