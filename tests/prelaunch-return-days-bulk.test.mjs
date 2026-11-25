@@ -47,3 +47,17 @@ test('bulk preview accepts eight, nine or ten distinct managed drafts and refuse
  assert.match(route,/MAX_ATOMIC_WRITES = 25/);
  assert.match(html,/productIds:returnDaysBulkPreview.products.map\(p=>p.id\)/);
 });
+
+test('return audit distinguishes pending and closed returns without authorizing mutations',async()=>{
+ const {summarizeReturns}=await import('../lib/routes/shopify-return-audit.js');
+ const rows=summarizeReturns({pageInfo:{hasNextPage:false},nodes:['REQUESTED','OPEN','CLOSED','DECLINED','CANCELED'].map((status,i)=>({id:'gid://shopify/Return/'+(i+1),status,totalQuantity:1}))});
+ assert.equal(rows.length,5);
+ assert.equal(rows[0].nextAction,'review_request_and_supplier_terms');
+ assert.equal(rows[1].nextAction,'verify_return_destination_and_supplier_response');
+ assert.ok(rows.every(r=>!r.automaticRefundAllowed&&!r.automaticReturnAllowed));
+});
+test('return audit rejects incomplete or ambiguous data',async()=>{
+ const {summarizeReturns}=await import('../lib/routes/shopify-return-audit.js');
+ const r={id:'gid://shopify/Return/1',status:'OPEN',totalQuantity:1};
+ for(const input of [{nodes:[]},{pageInfo:{hasNextPage:true},nodes:[r]},{pageInfo:{hasNextPage:false},nodes:[r,r]},{pageInfo:{hasNextPage:false},nodes:[{...r,status:'UNKNOWN'}]},{pageInfo:{hasNextPage:false},nodes:[{...r,totalQuantity:0}]}])assert.equal(summarizeReturns(input),null);
+});
