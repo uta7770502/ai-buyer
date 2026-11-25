@@ -15,3 +15,16 @@ test('discovery rejects stale, future and non-read-only CJ variant stock respons
 test('discovery does not trust a server launch flag without sufficient verified inventory',()=>{
  assert.match(code,/stock\.launchEligible===true&&stock\.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY/);
 });
+
+ test('factory candidates require fresh exact-SKU stock evidence and sufficient combined inventory',()=>{
+ const a=code.indexOf('const factoryCandidate=');const b=code.indexOf(';',a);
+ assert.ok(a>=0&&b>a);
+ const candidate=Function('SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY',code.slice(a,b)+';return factoryCandidate;')(5);
+ const base={recommendationStockEligible:true,requiresFactoryReplenishment:true,verifiedInventory:2,factoryStockQuantity:3};
+ assert.equal(candidate(base),true);
+ assert.equal(candidate({...base,verifiedInventory:0,factoryStockQuantity:5}),true);
+ for(const patch of [{factoryStockQuantity:2},{factoryStockQuantity:0},{factoryStockQuantity:'3'},{recommendationStockEligible:false},{requiresFactoryReplenishment:false},{verifiedInventory:-1},{verifiedInventory:5}])assert.equal(candidate({...base,...patch}),false,JSON.stringify(patch));
+ assert.match(code,/if\(!selectedVariant&&factoryVariant\)/);
+ assert.match(code,/\|\|factoryCandidate\(stock\)\)\{/);
+ assert.match(code,/p\.discoveryProfitChecked=false/);
+ });
