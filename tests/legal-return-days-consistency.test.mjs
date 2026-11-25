@@ -53,3 +53,11 @@ test('CJ dispute draft uses confirmed prices and quantities and never authorizes
  const r=buildDisputeDraft(x);assert.equal(r.ok,true);assert.equal(r.payload.productInfoList[0].price,9.99);assert.equal(r.submissionAllowed,false);assert.equal(r.customerRefundAuthorized,false);
  for(const patch of [{disputeReasonId:2},{items:[{lineItemId:'12345',quantity:3}]},{items:[...x.items,...x.items]},{confirmedItems:[]},{expectType:3},{messageText:''}])assert.equal(buildDisputeDraft({...x,...patch}).ok,false);
 });
+
+test('CJ eligible products reads exact order and excludes unselectable lines',async()=>{
+ const {readDisputableProducts}=await import('../lib/routes/shopify-return-audit.js');
+ const orderId='J123456',a={lineItemId:'12345',quantity:2,price:9.99,canChoose:true},b={...a,lineItemId:'12346',canChoose:false};
+ const read=async(data)=>readDisputableProducts(orderId,{token:'test',fetcher:async(u,o)=>{assert.equal(u.searchParams.get('orderId'),orderId);assert.equal(o.method,'GET');return {ok:true,json:async()=>({code:200,result:true,data})};}});
+ const r=await read({orderId,productInfoList:[a,b]});assert.equal(r.ok,true);assert.deepEqual(r.eligibleItems,[{lineItemId:'12345',quantity:2,price:9.99}]);assert.equal(r.submissionAllowed,false);
+ for(const data of [{orderId:'wrong',productInfoList:[a]},{orderId,productInfoList:[a,a]},{orderId,productInfoList:[{...a,canChoose:'true'}]},{orderId,productInfoList:[{...a,price:-1}]}])assert.equal((await read(data)).ok,false);
+});
