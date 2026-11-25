@@ -22,7 +22,7 @@ import crypto from 'node:crypto';
 import { redisConnection } from '../lib/redis-connection.js';
 
 const PREVIEW_MANAGED_CJ_VIDS=[
-  '1421057421656330240','1657322876615274496','1641339380621119488',
+  '1657322876615274496','1641339380621119488',
   '1637037130838978560','1380443011925807104','1443515898471256064',
   '2408310600381614000','1416372414316679168','1763801727867822080'
 ];
@@ -86,7 +86,7 @@ async function previewCjDraftAudit(req,res){
     rows.push({
       vid,
       ok:cap.code===200&&b.ok===true,
-      shippingJpy:Number.isFinite(Number(b.shippingCostJpy))?Number(b.shippingCostJpy):null,
+      shippingJpy:b.shippingJpyVerified===true&&Number.isSafeInteger(b.shippingCostJpy)&&b.shippingCostJpy>=0?b.shippingCostJpy:null,
       shippingVerified:b.shippingJpyVerified===true,
       optionCount:Array.isArray(b.options)?b.options.length:0,
       error:cap.code===200&&b.ok===true?null:String(b.code||b.error||'CJ lookup failed').slice(0,120)
