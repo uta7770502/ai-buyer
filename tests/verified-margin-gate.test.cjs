@@ -23,11 +23,11 @@ const product = (margin, extras = {}) => ({
   finalProfitJpy: 100,
   ...extras
 });
-test('default recommendation requires at least 30% verified margin', () => {
-  assert.equal(eligible(product(30)), true);
-  assert.equal(eligible(product(29.99)), false);
+test('default recommendation requires at least 25% verified margin', () => {
+  assert.equal(eligible(product(25)), true);
+  assert.equal(eligible(product(24.99)), false);
 });
-test('per-product 25% and 20% exceptions are respected', () => {
+test('standard 25% and per-product 20% exception are respected', () => {
   overrides['test-1'] = 25;
   assert.equal(eligible(product(25)), true);
   assert.equal(eligible(product(24.99)), false);
