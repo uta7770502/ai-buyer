@@ -163,3 +163,19 @@ for(const scenario of ['ok','reject','timeout','missing','mismatch','readback-ti
  assert.equal(result.unknown,['timeout','missing','mismatch','readback-timeout'].includes(scenario));
  assert.deepEqual(calls,scenario==='invalid'?[]:['ok','mismatch','readback-timeout'].includes(scenario)?['write','read']:['write']);
 });
+
+// Order preflight rejects malformed carts and stops on throttling before any subsequent SKU.
+test('order preflight rejects malformed and oversized carts without supplier calls',async()=>{
+ const {verifyOrderStock}=await import('../lib/cj-order-stock-preflight.js');
+ let calls=0;const fetcher=async()=>{calls++;throw Error('unexpected');};
+ for(const cart of [null,{},[],Array.from({length:101},()=>({vid:'1234567890',quantity:1}))]){
+  const result=await verifyOrderStock(cart,{base:'https://example.invalid',fetcher});
+  assert.equal(result.ok,false);assert.equal(result.reason,'invalid-order-stock-input');
+ }
+ assert.equal(calls,0);
+});
+test('order preflight stops at CJ rate limit without retrying or reading later SKUs',async()=>{
+ const {verifyOrderStock}=await import('../lib/cj-order-stock-preflight.js');
+ let calls=0;const result=await verifyOrderStock([{vid:'1234567890',quantity:1},{vid:'1234567891',quantity:1}],{base:'https://example.invalid',fetcher:async()=>{calls++;return {ok:false,status:429};}});
+ assert.equal(result.ok,false);assert.equal(result.diagnostic,'cj-rate-limited');assert.equal(calls,1);
+});
