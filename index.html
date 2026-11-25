@@ -329,7 +329,7 @@ function launchEligibility(x){
   if(!Number.isFinite(unit.price)||unit.price<=0)reasons.push('販売価格未確定');
   if(x.priceEstimateOnly===true)reasons.push('広告費が暫定値のため公開承認不可（実績または承認済み予算の検証待ち）');
   if(!Number.isFinite(unit.contribution)||unit.contribution<=0)reasons.push('限界利益が赤字');
-  else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<Number(oddlyMarginOverrides[String(x.id)]||25))reasons.push('限界利益率が商品別の基準未満');
+  else if(!Number.isFinite(unit.price)||unit.price<=0||unit.contribution/unit.price*100<effectiveMarginThreshold(x))reasons.push('限界利益率が商品別の基準未満');
   if(!verifiedMarginRecommendation(x))reasons.push('最終利益・利益率の検証未完了');
   const plannedAds=Number(x.plannedAdCostPerOrderJpy),returnReserve=Number(x.returnReservePerOrderJpy);
   if(!Number.isFinite(plannedAds)||plannedAds<0)reasons.push('広告費想定未設定');
@@ -508,6 +508,7 @@ function setRecentlyRemovedCandidate(product,removed){
 }
 // Per-product margin exceptions apply only to verified contribution margin, never CJ discovery estimates.
 const oddlyMarginOverrides=(()=>{try{return JSON.parse(localStorage.getItem('oddlyMarginOverrides')||'{}')}catch{return {}}})();
+const serverMarginApprovals=new Map();
 function recommendationStockReady(p,now=Date.now()){
  const checked=Date.parse(p?.variantInventoryVerifiedAt||'');
  const fresh=p?.variantInventoryVerified===true&&/^(?:\d{10,25}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(String(p?.verifiedVariantId||''))&&Number.isFinite(checked)&&checked<=now&&now-checked<=15*60*1000;
@@ -523,11 +524,22 @@ function verifiedMarginRecommendation(p){
  if(p?.contributionMarginVerified!==true)return false;
  const margin=Number(p?.verifiedContributionMarginPercent);
  if(!Number.isFinite(margin)||margin<20)return false;
- const threshold=Number(oddlyMarginOverrides[String(p.id)]||25);
+ const threshold=effectiveMarginThreshold(p);
  return [20,25].includes(threshold)&&margin>=threshold&&p?.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0;
 }
+// Browser preferences alone cannot authorize the exception. The server must independently recheck its stored approval at write time.
+function effectiveMarginThreshold(p,now=Date.now()){
+ const selected=Number(oddlyMarginOverrides[String(p.id)]||25);
+ if(selected===25)return 25;
+ if(selected!==20)return NaN;
+ const vid=String(p.verifiedVariantId||'');
+ const record=serverMarginApprovals.get(vid);
+ const at=Date.parse(record?.approvedAt||'');
+ if(!/^\d{10,25}$/.test(vid)||record?.approved!==true||record?.source!=='product-specific-owner-approval'||record?.vid!==vid||record?.threshold!==20||!/^[-a-zA-Z0-9_]{12,100}$/.test(String(record?.approvalId||''))||!Number.isFinite(at)||at>now||now-at>30*86400000)return 25;
+ return 20;
+}
 function recommendationProfitReady(p){
- const threshold=Number(oddlyMarginOverrides[String(p.id)]||25);
+ const threshold=effectiveMarginThreshold(p);
  const margin=Number(p?.discoveryEstimatedMarginPercent);
  const profit=Number(p?.discoveryEstimatedProfitJpy);
  return p?.discoveryProfitChecked===true&&p?.discoveryProfitEstimateOnly===true&&p?.discoveryProfitInputsVerified===true&&[20,25].includes(threshold)&&Number.isFinite(margin)&&margin>=threshold&&Number.isFinite(profit)&&profit>0;
@@ -541,10 +553,19 @@ function setProductMarginThreshold(id,value){
  const estimatedReady=p.discoveryProfitChecked===true&&p.discoveryProfitEstimateOnly===true&&p.discoveryProfitInputsVerified===true&&Number.isFinite(Number(p.discoveryEstimatedProfitJpy))&&Number(p.discoveryEstimatedProfitJpy)>0;
  const margin=verifiedReady?Number(p.verifiedContributionMarginPercent):estimatedReady?Number(p.discoveryEstimatedMarginPercent):NaN;
  if(!Number.isFinite(margin)||threshold>25||threshold<20||margin<threshold)return;
- oddlyMarginOverrides[String(id)]=threshold;
- localStorage.setItem('oddlyMarginOverrides',JSON.stringify(oddlyMarginOverrides));
- renderMarginReview();
- renderRecommendTop();
+ const saveThreshold=()=>{oddlyMarginOverrides[String(id)]=threshold;localStorage.setItem('oddlyMarginOverrides',JSON.stringify(oddlyMarginOverrides));renderMarginReview();renderRecommendTop();};
+ if(threshold===25){saveThreshold();return;}
+ const vid=String(p.verifiedVariantId||'');
+ if(!/^\d{10,25}$/.test(vid))return showCandidateToast('20%例外には確認済みのCJ SKUが必要です');
+ const key=getTestAdminKey();if(!key)return showCandidateToast('20%例外の確認には管理者認証が必要です');
+ // Only read existing server approvals here. Selecting a dropdown cannot create an approval.
+ fetch('/api/cj?action=margin-exception&vid='+encodeURIComponent(vid),{headers:{Authorization:'Bearer '+key},cache:'no-store'}).then(async r=>{
+   const record=await r.json();
+   if(!r.ok||record.ok!==true||record.approved!==true){serverMarginApprovals.delete(vid);showCandidateToast('このSKUの20%サーバー承認は未確認です');renderMarginReview();return;}
+   serverMarginApprovals.set(vid,record);
+   saveThreshold();
+   if(effectiveMarginThreshold(p)!==20)showCandidateToast('20%の承認記録が無効または期限切れです');
+ }).catch(()=>{serverMarginApprovals.delete(vid);showCandidateToast('サーバー承認を取得できません');renderMarginReview();});
 }
 function orderedRecommendedProducts(){
  const fresh=Array.isArray(today?.products)?today.products:[];
