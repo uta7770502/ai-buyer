@@ -90,3 +90,13 @@ test('batch audit loads the authenticated current draft catalog and uses saved c
  assert.doesNotMatch(html,/scenario:'1'|adCostJpy:'0'|returnReserveJpy:'0'/);
  assert.match(html,/利益率15%未満：候補除外/);
 });
+
+test('price guidance retains current price or proposes a review at 25 percent unless the exact lower tier is approved',async()=>{
+ const a=source.indexOf('export function makeDraftPriceGuidance('),b=source.indexOf('export default async function handler',a);
+ const make=Function(source.slice(a,b).replace('export function','function')+';return makeDraftPriceGuidance')();
+ const input={salePriceJpy:2000,shippingJpy:600,paymentFeeJpy:71,adCostJpy:200,returnReserveJpy:100,targetPrices:{25:2300,20:2100,15:1950},estimatedMarginTier:15};
+ const p=make(input);assert.equal(p.proposedPriceJpy,2300);assert.equal(p.maximumSupplierCostByMargin[25],529);assert.equal(p.maximumSupplierCostByMargin[15],729);assert.equal(p.priceChangeAuthorized,false);assert.equal(p.publicationApproved,false);
+ assert.equal(make({...input,approvedExceptionTier:20}).preferredTier,25);
+ assert.equal(make({...input,approvedExceptionTier:15}).proposedPriceJpy,2000);
+ assert.equal(make({...input,shippingJpy:null}),null);
+});

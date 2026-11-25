@@ -2459,8 +2459,10 @@ async function runDraftMarginAudit(){
    const tier=p.estimatedMarginTier===25?'利益試算：25%以上':p.estimatedMarginTier===20?'利益試算：20%以上25%未満（SKU別承認が必要）':p.estimatedMarginTier===15?'利益試算：15%以上20%未満（SKU別承認が必要）':p.assumptionsReady===true?'利益試算：15%未満（現価格では対象外）':'利益試算：未確認';
    const prices=p.requiredSalePriceByMargin||{};
    const guidance='現在価格 '+(validPrice(p.salePriceJpy)?yen(p.salePriceJpy):'未確認')+'／25%に必要な価格 '+(validPrice(prices['25'])?yen(prices['25']):'未算出')+'／20%に必要な価格 '+(validPrice(prices['20'])?yen(prices['20']):'未算出')+'／15%に必要な価格 '+(validPrice(prices['15'])?yen(prices['15']):'未算出')+'（費用想定に基づく試算）';
+   const plan=p.priceGuidance;
+   const pricePlan=plan?.estimateOnly===true&&plan.priceChangeAuthorized===false&&validPrice(plan.proposedPriceJpy)?'\n価格変更案：'+yen(plan.proposedPriceJpy)+'（'+plan.preferredTier+'%基準・承認前）／現売価の仕入上限 '+[25,20,15].map(t=>t+'% '+yen(plan.maximumSupplierCostByMargin[t])).join(' / ')+'（広告・返品引当は登録済み固定額）':'';
    const details=['CJ倉庫在庫 '+(p.cjStockVerified===true?(p.cjStockQuantity+'件'):'未確認（'+(p.cjStockReason||'不明')+'）')+'／工場在庫 '+(Number.isSafeInteger(p.factoryStockQuantity)?p.factoryStockQuantity+'件':'未確認')+(p.requiresFactoryReplenishment===true?'（取り寄せ候補・補充日数未確認）':''),'送料 '+(p.cjFreightVerified===true?(p.cjFreightJpy+'円'):'未確認（'+(p.cjFreightReason||'不明')+'）'),'決済 '+(p.paymentFeeAssumptionsReady===true?'設定済':'未確認'),'広告 '+(p.plannedAdCostPerOrderJpy??'未設定'),'返品 '+(p.returnReservePerOrderJpy??'未設定')].join('／');
-   return p.title+'：'+status+'／利益率 '+(Number.isFinite(p.finalMarginPercent)?p.finalMarginPercent+'%':'未確定')+'\n'+tier+'\n'+guidance+'\n'+details;
+   return p.title+'：'+status+'／利益率 '+(Number.isFinite(p.finalMarginPercent)?p.finalMarginPercent+'%':'未確定')+'\n'+tier+'\n'+guidance+pricePlan+'\n'+details;
  }).join('\n\n')+'\n試算結果のみ。公開・価格・候補状態は変更しません。';
  }catch(e){out.textContent='監査停止：'+String(e.message||e)}
 }
