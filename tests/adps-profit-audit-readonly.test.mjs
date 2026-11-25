@@ -41,3 +41,17 @@ test('read-only margin audit accepts the current complete set, not a fixed nine 
  assert.match(source,/catalogComplete:!requestedSku&&rows.length===products.length,targetCount:products.length/);
  assert.match(source,/data.products.pageInfo\?\.hasNextPage!==false/);
 });
+
+test('factory hold still displays independent margin tier and target prices without writing',async()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const block=html.slice(html.indexOf('async function runDraftMarginAudit(){'),html.indexOf('async function saveDraftCostScenario(){'));
+ const out={textContent:''};
+ const row={sku:'1234567890123456',title:'Fixture',ok:true,estimatedAuditStatus:'hold',estimatedMarginTier:20,assumptionsReady:true,salePriceJpy:2000,requiredSalePriceByMargin:{25:2200,20:1980},finalMarginPercent:20.8,requiresFactoryReplenishment:true};
+ const run=Function('document','getTestAdminKey','fetch','yen',block+';return runDraftMarginAudit;')({getElementById:()=>out},()=> 'fixture',async(url,options)=>{assert.equal(options.method,undefined);return {ok:true,json:async()=>({ok:true,readOnly:true,catalogComplete:true,targetCount:1,total:1,rows:[row]})}},n=>'¥'+n);
+ await run();
+ assert.match(out.textContent,/20%以上25%未満/);
+ assert.match(out.textContent,/25%に必要な価格 ¥2200/);
+ assert.match(out.textContent,/20%に必要な価格 ¥1980/);
+ assert.match(out.textContent,/補充日数未確認/);
+ assert.match(out.textContent,/公開・価格・候補状態は変更しません/);
+});
