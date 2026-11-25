@@ -46,3 +46,10 @@ test('supplier dispute must match linked CJ sandbox order references',async()=>{
  for(const d of [{},{disputeId:'SH654321'},{disputeId:id,disputeOpenedId:'SH654321'}])assert.equal(matchesLinkedDispute(linked(d),id),false);
  assert.equal(matchesLinkedDispute(null,id),false);
 });
+
+test('CJ dispute draft uses confirmed prices and quantities and never authorizes submission',async()=>{
+ const {buildDisputeDraft}=await import('../lib/routes/shopify-return-audit.js');
+ const x={orderId:'DR123',businessDisputeId:'return-123',disputeReasonId:1,expectType:1,refundType:1,messageText:'Item damaged',items:[{lineItemId:'12345',quantity:1,price:999}],confirmedItems:[{lineItemId:'12345',quantity:2,price:9.99}],allowedReasonIds:[1]};
+ const r=buildDisputeDraft(x);assert.equal(r.ok,true);assert.equal(r.payload.productInfoList[0].price,9.99);assert.equal(r.submissionAllowed,false);assert.equal(r.customerRefundAuthorized,false);
+ for(const patch of [{disputeReasonId:2},{items:[{lineItemId:'12345',quantity:3}]},{items:[...x.items,...x.items]},{confirmedItems:[]},{expectType:3},{messageText:''}])assert.equal(buildDisputeDraft({...x,...patch}).ok,false);
+});
