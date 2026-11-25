@@ -79,3 +79,20 @@ test('incomplete dry-run cannot issue stock evidence',async t=>{
  const {res}=await run(t,{dry:true,failure:true});
  assert.equal(res.body.stockEvidence,null);
 });
+
+test('read-only CAS preview uses exact location quantities, never factory stock or writes',async t=>{
+ const {res,events}=await run(t,{dry:true});
+ assert.equal(res.body.syncPlan.ready,true);
+ assert.equal(res.body.syncPlan.mutationPerformed,false);
+ assert.equal(res.body.syncPlan.writeLocked,true);
+ assert.equal(res.body.syncPlan.factoryStockIncluded,false);
+ assert.equal(res.body.syncPlan.changeCount,2);
+ assert.deepEqual(res.body.syncPlan.quantities,[1,2].map(n=>({inventoryItemId:'gid://shopify/InventoryItem/'+n,locationId:'gid://shopify/Location/1',quantity:5,changeFromQuantity:0})));
+ assert.ok(!events.includes('write'));
+});
+test('partial supplier audit yields no executable CAS preview',async t=>{
+ const {res}=await run(t,{dry:true,failure:true});
+ assert.equal(res.body.syncPlan.ready,false);
+ assert.deepEqual(res.body.syncPlan.quantities,[]);
+ assert.equal(res.body.syncPlan.mutationPerformed,false);
+});
