@@ -15,41 +15,52 @@ code{font-size:11px;word-break:break-all}
 </head>
 <body><main>
 <div class="card">
-<h1>ADPS 9商品 利益監査</h1>
-<div class="muted">Preview専用・読み取り専用。想定条件：決済手数料3.55%、固定0円、プラットフォーム0円、広告0円、返品引当0円。商品公開・価格変更・注文処理は行いません。</div>
+<h1>ADPS 下書き商品 利益監査</h1>
+<div class="muted">Preview専用・読み取り専用。登録済みの決済手数料・広告費・返品引当を使った試算。未設定の費用は保留します。商品公開・価格変更・注文処理は行いません。</div>
 <div class="bar" style="margin-top:14px"><i id="bar"></i></div>
 <div id="status" class="muted" style="margin-top:8px">開始前</div>
 </div>
-<div class="card"><button id="run">9商品を順番に監査</button></div>
+<div class="card"><button id="run">現在の下書き商品を順番に監査</button></div>
 <div class="card"><div id="summary" class="muted">結果集計：未実行</div><div id="decision" class="muted" style="margin-top:8px"></div></div>
 <div class="card" style="overflow:auto">
 <table><thead><tr><th>SKU</th><th>判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
 <div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
 <script>
-const vids=['1421057421656330240','1657322876615274496','1641339380621119488','1637037130838978560','1380443011925807104','1443515898471256064','2408310600381614000','1416372414316679168','1763801727867822080'];
+
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const tbody=document.getElementById('rows'),statusEl=document.getElementById('status'),bar=document.getElementById('bar'),btn=document.getElementById('run');
-function yen(v){return Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
+function yen(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
 async function run(){
- btn.disabled=true;tbody.innerHTML='';let completed=0,pass=0,exceptionReview=0,blocked=0;
+ const key=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();
+ if(!key){statusEl.textContent='ADPS管理画面で管理者キーを入力してから、再実行してください。';return}
+ btn.disabled=true;tbody.innerHTML='';bar.style.width='0%';let completed=0,pass=0,exceptionReview=0,blocked=0;
+ const headers={Authorization:'Bearer '+key};
+ let vids;
+ try{
+  const r=await fetch('/api/cj-profit-audit?catalogOnly=1',{headers,cache:'no-store',signal:AbortSignal.timeout(15000)});
+  const j=await r.json();
+  if(!r.ok||j.ok!==true||j.readOnly!==true||j.catalogComplete!==true||!Number.isSafeInteger(j.targetCount)||j.targetCount<1||!Array.isArray(j.rows)||j.rows.length!==j.targetCount||!j.rows.every(x=>/^\d{10,25}$/.test(String(x?.sku||'')))||new Set(j.rows.map(x=>x.sku)).size!==j.targetCount)throw Error('下書きSKU一覧の取得に失敗しました');
+  vids=j.rows.map(x=>x.sku);
+ }catch{statusEl.textContent='監査停止：現在の下書き一覧を確認できません。';btn.disabled=false;return;}
  for(const vid of vids){
   statusEl.textContent=(completed+1)+' / '+vids.length+' を監査中…';
   try{
-   const qs=new URLSearchParams({action:'preview-profit-audit-single',vid,scenario:'1',feeRatePercent:'3.55',fixedFeeJpy:'0',platformFeeJpy:'0',adCostJpy:'0',returnReserveJpy:'0'});
+   const qs=new URLSearchParams({vid});
    const controller=new AbortController();
    const timeout=setTimeout(()=>controller.abort(),15000);
    let r,j;
    try{
-     r=await fetch('/api/diagnostics?'+qs.toString(),{cache:'no-store',signal:controller.signal});
+     r=await fetch('/api/cj-profit-audit?'+qs.toString(),{headers,cache:'no-store',signal:controller.signal});
      j=await r.json();
    }finally{
      clearTimeout(timeout);
    }
    const x=Array.isArray(j.rows)?j.rows[0]:null;
    const tr=document.createElement('tr');
-   if(!r.ok||!j.ok||!x){
-    tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="6">'+String(j.error||'監査失敗')+'</td>';
+   if(!r.ok||j.ok!==true||j.readOnly!==true||!x||x.ok!==true||x.sku!==vid||j.rows.length!==1){
+    blocked++;
+    tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="6">'+'監査失敗・確認が必要'+'</td>';
    }else{
     const tier=x.estimatedMarginTier;
     const auditStatus=String(x.estimatedAuditStatus||'');
@@ -61,6 +72,8 @@ async function run(){
       cls='pass';label='25% PASS';
     }else if(stockOk&&freightOk&&costOk&&auditStatus==='exception-review'&&[20,15].includes(tier)){
       cls='hold';label=tier+'% 要例外承認';
+    }else if(x.assumptionsReady===true&&tier===null){
+      cls='bad';label='利益率15%未満：候補除外';
     }else if(x.cjStockVerified===true&&x.stockCandidateEligible===true&&x.requiresFactoryReplenishment===true){
       cls='hold';label='工場取り寄せ・補充日数確認待ち';
     }else if(x.cjStockVerified===true&&Number(x.cjStockQuantity)<5){
@@ -81,6 +94,7 @@ async function run(){
    tbody.appendChild(tr);
   }catch(e){
    const tr=document.createElement('tr');
+   blocked++;
    const timeout=e&&e.name==='AbortError';
    tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">'+(timeout?'15秒超過':'通信失敗')+'</td><td colspan="6">'+(timeout?'この商品を保留して次の商品へ進みました':'再試行対象')+'</td>';
    tbody.appendChild(tr);
@@ -94,6 +108,6 @@ async function run(){
  document.getElementById('decision').textContent='運用判断：25% PASSは販売候補。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは補充日数確認まで販売保留。';
  btn.disabled=false;
 }
-btn.addEventListener('click',run);run();
+btn.addEventListener('click',run);
 </script>
 </main></body></html>

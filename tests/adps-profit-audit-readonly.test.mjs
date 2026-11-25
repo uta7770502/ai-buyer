@@ -77,3 +77,16 @@ test('server-issued evidence is bound to the current complete SKU set, branch, s
  assert.match(route,/variantLevelInventoryVerified&&item==='CJの販売バリエーション別実在庫dry-run'/);
  assert.doesNotMatch(route,/item==='CJ在庫→Shopify在庫同期のPreview実行'/);
 });
+
+test('batch audit loads the authenticated current draft catalog and uses saved cost assumptions',()=>{
+ const html=fs.readFileSync(new URL('../preview-profit-batch.html',import.meta.url),'utf8');
+ assert.match(source,/req\.query\?\.catalogOnly==='1'/);
+ assert.match(source,/new Set\(rows\.map\(r=>r\.sku\)\)\.size!==products\.length/);
+ assert.ok(source.indexOf('crypto.timingSafeEqual')<source.indexOf("req.query?.catalogOnly==='1'"));
+ assert.match(html,/catalogOnly=1/);
+ assert.match(html,/vids=j\.rows\.map\(x=>x\.sku\)/);
+ assert.match(html,/Authorization:'Bearer '\+key/);
+ assert.doesNotMatch(html,/const vids=\[/);
+ assert.doesNotMatch(html,/scenario:'1'|adCostJpy:'0'|returnReserveJpy:'0'/);
+ assert.match(html,/利益率15%未満：候補除外/);
+});
