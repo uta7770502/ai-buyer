@@ -401,18 +401,20 @@ async function previewLaunchAuditSummary(req,res){
     const freightRow=freightRows.find(x=>String(x?.vid||'')===vid);
     const stockEligible=stockRow?.launchEligible===true;
     const freightVerified=freightRow?.ok===true&&freightRow?.shippingVerified===true;
-    const margin=profitRow?.ok===true?Number(profitRow.contributionMarginPercent):null;
-    const marginVerified=margin!==null&&Number.isFinite(margin);
-    // Read-only per-SKU margin choices. 30% is default; lower thresholds require explicit selection.
-    const marginChoices=marginVerified?(margin>=30?[30]:margin>=25?[25]:margin>=20?[20]:[]):[];
-    const recommendedByMargin=marginVerified&&margin>=30;
-    const recommendationExcludedByMargin=marginVerified&&margin<20;
-    const requiresManualMarginOverride=marginChoices.length>0&&!recommendedByMargin;
-    const status=!stockEligible?'inventory_hold':!freightVerified?'freight_hold':!marginVerified?'cost_verification':margin<25?'margin_reprice':profitRow?.assumptionsReady!==true?'cost_assumptions_required':profitRow?.launchEconomicsEligible===true?'economics_pass':'final_profit_review';
-    return {sku:vid,status,stockEligible,freightVerified,contributionMarginPercent:marginVerified?margin:null,
-      targetMargin30Pass:marginVerified&&margin>=30,
-      marginChoices,defaultMinimumMarginPercent:30,recommendedByMargin,recommendationExcludedByMargin,requiresManualMarginOverride,
-      nextAction:status==='inventory_hold'?'monitor_inventory_and_find_replacement':status==='freight_hold'?'verify_japan_shipping':status==='cost_verification'?'verify_cj_cost':status==='margin_reprice'?'review_price_or_supplier':status==='cost_assumptions_required'?'set_verified_ad_and_return_costs':status==='final_profit_review'?'review_final_profit':'complete_prelaunch_safety_checks'};
+    const margin=profitRow?.ok===true&&typeof profitRow.finalMarginPercent==='number'&&Number.isFinite(profitRow.finalMarginPercent)?profitRow.finalMarginPercent:null;
+    const marginVerified=margin!==null&&profitRow.assumptionsReady===true;
+    // Use the exact server-computed net-margin tier, not a rounded percentage or contribution margin.
+    const tier=marginVerified&&[25,20].includes(profitRow.estimatedMarginTier)?profitRow.estimatedMarginTier:null;
+    const exceptionApproved=tier===20&&profitRow.marginExceptionApproved===true&&Boolean(profitRow.marginExceptionApprovalId);
+    const marginChoices=tier===25?[25]:tier===20?[20]:[];
+    const recommendedByMargin=marginVerified&&(tier===25||exceptionApproved);
+    const recommendationExcludedByMargin=marginVerified&&tier===null;
+    const requiresManualMarginOverride=tier===20&&!exceptionApproved;
+    const factoryCandidate=stockRow?.recommendationStockEligible===true&&stockRow?.requiresFactoryReplenishment===true;
+    const status=!stockEligible?'inventory_hold':!freightVerified?'freight_hold':profitRow?.assumptionsReady!==true?'cost_assumptions_required':!marginVerified?'cost_verification':recommendationExcludedByMargin||requiresManualMarginOverride?'margin_reprice':profitRow?.launchEconomicsEligible===true?'economics_pass':'final_profit_review';
+    return {sku:vid,status,stockEligible,factoryCandidate,freightVerified,finalMarginPercent:margin,contributionMarginPercent:profitRow?.contributionMarginPercent??null,
+      estimatedMarginTier:tier,marginExceptionApproved:exceptionApproved,marginChoices,defaultMinimumMarginPercent:25,recommendedByMargin,recommendationExcludedByMargin,requiresManualMarginOverride,estimateOnly:true,publicationApproved:false,
+      nextAction:status==='inventory_hold'?(factoryCandidate?'verify_factory_replenishment_lead_time':'monitor_inventory_and_find_replacement'):status==='freight_hold'?'verify_japan_shipping':status==='cost_verification'?'verify_cj_cost':status==='margin_reprice'?'review_price_or_supplier':status==='cost_assumptions_required'?'set_verified_ad_and_return_costs':status==='final_profit_review'?'review_final_profit':'complete_prelaunch_safety_checks'};
   });
   const skuSummary={
     total:skuMatrix.length,
@@ -442,12 +444,13 @@ async function previewLaunchAuditSummary(req,res){
     sku:String(x.sku||''),
     contributionMarginPercent:Number(x.contributionMarginPercent),
     targetMargin30Pass:Number(x.contributionMarginPercent)>=30,
-    candidateTier:Number(x.contributionMarginPercent)>=30?'priority':Number(x.contributionMarginPercent)>=25?'conditional':'excluded',
+    candidateTier:x.estimatedMarginTier===25?'priority':x.estimatedMarginTier===20?'conditional':'excluded',
+    finalMarginPercent:x.finalMarginPercent??null,estimateOnly:true,
     maxCombinedAdsReturnsForPositiveProfitJpy:Number(x.maxCombinedAdsReturnsForPositiveProfitJpy),
     maxCombinedAdsReturnsForFivePercentNetJpy:Number(x.maxCombinedAdsReturnsForFivePercentNetJpy),
     assumptionsReady:x.assumptionsReady===true,
     requiredCostMetafieldsMissing:[...(x.plannedAdCostPerOrderJpy===null?['custom.ad_cost_per_order_jpy']:[]),...(x.returnReservePerOrderJpy===null?['custom.return_reserve_per_order_jpy']:[])],
-    saleReady:x.assumptionsReady===true&&Number(x.finalProfitJpy)>0&&Number(x.contributionMarginPercent)>=25,
+    saleReady:x.launchEconomicsEligible===true&&x.finalProfitVerified===true,
     readinessBlockers:[
       ...(Number(x.contributionMarginPercent)<25?['CONTRIBUTION_MARGIN_BELOW_25_PERCENT']:[]),
       ...(x.plannedAdCostPerOrderJpy===null?['AD_COST_UNSET']:[]),
@@ -465,7 +468,7 @@ async function previewLaunchAuditSummary(req,res){
   const nextActions=[];
   if(missingSkus.length||unexpectedSkus.length||duplicateSkus.freight||duplicateSkus.stock||duplicateSkus.profit)nextActions.push('監査対象SKUの不整合を解消');
   if(skuSummary.freightBlocked>0)nextActions.push('送料未確認SKUを再取得');
-  if(skuSummary.stockBlocked>0)nextActions.push('在庫5未満SKUを販売候補から外し代替候補を補充');
+  if(skuSummary.stockBlocked>0)nextActions.push('即納在庫5未満SKUの工場補充可否を確認し、補充不可の商品は代替候補を補充');
   if(profitDiagnosis.assumptionsMissing>0)nextActions.push('広告費・返品引当の未設定を確認');
   if(profitDiagnosis.belowContributionFloor>0)nextActions.push('限界利益率25%未満SKUの価格・仕入原価を見直す');
   if(profitDiagnosis.finalProfitNonPositive>0)nextActions.push('最終利益が黒字でないSKUの広告費・価格を見直す');
