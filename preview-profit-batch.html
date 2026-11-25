@@ -26,7 +26,7 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 <div class="card" style="overflow:auto">
 <table><thead><tr><th>商品／SKU</th><th>利益判定</th><th>在庫判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
-<div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補のみを抽出します。CJへの問い合わせ用英文です。送信・販売承認は行いません。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
+<div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補を保持します。発送準備3〜7営業日は店舗の運用目安で、CJのSKU別保証ではありません。例外・遅延時のみ必要に応じて問い合わせ文を使用してください。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
 <div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
 <script>
 
@@ -91,7 +91,7 @@ async function run(){
     else if(costReady&&tier===15){label=x.marginExceptionApproved===true?'15% 承認記録あり':'15% 要例外承認';exception15++;}
     else if(costReady&&tier===null){cls='bad';label='利益率15%未満：候補除外';excluded++;}
     else unknown++;
-    const stockLabel=stockOk?'CJ倉庫在庫あり':x.cjStockVerified===true&&x.stockCandidateEligible===true&&x.requiresFactoryReplenishment===true?'工場取り寄せ・補充日数確認待ち':x.cjStockVerified===true?'在庫不足':'在庫未確認';
+    const stockLabel=stockOk?'CJ倉庫在庫あり':x.cjStockVerified===true&&x.stockCandidateEligible===true&&x.requiresFactoryReplenishment===true?'工場取り寄せ候補・発送準備3〜7営業日目安':x.cjStockVerified===true?'在庫不足':'在庫未確認';
     if(!stockOk)stockHold++;
     const p=x.requiredSalePriceByMargin||{};
     const values=[x.title||vid,label,stockLabel,String(x.cjStockQuantity??'—')+' / '+String(x.factoryStockQuantity??'—'),yen(x.salePriceJpy),yen(x.productCostJpy),yen(x.cjFreightJpy),Number.isFinite(x.finalMarginPercent)?x.finalMarginPercent+'%':'—',yen(p['25'])+' / '+yen(p['20'])+' / '+yen(p['15'])];
@@ -111,7 +111,7 @@ async function run(){
  }
  statusEl.textContent='完了：'+completed+' / '+vids.length;
  document.getElementById('summary').textContent='利益判定：25%以上 '+pass+'件 / 20%例外 '+exception20+'件 / 15%例外 '+exception15+'件 / 15%未満 '+excluded+'件 / 未確認 '+unknown+'件。別集計：在庫・納期保留 '+stockHold+'件（取得成功行）';
- document.getElementById('decision').textContent='運用判断：25% PASSは利益試算の条件達成のみ。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは補充日数確認まで販売保留。';
+ document.getElementById('decision').textContent='運用判断：25% PASSは利益試算の条件達成のみ。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは候補として保持し、発送準備3〜7営業日を目安に管理。即納在庫には加算せず、公開は別審査。';
  inquiry.value=buildFactoryInquiry(successfulRows);inquiryCard.hidden=!inquiry.value;
  setBusy(false);
 }

@@ -432,7 +432,7 @@ function oddlyFactoryStockBadge(p){
  const cj=Number(p.cjStockQuantity??p.cjInventoryNum),factory=Number(p.factoryStockQuantity??p.factoryInventoryNum);
  if(!Number.isSafeInteger(cj)||cj<0||!Number.isSafeInteger(factory)||factory<=0)return '';
  if(!oddlyFactoryOrderState(p))return '';
- return '<div class="tiny" role="status" style="margin:6px 0;padding:6px 8px;border:1px solid #c78b32;border-radius:7px;background:#fff5df;color:#704300;font-weight:700">工場取り寄せ｜工場在庫 '+factory+'個｜発送まで追加日数の可能性あり（納期未確定）</div>';
+ return '<div class="tiny" role="status" style="margin:6px 0;padding:6px 8px;border:1px solid #c78b32;border-radius:7px;background:#fff5df;color:#704300;font-weight:700">工場取り寄せ｜工場在庫 '+factory+'個｜発送準備3〜7営業日目安（個別納期保証なし）</div>';
 }
 function recommendationCard(p,rank){
  const m=metrics(p),cls=m.score>=90?'good':m.score>=80?'mid':'',listed=Number(p.listedNum||0);
@@ -777,7 +777,7 @@ async function inspectDiscoveryVariantStock(pool){
    p.variantInventoryVerifiedAt=String(stock.verifiedAt||'');
    p.verifiedVariantId=vid;
    p.discoveryStockLabel='CJ在庫 '+stock.verifiedInventory+'件（'+(stock.launchEligible?'在庫基準達成':'在庫不足')+'）';p.stockDiagnosticCode=stock.launchEligible===true?'STOCK_OK':'STOCK_BELOW_FLOOR';p.stockDiagnosticDetail=String(stock.verifiedInventory);
-   if(factoryCandidate(stock)){p.discoveryStockLabel='工場取り寄せ候補：CJ倉庫 '+stock.verifiedInventory+'件／工場 '+stock.factoryStockQuantity+'件（補充日数未確認）';p.stockDiagnosticCode='FACTORY_REPLENISHMENT_CANDIDATE';}
+   if(factoryCandidate(stock)){p.discoveryStockLabel='工場取り寄せ候補：CJ倉庫 '+stock.verifiedInventory+'件／工場 '+stock.factoryStockQuantity+'件（発送準備3〜7営業日目安・保証なし）';p.stockDiagnosticCode='FACTORY_REPLENISHMENT_CANDIDATE';}
    if((stock.launchEligible===true&&stock.verifiedInventory>=SAFE_DISCOVERY_MIN_VERIFIED_INVENTORY)||factoryCandidate(stock)){
     p.discoveryFreightLabel='送料未確認';
     try{
@@ -1047,7 +1047,7 @@ function excludeLowStockCandidateAndRefill(x){
     cancelAutoPreparationRetry(x.id);
     x.autoSetupState='needs_review';
     x.autoSetupLastError='factory_order_lead_time_unverified';
-    x.autoSetupMessage='工場取り寄せ：工場在庫あり。補充日数の確認待ち（Shopify登録保留）';
+    x.autoSetupMessage='工場取り寄せ：候補を保持。発送準備3〜7営業日目安（即納在庫への加算なし）';
     save();renderAll();renderToday();return true;
   }
   cancelAutoPreparationRetry(x.id);
@@ -3242,7 +3242,7 @@ async function autoPrepareSelectedProduct(x,attempt=0){
     cancelAutoPreparationRetry(x.id);
     x.autoSetupState='needs_review';
     x.autoSetupLastError='factory_order_lead_time_unverified';
-    x.autoSetupMessage='工場取り寄せを選択済み。補充日数・送料の確認後にShopify下書き登録できます';
+    x.autoSetupMessage='工場取り寄せ候補を保持。発送準備3〜7営業日目安。即納在庫への加算・公開は保留';
     save();renderAll();return;
   }
   if(Number(x.autoSetupAttempts||0)>=3&&attempt>0)return;

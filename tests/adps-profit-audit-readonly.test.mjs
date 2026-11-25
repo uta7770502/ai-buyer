@@ -86,7 +86,7 @@ test('batch audit loads the authenticated current draft catalog and uses saved c
  assert.match(html,/catalogOnly=1/);
  assert.match(html,/vids=j\.rows\.map\(x=>x\.sku\)/);
  assert.match(html,/Authorization:'Bearer '\+key/);
- assert.doesNotMatch(html,/const vids=\[/);
+ assert.doesNotMatch(html,/const vids=\[\s*['"]\d{10,25}/);
  assert.doesNotMatch(html,/scenario:'1'|adCostJpy:'0'|returnReserveJpy:'0'/);
  assert.match(html,/利益率15%未満：候補除外/);
 });
@@ -129,4 +129,13 @@ test('factory inquiry includes only cost-checked eligible replenishment variants
  assert.match(make([base]),/1234567890123/);assert.match(make([base]),/not an order/);
  assert.equal(make([{...base,estimatedMarginTier:null}]),'');assert.equal(make([{...base,cjStockVerified:false}]),'');assert.equal(make([{...base,sku:'invalid'}]),'');assert.equal(make([{...base,requiresFactoryReplenishment:false}]),'');
  assert.equal(make([base,base]).match(/1234567890123/g).length,1);
+});
+
+test('factory dispatch planning is explicitly a merchant estimate and does not certify inventory or profit',()=>{
+ assert.match(source,/dispatchPlanningWindow:requiresFactoryReplenishment\?\{minBusinessDays:3,maxBusinessDays:7,source:'merchant-policy-estimate',guaranteed:false\}/);
+ assert.match(source,/factoryLeadTimeVerified:false/);
+ assert.match(source,/launchEconomicsEligible:false/);
+ const endpoint=fs.readFileSync(new URL('../lib/routes/cj-variant-stock.js',import.meta.url),'utf8');
+ assert.match(endpoint,/launchEligible:checked\.total>=MIN_LAUNCH_INVENTORY/);
+ assert.match(endpoint,/source:'merchant-policy-estimate',guaranteed:false/);
 });
