@@ -111,3 +111,12 @@ test('batch page accepts a masked administrator key directly, verifies it before
  assert.doesNotMatch(html,/localStorage\./);
  assert.match(html,/setBusy\(false\)/);
 });
+
+test('profit batch counts margin tiers independently from factory replenishment hold',()=>{
+ const html=fs.readFileSync(new URL('../preview-profit-batch.html',import.meta.url),'utf8');
+ assert.match(html,/costReady&&tier===20/);
+ assert.match(html,/costReady&&tier===15/);
+ assert.match(html,/if\(!stockOk\)stockHold\+\+/);
+ assert.match(html,/別集計：在庫・納期保留/);
+ assert.match(html,/td\.textContent=values\[i\]/);
+});
