@@ -28,3 +28,13 @@ test('discovery does not trust a server launch flag without sufficient verified 
  assert.match(code,/\|\|factoryCandidate\(stock\)\)\{/);
  assert.match(code,/p\.discoveryProfitChecked=false/);
  });
+
+test('unverified search inventory of zero must not preclude factory stock inspection',()=>{
+ const a=html.indexOf('function catalogRisk(p)');const b=html.indexOf('function recommendationReviewReady(',a);
+ assert.ok(a>=0&&b>a);
+ const classify=Function('recommendationReviewReady','oddlyFactoryOrderState',html.slice(a,b)+';return catalogRisk;')(()=>true,()=>false);
+ assert.equal(classify({verifiedInventory:0,inventory:0,variantInventoryVerified:false,saleStatus:'3'}).exclude,false);
+ assert.equal(classify({verifiedInventory:0,inventory:0,variantInventoryVerified:true,saleStatus:'3'}).exclude,true);
+ assert.equal(classify({verifiedInventory:0,variantInventoryVerified:false,saleStatus:'2'}).exclude,true);
+ assert.equal(classify({verifiedInventory:0,variantInventoryVerified:false,complaintRisk:{level:'high',exclude:true}}).exclude,true);
+});
