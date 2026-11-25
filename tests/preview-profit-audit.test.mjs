@@ -88,7 +88,7 @@ test('consolidated launch audit requires the same CJ SKU to pass freight stock a
 });
 
 
-test('consolidated launch audit fails closed when any of the nine managed CJ SKUs is missing from an audit',()=>{
+test('consolidated launch audit fails closed when any of the managed CJ SKUs is missing from an audit',()=>{
  const source=fs.readFileSync(new URL('../api/diagnostics.js',import.meta.url),'utf8');
  const start=source.indexOf('async function previewLaunchAuditSummary');
  const end=source.indexOf('function deploymentInfo',start);
@@ -324,13 +324,13 @@ test('consolidated preview audit exposes exactly the managed CJ variant IDs for 
  assert.match(source,/catalogCoverage:\{expected:expectedSkus\.length,expectedSkus,missingSkus,unexpectedSkus,duplicateSkus\}/);
 });
 
-test('manual preview audit validates all nine unique CJ variants and their warehouse/factory stock',()=>{
+test('manual preview audit validates all managed unique CJ variants and their warehouse/factory stock',()=>{
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
  assert.match(wf,/Verify variant stock endpoint safety/);
  assert.match(wf,/id: variant_stock/);
  assert.match(wf,/catalogCoverage\?\.expectedSkus/);
- assert.match(wf,/skus\.length!==9/);
- assert.match(wf,/new Set\(skus\.map\(String\)\)\.size!==9/);
+ assert.match(wf,/skus\.length!==audit\.catalogCoverage\.expected/);
+ assert.match(wf,/new Set\(skus\.map\(String\)\)\.size!==skus\.length/);
  assert.match(wf,/for\(const vid of ids\)/);
  assert.match(wf,/api\/cj-variant-stock/);
  assert.match(wf,/stock\.readOnly!==true/);
@@ -339,7 +339,7 @@ test('manual preview audit validates all nine unique CJ variants and their wareh
  assert.match(wf,/steps\.variant_stock\.outcome/);
 });
 
-test('manual preview audit persists nine per-variant stock results into the launch artifact',()=>{
+test('manual preview audit persists managed per-variant stock results into the launch artifact',()=>{
  const wf=fs.readFileSync(new URL('../.github/workflows/cj-preview-smoke.yml',import.meta.url),'utf8');
  assert.match(wf,/variantStockSmoke=\{/);
  assert.match(wf,/checked:results\.length/);
