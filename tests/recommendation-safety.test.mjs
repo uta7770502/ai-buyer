@@ -94,10 +94,10 @@ test('discovery allows factory-stock candidates but verified inventory is still 
 });
 
 
-test('automatic pricing uses target 30 percent net margin while launch retains its contribution gate',()=>{
+test('automatic pricing uses target 25 percent net margin while launch retains its contribution gate',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/SAFE_MIN_CONTRIBUTION_MARGIN_PERCENT=25/);
-  assert.match(html,/targetMarginPercent=30/);
+  assert.match(html,/targetMarginPercent=25/);
   assert.match(html,/calculateTargetSalePrice\(/);
   assert.match(html,/priceEstimateOnly=true/);
   assert.match(html,/限界利益率が商品別の基準未満/);
@@ -299,13 +299,13 @@ test('recommendation preview reconciles matching CJ SKU quotes and remains non-p
  assert.match(html,/販売候補への追加・公開はできません/);
 });
 
-test('discovery shows all three provisional margin tiers while keeping publication blocked',()=>{
+test('discovery shows standard and exception provisional margin tiers while keeping publication blocked',()=>{
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
  const start=html.indexOf('async function inspectDiscoveryVariantStock');
  const end=html.indexOf('function renderDiscoveryPreview',start);
  const block=html.slice(start,end);
- assert.match(block,/\[30,25,20\]\.map\(targetMarginPercent/);
+ assert.match(block,/\[25,20\]\.map\(targetMarginPercent/);
  assert.match(block,/決済手数料4\.5%・広告費・返品引当は仮定/);
- assert.match(block,/25%・20%は商品別承認が必要。本番公開不可/);
+ assert.match(block,/20%は商品別サーバー承認が必要。本番公開不可/);
  assert.match(html,/販売候補への追加・公開はできません/);
 });
