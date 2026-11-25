@@ -2767,12 +2767,11 @@ function oddlyShopifyJapaneseTitle(p){
  return raw;
 }
 function shopifyDescription(p){
-  const name=esc(p.name||'商品'),category=esc(p.category||''),price=Number(p.price||0),shipping=Number(p.shippingJpy);
-  const returnDays=Number(p.returnDays||0);
+  const name=esc(p.name||'商品'),category=esc(p.category||''),price=Number(p.price||0);
   const audience=esc(p.adpsAudience||p.audience||'日常を少し便利にしたい方');
   const lead=category?category+'カテゴリから選定した商品です。':'ADPSが価格・需要・販売実績を確認して選定した商品です。';
-  const shipText=Number.isFinite(shipping)&&shipping>=0?'送料目安: '+yen(shipping):'送料は注文時の条件をご確認ください。';
-  const returnText=returnDays>0?'返品目安: '+returnDays+'日以内（商品状態・ストア条件により異なります）':'返品条件はストアポリシーをご確認ください。';
+  const shipText='配送料は配送先とご注文内容に応じて、ご注文確定前に表示されます。';
+  const returnText='返品条件はストアポリシーをご確認ください。';
   return '<h2>'+name+'</h2><p>'+esc(lead)+'</p><h3>こんな方におすすめ</h3><p>'+audience+'</p><h3>選ばれるポイント</h3><ul><li>価格と仕入条件を確認して選定</li><li>商品画像・掲載実績を確認</li><li>在庫・価格・配送状況を継続監視</li></ul><h3>ご購入前に</h3><p>'+esc(shipText)+'</p><p>'+esc(returnText)+'</p>'+(price>0?'<p>販売価格: '+yen(price)+'</p>':'')+'<p>ご注文後、仕入先の在庫・価格・配送状況を確認して手配します。</p>';
 }
 function storefrontJaTitle(x){
