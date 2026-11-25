@@ -103,3 +103,30 @@ for(const [failure,reason] of [
  assert.ok(body.blockers.includes(reason));
  assert.ok(!JSON.stringify(body).includes('private-service-error'));
 });
+
+test('internal legal fields do not certify Shopify policy registration',async()=>{
+ const base=services();
+ const {body}=await run(launchEnv,async()=>null,async(url,options={})=>{
+  const query=JSON.parse(options.body||'{}').query||'';
+  if(query.includes('ReadinessShopPolicies'))return {ok:true,json:async()=>({data:{shop:{name:'ODDLY',shopPolicies:[{type:'PRIVACY_POLICY',body:'<p>Privacy information</p>'},{type:'REFUND_POLICY',body:'<p>&nbsp;</p>'}]}}})};
+  return base(url,options);
+ });
+ assert.equal(body.legalReady,true);
+ assert.equal(body.shopifyPolicyAudit.verified,true);
+ assert.equal(body.shopifyPolicyAudit.storeNameMatches,true);
+ assert.deepEqual(body.shopifyPolicyAudit.registeredTypes,['PRIVACY_POLICY']);
+ assert.deepEqual(body.shopifyPolicyAudit.missingTypes,['REFUND_POLICY','SHIPPING_POLICY','TERMS_OF_SERVICE']);
+ assert.ok(body.remainingLiveVerification.includes('Shopifyポリシー未登録：REFUND_POLICY'));
+ assert.equal(body.readyForLive,false);
+});
+test('policy query error remains unknown and is not reported as missing registration',async()=>{
+ const base=services();
+ const {body}=await run(launchEnv,async()=>null,async(url,options={})=>{
+  const query=JSON.parse(options.body||'{}').query||'';
+  if(query.includes('ReadinessShopPolicies'))return {ok:true,json:async()=>({errors:[{message:'access denied'}]})};
+  return base(url,options);
+ });
+ assert.equal(body.shopifyPolicyAudit.verified,false);
+ assert.deepEqual(body.shopifyPolicyAudit.missingTypes,[]);
+ assert.ok(body.remainingLiveVerification.includes('Shopifyポリシーの実環境確認'));
+});
