@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import handler from '../lib/routes/cj-shopify-stock-sync.js';
+import handler,{verifyStockReadback} from '../lib/routes/cj-shopify-stock-sync.js';
 import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
 async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
@@ -130,4 +130,12 @@ test('transient CJ network error retries only the failed SKU and restores full e
  assert.equal(res.body.syncPlan.ready,true);
  assert.ok(verifyStockEvidence(res.body.stockEvidence,res.body.rows.map(row=>row.vid)));
  assert.ok(!events.includes('write'));
+});
+
+test('inventory readback accepts only exact location and quantity for every unique target',()=>{
+ const target={inventoryItemId:'gid://shopify/InventoryItem/1',locationId:'gid://shopify/Location/1',quantity:5};
+ const node={id:target.inventoryItemId,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:target.locationId},quantities:[{name:'available',quantity:5}]}]}};
+ assert.equal(verifyStockReadback([target],[node]),true);
+ for(const bad of [[],[null],[{...node,id:'wrong'}],[{...node,inventoryLevels:{...node.inventoryLevels,pageInfo:{hasNextPage:true}}}],[{...node,inventoryLevels:{...node.inventoryLevels,nodes:[{location:{id:target.locationId},quantities:[{name:'available',quantity:4}]}]}}]])assert.equal(verifyStockReadback([target],bad),false);
+ assert.equal(verifyStockReadback([target,target],[node,node]),false);
 });
