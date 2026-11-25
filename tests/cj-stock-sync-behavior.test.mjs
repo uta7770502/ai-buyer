@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../lib/routes/cj-shopify-stock-sync.js';
+import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
 async function run(t,{failure=false,throws=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
-  const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify'};
+  const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'safety-gate-20261024',SHOPIFY_TOKEN_ENCRYPTION_KEY:'ab'.repeat(32)};
   for(const [k,v] of Object.entries(env)){const old=process.env[k];process.env[k]=v;t.after(()=>old===undefined?delete process.env[k]:process.env[k]=old);}
   t.mock.method(globalThis,'setTimeout',fn=>{fn();return 0;});
   const events=[];let input;
@@ -64,4 +65,17 @@ for(const dry of [true,false])for(const tracking of ['disabled','missing'])test(
  assert.equal(res.code,409);assert.equal(res.body.ok,false);assert.equal(res.body.readOnly,true);
  assert.equal(res.body.code,'INVENTORY_TRACKING_REQUIRED');assert.equal(res.body.blockedVariants,1);
  assert.deepEqual(events,['read']);
+});
+
+test('complete dry-run issues reusable signed SKU evidence without an inventory write',async t=>{
+ const {res,events}=await run(t,{dry:true});
+ assert.equal(res.body.readOnly,true);
+ assert.equal(res.body.allVerified,true);
+ assert.ok(verifyStockEvidence(res.body.stockEvidence,res.body.rows.map(row=>row.vid)));
+ assert.equal(verifyStockEvidence(res.body.stockEvidence,[res.body.rows[0].vid]),false);
+ assert.ok(!events.includes('write'));
+});
+test('incomplete dry-run cannot issue stock evidence',async t=>{
+ const {res}=await run(t,{dry:true,failure:true});
+ assert.equal(res.body.stockEvidence,null);
 });
