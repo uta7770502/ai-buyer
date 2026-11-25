@@ -37,3 +37,12 @@ test('CJ dispute amount is distinct from supplier refund and never substituted f
   assert.equal(r.ok,true);assert.equal(r.reportedSupplierRefundUSD,amount);assert.equal(r.requestedDisputeUSD,12.5);assert.equal(r.customerRefundAuthorized,false);
  }
 });
+
+test('supplier dispute must match linked CJ sandbox order references',async()=>{
+ const {matchesLinkedDispute}=await import('../lib/routes/shopify-return-audit.js');
+ const id='SH123456',linked=data=>({id:'J123456',data});
+ assert.equal(matchesLinkedDispute(linked({disputeId:id,disputeOpenedId:id}),id),true);
+ assert.equal(matchesLinkedDispute(linked({disputeId:id}),id),true);
+ for(const d of [{},{disputeId:'SH654321'},{disputeId:id,disputeOpenedId:'SH654321'}])assert.equal(matchesLinkedDispute(linked(d),id),false);
+ assert.equal(matchesLinkedDispute(null,id),false);
+});
