@@ -428,3 +428,20 @@ test('prelaunch audit prioritizes blockers, counts all issues and rejects duplic
  assert.match(audit,/totalIssues:auditRows\.reduce\(/);
  assert.match(one,/totalIssues:Number\(audit\.body\?\.totalIssues\|\|0\)/);
 });
+
+
+test('admin UI distinguishes configured legal data from actual shop settings and reports factory stock even without differences',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const readiness=html.slice(html.indexOf('async function checkReleaseReadiness(){'),html.indexOf('async function checkConnection(){'));
+ assert.match(readiness,/ADPS法務入力済/);
+ assert.match(readiness,/shopifyPolicyAudit/);
+ assert.match(readiness,/shopifyDeliveryAudit/);
+ assert.match(readiness,/shopifyMarketsAudit/);
+ assert.doesNotMatch(readiness,/公開直前READY/);
+ const stock=html.slice(html.indexOf('async function runAdminStockDryRun(){'),html.indexOf('function getTestAdminKey(){'));
+ const candidate=stock.indexOf('row.factoryReplenishmentRequired===true');
+ const difference=stock.indexOf('row.shopifyStock!==row.cjStock');
+ assert.ok(candidate>=0&&difference>candidate);
+ assert.match(stock,/補充日数未確認/);
+ assert.match(stock,/利益・安全審査は別途/);
+});
