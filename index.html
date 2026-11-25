@@ -153,15 +153,15 @@ button,input,select{font-family:inherit}button{touch-action:manipulation}
   </div>
   <button id="oneActionPrelaunchBtn" class="autoBtn" onclick="runOneActionPrelaunch()">ワンアクションで公開直前まで</button>
   <div style="margin-top:10px;border-top:1px solid #ddd;padding-top:10px">
-    <b>返品受付7日間（下書き9商品）</b>
+    <b>返品受付7日間（現在の下書き商品）</b>
     <div class="tiny">先に変更前確認を実施します。公開状態は変更しません。</div>
-    <button class="ghost" id="returnDaysPreviewBtn" onclick="previewReturnDaysBulk()">9商品の設定を確認</button>
+    <button class="ghost" id="returnDaysPreviewBtn" onclick="previewReturnDaysBulk()">下書き商品の設定を確認</button>
     <button class="ghost" id="returnDaysApplyBtn" onclick="applyReturnDaysBulk()" disabled>確認後に7日を一括設定</button>
     <div class="tiny" id="returnDaysBulkStatus" style="margin-top:6px">未確認</div>
   </div>
   <div style="margin-top:10px;border-top:1px solid #ddd;padding-top:10px">
-<b>下書き9商品の広告費・返品引当</b><div class="tiny">1注文あたりの想定額（円）。既存値は上書きしません。利益確定や広告開始は行いません。</div>
-<button class="ghost" onclick="previewDraftCosts()">9商品の費用設定を確認</button>
+<b>下書き商品の広告費・返品引当</b><div class="tiny">1注文あたりの想定額（円）。既存値は上書きしません。利益確定や広告開始は行いません。</div>
+<button class="ghost" onclick="previewDraftCosts()">下書き商品の費用設定を確認</button>
 <div id="draftCostRows" class="tiny"></div><div class="settingsGrid"><label>想定広告費率（%）<input id="draftAdRate" type="number" min="0" max="99" step="1"></label><label>想定返品引当率（%）<input id="draftReturnRate" type="number" min="0" max="99" step="1"></label></div><button class="ghost" onclick="previewDraftCostScenario()">商品別費用を自動試算（保存なし）</button><div id="draftCostScenarioResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div><button class="ghost" id="draftScenarioSave" disabled onclick="saveDraftCostScenario()">試算した商品別費用を保存</button><div style="margin-top:10px;border-top:1px solid #ddd;padding-top:10px"><b>決済手数料の想定値</b><div class="tiny">Shopify Payments利用を想定した試算値です。実決済手数料の確定値ではありません。</div><div class="settingsGrid"><label>決済手数料率（%）<input id="paymentFeeRateAssumption" type="number" min="0" max="69.99" step="0.01" value="3.55"></label><label>固定手数料（円）<input id="paymentFixedFeeAssumption" type="number" min="0" max="1000000" step="1" value="0"></label></div><label>プラットフォーム手数料（円）<input id="platformFeeAssumption" type="number" min="0" max="1000000" step="1" value="0"></label><button class="ghost" onclick="previewPaymentFeeAssumptions()">決済手数料設定を確認</button><button class="ghost" id="paymentFeeSaveBtn" disabled onclick="savePaymentFeeAssumptions()">想定値を保存</button><div id="paymentFeeStatus" class="tiny"></div></div><button class="ghost" onclick="runDraftMarginAudit()">保存済み費用で利益率を再判定（変更なし）</button><div id="draftMarginAuditResult" class="tiny" style="white-space:pre-wrap;overflow-wrap:anywhere"></div>
 <label>広告費（円）<input id="draftAdCost" type="number" min="0" max="100000000" step="1"></label>
 <label>返品引当（円）<input id="draftReturnReserve" type="number" min="0" max="100000000" step="1"></label>
@@ -2364,6 +2364,7 @@ async function saveLegalAdminForm(){
 }
 
 
+function completeDraftPreview(j){return j?.readOnly===true&&Number.isSafeInteger(j.targetCount)&&j.targetCount>=1&&j.targetCount<=100&&Array.isArray(j.products)&&j.products.length===j.targetCount&&j.products.every(p=>p&&/^gid:\/\/shopify\/Product\/\d+$/.test(String(p.id||'')))&&new Set(j.products.map(p=>p.id)).size===j.targetCount;}
 let returnDaysBulkPreview=null;
 let draftCostPreview=null;
 async function draftCostRequest(body){
@@ -2381,7 +2382,7 @@ async function previewDraftCostScenario(){
  out.textContent='試算中…';
  try{
  const j=await draftCostRequest({costScenario:true,adRatePercent:Number(a),returnRatePercent:Number(b)});
- if(j.readOnly!==true||j.estimated!==true||j.targetCount!==9||!Array.isArray(j.products)||j.products.length!==9)throw Error('試算結果が不完全です');
+ if(!completeDraftPreview(j)||j.estimated!==true)throw Error('試算結果が不完全です');
  draftScenario=j;document.getElementById('draftScenarioSave').disabled=!j.products.some(p=>p.existingAdCostJpy===null||p.existingReturnReserveJpy===null);
  out.textContent=j.products.map(p=>p.title+'：販売価格 '+p.priceJpy+'円／広告 '+p.proposedAdCostJpy+'円／返品 '+p.proposedReturnReserveJpy+'円').join('\n')+'\n想定値のみ・保存なし・利益未確定';
  }catch(e){out.textContent=String(e.message||e)}
@@ -2438,7 +2439,7 @@ async function previewDraftCosts(){
  draftCostPreview=null;btn.disabled=true;status.textContent='確認中…';
  try{
  const j=await draftCostRequest({costPreview:true});
- if(j.readOnly!==true||j.targetCount!==9||!Array.isArray(j.products)||j.products.length!==9||new Set(j.products.map(p=>p.id)).size!==9)throw Error('対象9商品の確認が不完全です');
+ if(!completeDraftPreview(j))throw Error('対象下書き商品の確認が不完全です');
  draftCostPreview=j.products;
  document.getElementById('draftCostRows').textContent=j.products.map(p=>p.title+'：広告 '+(p.adCostJpy??'未設定')+'円／返品 '+(p.returnReserveJpy??'未設定')+'円').join(' ｜ ');
  btn.disabled=!j.products.some(p=>p.adCostJpy===null||p.returnReserveJpy===null);
@@ -2463,7 +2464,7 @@ async function returnDaysBulkRequest(apply){
   const r=await fetch('/api/prelaunch-return-days-bulk',{
     method:'POST',
     headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-    body:JSON.stringify(apply?{apply:true,confirmation:'SET_9_DRAFT_RETURNS_TO_7'}:{apply:false})
+    body:JSON.stringify(apply?{apply:true,confirmation:'SET_CURRENT_DRAFT_RETURNS_TO_7',productIds:returnDaysBulkPreview.products.map(p=>p.id)}:{apply:false})
   });
   const data=await r.json();
   if(!r.ok||data.ok!==true)throw Error(data.error||'Shopify設定確認に失敗しました');
@@ -2474,13 +2475,13 @@ async function previewReturnDaysBulk(){
   const button=document.getElementById('returnDaysApplyBtn');
   returnDaysBulkPreview=null;
   if(button)button.disabled=true;
-  if(status)status.textContent='Shopify下書き9商品を確認中…';
+  if(status)status.textContent='Shopify下書き商品を確認中…';
   try{
     const data=await returnDaysBulkRequest(false);
-    if(data.readOnly!==true||data.targetCount!==9||!Array.isArray(data.products)||data.products.length!==9)throw Error('9商品の確認が不完全です');
-    const conflicts=data.products.filter(p=>p.previousDays!==null&&p.previousDays!==''&&p.previousDays!=='7');
+    if(!completeDraftPreview(data))throw Error('下書き商品の確認が不完全です');
+    const conflicts=data.products.filter(p=>p.previousDays!==null&&p.previousDays!=='7');
     returnDaysBulkPreview=conflicts.length===0?data:null;
-    if(status)status.textContent=conflicts.length?'既存の返品日数が異なる商品があります。変更を停止しました。':data.changeCount===0?'確認完了：下書き9商品すべて返品受付7日間に設定済みです':'確認完了：9件中'+data.changeCount+'件を7日間に設定できます';
+    if(status)status.textContent=conflicts.length?'既存の返品日数が異なる商品があります。変更を停止しました。':data.changeCount===0?'確認完了：下書き'+data.targetCount+'商品すべて返品受付7日間に設定済みです':'確認完了：'+data.targetCount+'件中'+data.changeCount+'件を7日間に設定できます';
     if(!conflicts.length&&data.changeCount===0){
       const legalDays=document.getElementById('legalReturnDays');
       if(legalDays&&!String(legalDays.value||'').trim()){
@@ -2494,8 +2495,8 @@ async function previewReturnDaysBulk(){
 async function applyReturnDaysBulk(){
   const status=document.getElementById('returnDaysBulkStatus');
   const button=document.getElementById('returnDaysApplyBtn');
-  if(!returnDaysBulkPreview||returnDaysBulkPreview.targetCount!==9)return;
-  if(!window.confirm('Shopify下書き9商品の返品受付日数を7日に設定します。商品公開は行いません。続行しますか？'))return;
+  if(!completeDraftPreview(returnDaysBulkPreview))return;
+  if(!window.confirm('確認済みのShopify下書き'+returnDaysBulkPreview.targetCount+'商品の未設定返品日数を7日に設定します。商品公開は行いません。続行しますか？'))return;
   if(button)button.disabled=true;
   try{
     const result=await returnDaysBulkRequest(true);
