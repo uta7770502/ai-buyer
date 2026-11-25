@@ -147,6 +147,9 @@ async function runStockAndReady(){
   const data=await response.json();
   if(response.status===401||response.status===403){try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者認証に失敗しました。';}
   lines.push('在庫監査 HTTP '+response.status);
+  if(data.diagnosticStage)lines.push('診断段階：'+String(data.diagnosticStage));
+  if(typeof data.detail==='string'&&/^SHOPIFY_GRAPHQL_[A-Z_]+_HTTP_\d{3}$/.test(data.detail))lines.push('Shopify診断：'+data.detail);
+  if(Array.isArray(data.productQueryProbes))for(const probe of data.productQueryProbes)lines.push('項目別検査：'+String(probe.name)+' / '+(probe.ok===true?'PASS':String(probe.code||'FAIL')));
   if(Array.isArray(data.rows)){
    for(const row of data.rows){
     lines.push(String(row.title||row.vid||'商品')+'：'+(row.ok===true?'CJ倉庫 '+String(row.cjStock??'未確認')+' / 工場 '+String(row.factoryStock??'未確認')+' / Shopify '+String(row.shopifyStock??'未確認'):String(row.reason||'未確認')));
