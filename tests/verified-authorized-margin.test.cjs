@@ -2,25 +2,25 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { verifiedAuthorizedMargin } = require('../lib/verified-authorized-margin.cjs');
-const base = {sku:'ODDLY-001',salePriceJpy:10000,productCostJpy:5000,
+const base = {sku:'ODDLY-001',salePriceJpy:10000,productCostJpy:5500,
   shippingJpy:1000,paymentFeeJpy:300,platformFeeJpy:200,
   plannedAdCostJpy:500,returnReserveJpy:500,
   costSourceVerified:true,jpShippingVerified:true,feesVerified:true};
-const approval = {approved:true,sku:'ODDLY-001',threshold:25,
+const approval = {approved:true,sku:'ODDLY-001',threshold:20,
   approvedBy:'operator',approvedAt:new Date(Date.now()-24*60*60*1000).toISOString()};
 test('standard margin needs no exception approval', () => {
   assert.deepEqual(verifiedAuthorizedMargin({...base,productCostJpy:4500},null),
-    {allowed:true,threshold:30,reason:'standard_margin_met'});
+    {allowed:true,threshold:25,reason:'standard_margin_met'});
 });
-test('25% and 20% require explicit SKU-scoped approval', () => {
+test('20% requires explicit SKU-scoped approval', () => {
   assert.equal(verifiedAuthorizedMargin(base,approval).allowed,true);
   assert.equal(verifiedAuthorizedMargin({...base,productCostJpy:5500},
     {...approval,threshold:20}).allowed,true);
-  assert.equal(verifiedAuthorizedMargin({...base,productCostJpy:5500},approval).allowed,false);
+  assert.equal(verifiedAuthorizedMargin({...base,productCostJpy:5501},approval).allowed,false);
 });
 test('missing, forged, unrelated or future approvals fail closed', () => {
   const invalid = [null,{}, {...approval,approved:'true'}, {...approval,approved:false},
-    {...approval,sku:'OTHER'}, {...approval,threshold:30}, {...approval,threshold:'25'},
+    {...approval,sku:'OTHER'}, {...approval,threshold:30}, {...approval,threshold:'20'},
     {...approval,approvedBy:''}, {...approval,approvedAt:'bad'},
     {...approval,approvedAt:'2999-01-01T00:00:00Z'}];
   for (const a of invalid) assert.equal(verifiedAuthorizedMargin(base,a).allowed,false);
@@ -40,7 +40,7 @@ test('expired SKU approval is rejected even when margin meets exception threshol
   assert.equal(verifiedAuthorizedMargin(base,atBoundary).allowed,true);
 });
 
-test('ambiguous SKU identities never authorize 25% or 20% exceptions', () => {
+test('ambiguous SKU identities never authorize 20% exceptions', () => {
   for (const sku of ['', ' ', ' ODDLY-001', 'ODDLY-001 ', 'ODDLY-001\\n', 'ODDLY-001\\u0000', 'X'.repeat(161)]) {
     const actualSku = sku.replace('\\n', '\n').replace('\\u0000', '\u0000');
     assert.equal(verifiedAuthorizedMargin({...base,sku:actualSku},
