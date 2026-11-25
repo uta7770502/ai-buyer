@@ -573,6 +573,26 @@ function setProductMarginThreshold(id,value){
    if(effectiveMarginThreshold(p)!==threshold)showCandidateToast('利益率例外の承認記録が無効または期限切れです');
  }).catch(()=>{serverMarginApprovals.delete(vid);showCandidateToast('サーバー承認を取得できません');renderMarginReview();});
 }
+async function approveProductMarginException(id,threshold){
+ if(![20,15].includes(threshold))return;
+ const p=[...(today?.products||[]),...results,...active].find(x=>String(x.id)===String(id));
+ const vid=String(p?.verifiedVariantId||'');
+ const margin=p?.contributionMarginVerified===true&&p?.finalProfitVerified===true&&Number(p.finalProfitJpy)>0?Number(p.verifiedContributionMarginPercent):NaN;
+ if(!/^\d{10,25}$/.test(vid)||!Number.isFinite(margin)||margin<threshold||margin>=25)return showCandidateToast('利益率またはSKUの確認が必要です');
+ const key=getTestAdminKey();if(!key)return;
+ if(!window.confirm(japaneseProductName(p)+' の最低利益率を '+threshold+'% に個別承認しますか？ 商品公開は行いません。'))return;
+ try{
+  const r=await fetch('/api/cj?action=margin-exception',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({vid,threshold,confirm:true})});
+  const record=await r.json();
+  if(!r.ok||record.ok!==true||record.approved!==true||record.vid!==vid||record.threshold!==threshold)throw Error('承認を確認できません');
+  serverMarginApprovals.set(vid,record);
+  const previous=oddlyMarginOverrides[String(id)];
+  oddlyMarginOverrides[String(id)]=threshold;
+  if(effectiveMarginThreshold(p)!==threshold){if(previous===undefined)delete oddlyMarginOverrides[String(id)];else oddlyMarginOverrides[String(id)]=previous;serverMarginApprovals.delete(vid);throw Error('承認記録が無効です');}
+  localStorage.setItem('oddlyMarginOverrides',JSON.stringify(oddlyMarginOverrides));
+  renderRecommendTop();showCandidateToast(threshold+'%の個別承認を保存しました');
+ }catch(e){showCandidateToast('個別承認失敗：'+String(e.message||e));}
+}
 function orderedRecommendedProducts(){
  const fresh=Array.isArray(today?.products)?today.products:[];
  const removed=recentlyRemovedCandidates();
@@ -662,9 +682,11 @@ function renderMarginReview(){
  const rows=[...(today?.products||[]),...results].filter((p,i,all)=>all.findIndex(x=>String(x.id)===String(p.id))===i).filter(p=>p.contributionMarginVerified===true&&Number.isFinite(Number(p.verifiedContributionMarginPercent))&&Number(p.verifiedContributionMarginPercent)>=15&&Number(p.verifiedContributionMarginPercent)<25);
  container.innerHTML=rows.length?'<div class="tiny" style="margin:12px 0 6px">利益率の個別審査（25%未満・販売承認ではありません）</div>'+rows.map(p=>{
  const m=Number(p.verifiedContributionMarginPercent),selected=Number(oddlyMarginOverrides[String(p.id)]||25),id=js(p.id);
- const options=[25,20].map(v=>'<option value="'+v+'"'+(selected===v?' selected':'')+'>'+v+'%</option>').join('');
+ const options=[25,20,15].map(v=>'<option value="'+v+'"'+(selected===v?' selected':'')+'>'+v+'%</option>').join('');
  const profitOk=p.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0;
- return '<div class="card" style="margin:6px 0;padding:10px"><div class="tiny">'+esc(japaneseProductName(p))+' / 検証済み利益率 '+m.toFixed(1)+'%</div><label class="tiny">最低利益率 <select onchange="setProductMarginThreshold(\''+id+'\',this.value)">'+options+'</select></label><div class="tiny">'+(profitOk?'最終利益確認済み':'最終利益未確認：おすすめには追加不可')+'</div></div>';
+ const tier=m>=20?20:15;
+ const approveButton=profitOk&&effectiveMarginThreshold(p)!==tier?'<button type="button" class="secondary" onclick="approveProductMarginException(\''+id+'\','+tier+')">'+tier+'%を個別承認</button>':'';
+ return '<div class="card" style="margin:6px 0;padding:10px"><div class="tiny">'+esc(japaneseProductName(p))+' / 検証済み利益率 '+m.toFixed(1)+'%</div><label class="tiny">最低利益率 <select onchange="setProductMarginThreshold(\''+id+'\',this.value)">'+options+'</select></label>'+approveButton+'<div class="tiny">'+(profitOk?'最終利益確認済み':'最終利益未確認：おすすめには追加不可')+'</div></div>';
  }).join(''):'';
 }
 function renderRecommendTop(){
@@ -777,7 +799,7 @@ async function inspectDiscoveryVariantStock(pool){
        const scenarios=[25,20,15].map(targetMarginPercent=>calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent,shippingVerified:true}));
        const proposal=scenarios[0];
        if(scenarios.every(x=>x.ready&&Number.isSafeInteger(x.priceJpy)&&x.priceJpy>0&&x.priceJpy<=10000000)){
-        p.discoveryPriceLabel='CJ見積・送料照合済み / 想定売価 基本25%: '+scenarios[0].priceJpy.toLocaleString('ja-JP')+'円 / 例外20%: '+scenarios[1].priceJpy.toLocaleString('ja-JP')+'円（決済手数料4.5%・広告費・返品引当は仮定。20%・15%は商品別サーバー承認が必要。本番公開不可）';
+        p.discoveryPriceLabel='CJ見積・送料照合済み / 想定売価 基本25%: '+scenarios[0].priceJpy.toLocaleString('ja-JP')+'円 / 例外20%: '+scenarios[1].priceJpy.toLocaleString('ja-JP')+'円 / 例外15%: '+scenarios[2].priceJpy.toLocaleString('ja-JP')+'円（決済手数料4.5%・広告費・返品引当は仮定。20%・15%は商品別サーバー承認が必要。本番公開不可）';
         p.discoveryProfitChecked=true;
         p.discoveryProfitEstimateOnly=true;
         p.discoveryProfitInputsVerified=true;

@@ -304,8 +304,8 @@ test('discovery shows standard and exception provisional margin tiers while keep
  const start=html.indexOf('async function inspectDiscoveryVariantStock');
  const end=html.indexOf('function renderDiscoveryPreview',start);
  const block=html.slice(start,end);
- assert.match(block,/\[25,20\]\.map\(targetMarginPercent/);
+ assert.match(block,/\[25,20,15\]\.map\(targetMarginPercent/);
  assert.match(block,/決済手数料4\.5%・広告費・返品引当は仮定/);
- assert.match(block,/20%は商品別サーバー承認が必要。本番公開不可/);
+ assert.match(block,/20%・15%は商品別サーバー承認が必要。本番公開不可/);
  assert.match(html,/販売候補への追加・公開はできません/);
 });

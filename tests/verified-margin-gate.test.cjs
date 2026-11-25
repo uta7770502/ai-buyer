@@ -71,4 +71,6 @@ test('invalid exceptions fail closed', () => {
   delete overrides['test-1'];
 });
 
-test('selecting a 20 percent preference reads an existing approval, never creates it',()=>{const a=html.indexOf('function setProductMarginThreshold('),b=html.indexOf('function orderedRecommendedProducts()',a);const block=html.slice(a,b);assert.match(block,/\/api\/cj\?action=margin-exception&vid=/);assert.match(block,/Authorization:'Bearer '\+key/);assert.doesNotMatch(block,/method:\s*['"]POST/);});
+test('selecting a 20 percent preference reads an existing approval, never creates it',()=>{const a=html.indexOf('function setProductMarginThreshold('),b=html.indexOf('async function approveProductMarginException(',a);const block=html.slice(a,b);assert.match(block,/\/api\/cj\?action=margin-exception&vid=/);assert.match(block,/Authorization:'Bearer '\+key/);assert.doesNotMatch(block,/method:\s*['"]POST/);});
+
+test('exception approval is a separate explicit action with SKU and threshold',()=>{const a=html.indexOf('async function approveProductMarginException('),b=html.indexOf('function orderedRecommendedProducts()',a);const block=html.slice(a,b);assert.match(block,/window\.confirm/);assert.match(block,/method:'POST'/);assert.match(block,/JSON\.stringify\(\{vid,threshold,confirm:true\}\)/);assert.match(block,/!\[20,15\]\.includes\(threshold\)/);assert.match(html,/const options=\[25,20,15\]\.map/);});
