@@ -100,3 +100,14 @@ test('price guidance retains current price or proposes a review at 25 percent un
  assert.equal(make({...input,approvedExceptionTier:15}).proposedPriceJpy,2000);
  assert.equal(make({...input,shippingJpy:null}),null);
 });
+
+test('batch page accepts a masked administrator key directly, verifies it before session storage and handles rejection',()=>{
+ const html=fs.readFileSync(new URL('../preview-profit-batch.html',import.meta.url),'utf8');
+ assert.match(html,/id="batchAdminKey" type="password"/);
+ assert.match(html,/const key=keyInput\.value\.trim\(\)/);
+ assert.match(html,/r\.status===401\|\|r\.status===403/);
+ assert.match(html,/sessionStorage\.removeItem\('aiBuyerAdminKey'\)/);
+ assert.ok(html.indexOf('vids=j.rows.map(x=>x.sku)')<html.indexOf("sessionStorage.setItem('aiBuyerAdminKey',key)"));
+ assert.doesNotMatch(html,/localStorage\./);
+ assert.match(html,/setBusy\(false\)/);
+});

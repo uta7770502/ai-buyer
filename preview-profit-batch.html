@@ -11,6 +11,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 6px;
 .pass{color:#147a3d;font-weight:700}.hold{color:#a05a00;font-weight:700}.bad{color:#b42318;font-weight:700}
 button{width:100%;padding:14px;border:0;border-radius:12px;background:#174a8b;color:white;font-weight:700;font-size:16px}
 code{font-size:11px;word-break:break-all}
+input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:12px;font:inherit;color:inherit;margin:8px 0}button:disabled{opacity:.55}button.secondary{background:#eef3fa;color:#174a8b;font-size:13px;margin-top:8px}
 </style>
 </head>
 <body><main>
@@ -20,7 +21,7 @@ code{font-size:11px;word-break:break-all}
 <div class="bar" style="margin-top:14px"><i id="bar"></i></div>
 <div id="status" class="muted" style="margin-top:8px">開始前</div>
 </div>
-<div class="card"><button id="run">現在の下書き商品を順番に監査</button></div>
+<div class="card"><label for="batchAdminKey"><b>管理者キー</b></label><input id="batchAdminKey" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="管理者キーを入力"><div id="authStatus" class="muted" role="status" aria-live="polite">この画面で認証できます。キーは監査時の認証にのみ使用します。</div><button class="secondary" type="button" id="clearKey">キーを消去</button><button type="button" id="run" style="margin-top:12px">現在の下書き商品を順番に監査</button></div>
 <div class="card"><div id="summary" class="muted">結果集計：未実行</div><div id="decision" class="muted" style="margin-top:8px"></div></div>
 <div class="card" style="overflow:auto">
 <table><thead><tr><th>SKU</th><th>判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
@@ -30,19 +31,29 @@ code{font-size:11px;word-break:break-all}
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const tbody=document.getElementById('rows'),statusEl=document.getElementById('status'),bar=document.getElementById('bar'),btn=document.getElementById('run');
+const keyInput=document.getElementById('batchAdminKey'),authStatus=document.getElementById('authStatus'),clearKey=document.getElementById('clearKey');
+try{keyInput.value=sessionStorage.getItem('aiBuyerAdminKey')||''}catch{}
+if(keyInput.value)authStatus.textContent='同じタブの管理者キーを引き継ぎました。監査開始時に認証します。';
+clearKey.addEventListener('click',()=>{keyInput.value='';try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者キーを消去しました。';});
+function setBusy(busy){btn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
 function yen(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
 async function run(){
- const key=String(sessionStorage.getItem('aiBuyerAdminKey')||'').trim();
- if(!key){statusEl.textContent='ADPS管理画面で管理者キーを入力してから、再実行してください。';return}
- btn.disabled=true;tbody.innerHTML='';bar.style.width='0%';let completed=0,pass=0,exceptionReview=0,blocked=0;
+ if(btn.disabled)return;
+ const key=keyInput.value.trim();
+ if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return}
+ authStatus.textContent='管理者認証を確認中…';
+ setBusy(true);tbody.innerHTML='';bar.style.width='0%';let completed=0,pass=0,exceptionReview=0,blocked=0;
  const headers={Authorization:'Bearer '+key};
  let vids;
  try{
   const r=await fetch('/api/cj-profit-audit?catalogOnly=1',{headers,cache:'no-store',signal:AbortSignal.timeout(15000)});
+  if(r.status===401||r.status===403){try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者認証に失敗しました。キーを確認して再実行してください。';statusEl.textContent='監査未実行';setBusy(false);keyInput.focus();return;}
   const j=await r.json();
   if(!r.ok||j.ok!==true||j.readOnly!==true||j.catalogComplete!==true||!Number.isSafeInteger(j.targetCount)||j.targetCount<1||!Array.isArray(j.rows)||j.rows.length!==j.targetCount||!j.rows.every(x=>/^\d{10,25}$/.test(String(x?.sku||'')))||new Set(j.rows.map(x=>x.sku)).size!==j.targetCount)throw Error('下書きSKU一覧の取得に失敗しました');
   vids=j.rows.map(x=>x.sku);
- }catch{statusEl.textContent='監査停止：現在の下書き一覧を確認できません。';btn.disabled=false;return;}
+  try{sessionStorage.setItem('aiBuyerAdminKey',key)}catch{}
+  authStatus.textContent='認証済み・現在の下書き '+vids.length+' 件を確認しました。';
+ }catch{authStatus.textContent='認証・下書き一覧を確認できませんでした。';statusEl.textContent='監査停止：現在の下書き一覧を確認できません。';setBusy(false);return;}
  for(const vid of vids){
   statusEl.textContent=(completed+1)+' / '+vids.length+' を監査中…';
   try{
@@ -106,8 +117,9 @@ async function run(){
  statusEl.textContent='完了：'+completed+' / '+vids.length;
  document.getElementById('summary').textContent='結果集計：25% PASS '+pass+'件 / 例外承認候補 '+exceptionReview+'件 / 保留・除外 '+blocked+'件';
  document.getElementById('decision').textContent='運用判断：25% PASSは販売候補。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは補充日数確認まで販売保留。';
- btn.disabled=false;
+ setBusy(false);
 }
 btn.addEventListener('click',run);
+keyInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();run();}});
 </script>
 </main></body></html>
