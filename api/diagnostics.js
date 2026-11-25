@@ -13,6 +13,7 @@ import storefrontConfig from '../lib/routes/storefront-config.js';
 import prelaunchProductAudit from '../lib/routes/prelaunch-product-audit.js';
 import prelaunchOneAction from '../lib/routes/prelaunch-one-action.js';
 import prelaunchReturnDaysBulk from '../lib/routes/prelaunch-return-days-bulk.js';
+import shopifyReturnAudit from '../lib/routes/shopify-return-audit.js';
 import previewProfitAudit from '../lib/routes/preview-profit-audit.js';
 import shopifyOrderFeeAudit from '../lib/routes/shopify-order-fee-audit.js';
 import shopifyWebhookAudit from '../lib/routes/shopify-webhook-audit.js';
@@ -540,6 +541,7 @@ const handlers={
   'storefront-config':storefrontConfig,
   'prelaunch-product-audit':prelaunchProductAudit,
   'prelaunch-one-action':prelaunchOneAction,
+  'shopify-return-audit':shopifyReturnAudit,
   'prelaunch-return-days-bulk':prelaunchReturnDaysBulk
 };
 // Preview redeploy marker: refresh branch-scoped environment after encryption-key scope update.
