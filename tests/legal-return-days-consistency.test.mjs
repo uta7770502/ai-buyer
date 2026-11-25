@@ -29,12 +29,12 @@ test('CJ dispute read separates supplier outcome from customer refund authority'
  for(const bad of [{...data,id:'SHwrong'},{...data,refundAmount:-1},{...data,finallyDeal:99}])assert.equal((await readSupplierDispute(id,{token:'test',fetcher:async()=>({ok:true,json:async()=>({code:200,result:true,data:bad})})})).ok,false);
 });
 
-test('CJ dispute amount is distinct from supplier refund and never substituted for it',async()=>{
+test('CJ documented final refund aliases agree and never authorize customer refunds',async()=>{
  const {readSupplierDispute}=await import('../lib/routes/shopify-return-audit.js');
  const id='SH123456';
  for(const amount of [null,5]){
   const r=await readSupplierDispute(id,{token:'test',fetcher:async()=>({ok:true,json:async()=>({code:200,result:true,data:{id,status:'Processing',money:12.5,refundAmount:amount}})})});
-  assert.equal(r.ok,true);assert.equal(r.reportedSupplierRefundUSD,amount);assert.equal(r.requestedDisputeUSD,12.5);assert.equal(r.customerRefundAuthorized,false);
+  if(amount===null){assert.equal(r.ok,true);assert.equal(r.reportedSupplierRefundUSD,12.5);assert.equal(r.requestedDisputeUSD,null);assert.equal(r.customerRefundAuthorized,false);}else assert.equal(r.ok,false);
  }
 });
 
@@ -60,4 +60,12 @@ test('CJ eligible products reads exact order and excludes unselectable lines',as
  const read=async(data)=>readDisputableProducts(orderId,{token:'test',fetcher:async(u,o)=>{assert.equal(u.searchParams.get('orderId'),orderId);assert.equal(o.method,'GET');return {ok:true,json:async()=>({code:200,result:true,data})};}});
  const r=await read({orderId,productInfoList:[a,b]});assert.equal(r.ok,true);assert.deepEqual(r.eligibleItems,[{lineItemId:'12345',quantity:2,price:9.99}]);assert.equal(r.submissionAllowed,false);
  for(const data of [{orderId:'wrong',productInfoList:[a]},{orderId,productInfoList:[a,a]},{orderId,productInfoList:[{...a,canChoose:'true'}]},{orderId,productInfoList:[{...a,price:-1}]}])assert.equal((await read(data)).ok,false);
+});
+
+test('CJ preflight reads exact selected lines and refund limits without creating a dispute',async()=>{
+ const {confirmDisputeTerms}=await import('../lib/routes/shopify-return-audit.js');
+ const orderId='J123456',selected=[{lineItemId:'12345',quantity:1,price:9.99}],data={orderId,productInfoList:selected,expectResultOptionList:['1'],disputeReasonList:[{disputeReasonId:1,reasonName:'Cancellation'}],maxProductPrice:9.99,maxPostage:0,maxIossTaxAmount:0,maxIossHandTaxAmount:0,maxAmount:9.99};
+ const run=async(d)=>confirmDisputeTerms(orderId,selected,{token:'test',fetcher:async(u,o)=>{assert.ok(u.endsWith('/disputeConfirmInfo'));assert.equal(o.method,'POST');assert.deepEqual(JSON.parse(o.body),{orderId,productInfoList:selected});return {ok:true,json:async()=>({code:200,result:true,data:d})};}});
+ const r=await run(data);assert.equal(r.ok,true);assert.equal(r.maxRefundUSD,9.99);assert.equal(r.submissionAllowed,false);
+ for(const bad of [{...data,orderId:'wrong'},{...data,maxAmount:-1},{...data,expectResultOptionList:['3']},{...data,productInfoList:[]}])assert.equal((await run(bad)).ok,false);
 });
