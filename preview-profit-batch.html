@@ -23,7 +23,7 @@ code{font-size:11px;word-break:break-all}
 <div class="card"><button id="run">9商品を順番に監査</button></div>
 <div class="card"><div id="summary" class="muted">結果集計：未実行</div><div id="decision" class="muted" style="margin-top:8px"></div></div>
 <div class="card" style="overflow:auto">
-<table><thead><tr><th>SKU</th><th>判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20最低売価</th></tr></thead><tbody id="rows"></tbody></table>
+<table><thead><tr><th>SKU</th><th>判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
 <div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
 <script>
@@ -59,7 +59,7 @@ async function run(){
     let cls='bad',label='除外/保留';
     if(stockOk&&freightOk&&costOk&&auditStatus==='provisional-pass'&&tier===25){
       cls='pass';label='25% PASS';
-    }else if(stockOk&&freightOk&&costOk&&auditStatus==='exception-review'&&tier===20){
+    }else if(stockOk&&freightOk&&costOk&&auditStatus==='exception-review'&&[20,15].includes(tier)){
       cls='hold';label=tier+'% 要例外承認';
     }else if(x.cjStockVerified===true&&x.stockCandidateEligible===true&&x.requiresFactoryReplenishment===true){
       cls='hold';label='工場取り寄せ・補充日数確認待ち';
@@ -75,7 +75,7 @@ async function run(){
       cls='hold';label='保留';
     }
     const p=x.requiredSalePriceByMargin||{};
-    tr.innerHTML='<td><code>'+vid+'</code></td><td class="'+cls+'">'+label+'</td><td>'+String(x.cjStockQuantity??'—')+' / '+String(x.factoryStockQuantity??'—')+'</td><td>'+yen(x.salePriceJpy)+'</td><td>'+yen(x.productCostJpy)+'</td><td>'+yen(x.cjFreightJpy)+'</td><td>'+String(x.finalMarginPercent??'—')+'%</td><td>'+yen(p['25'])+' / '+yen(p['20'])+'</td>';
+    tr.innerHTML='<td><code>'+vid+'</code></td><td class="'+cls+'">'+label+'</td><td>'+String(x.cjStockQuantity??'—')+' / '+String(x.factoryStockQuantity??'—')+'</td><td>'+yen(x.salePriceJpy)+'</td><td>'+yen(x.productCostJpy)+'</td><td>'+yen(x.cjFreightJpy)+'</td><td>'+String(x.finalMarginPercent??'—')+'%</td><td>'+yen(p['25'])+' / '+yen(p['20'])+' / '+yen(p['15'])+'</td>';
     if(label==='25% PASS')pass++;else if(label.includes('要例外承認'))exceptionReview++;else blocked++;
    }
    tbody.appendChild(tr);
@@ -91,7 +91,7 @@ async function run(){
  }
  statusEl.textContent='完了：'+completed+' / '+vids.length;
  document.getElementById('summary').textContent='結果集計：25% PASS '+pass+'件 / 例外承認候補 '+exceptionReview+'件 / 保留・除外 '+blocked+'件';
- document.getElementById('decision').textContent='運用判断：25% PASSは販売候補。20%は明示承認が必要。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは補充日数確認まで販売保留。';
+ document.getElementById('decision').textContent='運用判断：25% PASSは販売候補。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは補充日数確認まで販売保留。';
  btn.disabled=false;
 }
 btn.addEventListener('click',run);run();

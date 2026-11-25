@@ -11,11 +11,13 @@ test('unverified fee and shipping always block recommendation',()=>{
 test('round fractional payment fee upward',()=>{
   assert.equal(calculateNetMargin({...costs,priceYen:101,percentageFee:0.035}).paymentFeeYen,4);
 });
-test('select 25 or 20 percent tier, or reject',()=>{
+test('select 25, 20 or 15 percent tier, or reject',()=>{
   assert.equal(evaluateMarginTiers(costs,verified).tier,0.25);
   assert.equal(evaluateMarginTiers({...costs,costYen:1150},verified).tier,0.25);
   assert.equal(evaluateMarginTiers({...costs,costYen:1250},verified).tier,0.20);
-  assert.equal(evaluateMarginTiers({...costs,costYen:1400},verified).eligible,false);
+  assert.equal(evaluateMarginTiers({...costs,costYen:1400},verified).tier,0.15);
+  assert.equal(evaluateMarginTiers({...costs,costYen:1430},verified).tier,0.15);
+  assert.equal(evaluateMarginTiers({...costs,costYen:1431},verified).eligible,false);
 });
 test('reject invalid and fractional yen inputs',()=>{
   for(const value of [-1,0.1,NaN,Infinity])assert.equal(calculateNetMargin({...costs,shippingYen:value}).ok,false);

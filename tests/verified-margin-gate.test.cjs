@@ -44,6 +44,12 @@ test('standard 25% and per-product 20% exception are respected', () => {
   for(const patch of [{threshold:25},{vid:'1234567890124'},{approved:false},{approvalId:''},{approvedAt:new Date(Date.now()-31*86400000).toISOString()}]){serverMarginApprovals.set(vid,{...approval,...patch});assert.equal(eligible(product(20)),false);}
   serverMarginApprovals.set(vid,approval);
   assert.equal(eligible(product(19.99)), false);
+  overrides['test-1']=15;
+  assert.equal(eligible(product(19)),false);
+  serverMarginApprovals.set(vid,{...approval,threshold:15});
+  assert.equal(eligible(product(15)),true);
+  assert.equal(eligible(product(14.99)),false);
+  assert.equal(eligible(product(19,{verifiedVariantId:'1234567890124'})),false);
   serverMarginApprovals.clear();
   delete overrides['test-1'];
 });

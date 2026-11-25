@@ -8,7 +8,7 @@ const base = Object.freeze({ salePriceJpy:10000, productCostJpy:5000,
   costSourceVerified:true, jpShippingVerified:true, feesVerified:true });
 
 test('exact 30/25/20 thresholds pass and one-yen shortfalls fail', () => {
-  for (const [threshold,cost] of [[30,4500],[25,5000],[20,5500]]) {
+  for (const [threshold,cost] of [[30,4500],[25,5000],[20,5500],[15,6000]]) {
     assert.equal(verifiedMarginAtLeast({...base,productCostJpy:cost},threshold).allowed,true);
     assert.deepEqual(verifiedMarginAtLeast({...base,productCostJpy:cost+1},threshold),
       {allowed:false,reason:'margin_below_threshold'});

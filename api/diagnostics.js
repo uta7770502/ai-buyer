@@ -404,12 +404,12 @@ async function previewLaunchAuditSummary(req,res){
     const margin=profitRow?.ok===true&&typeof profitRow.finalMarginPercent==='number'&&Number.isFinite(profitRow.finalMarginPercent)?profitRow.finalMarginPercent:null;
     const marginVerified=margin!==null&&profitRow.assumptionsReady===true;
     // Use the exact server-computed net-margin tier, not a rounded percentage or contribution margin.
-    const tier=marginVerified&&[25,20].includes(profitRow.estimatedMarginTier)?profitRow.estimatedMarginTier:null;
-    const exceptionApproved=tier===20&&profitRow.marginExceptionApproved===true&&Boolean(profitRow.marginExceptionApprovalId);
-    const marginChoices=tier===25?[25]:tier===20?[20]:[];
+    const tier=marginVerified&&[25,20,15].includes(profitRow.estimatedMarginTier)?profitRow.estimatedMarginTier:null;
+    const exceptionApproved=[20,15].includes(tier)&&profitRow.marginExceptionApproved===true&&Boolean(profitRow.marginExceptionApprovalId);
+    const marginChoices=tier===null?[]:[tier];
     const recommendedByMargin=marginVerified&&(tier===25||exceptionApproved);
     const recommendationExcludedByMargin=marginVerified&&tier===null;
-    const requiresManualMarginOverride=tier===20&&!exceptionApproved;
+    const requiresManualMarginOverride=[20,15].includes(tier)&&!exceptionApproved;
     const factoryCandidate=stockRow?.recommendationStockEligible===true&&stockRow?.requiresFactoryReplenishment===true;
     const status=!stockEligible?'inventory_hold':!freightVerified?'freight_hold':profitRow?.assumptionsReady!==true?'cost_assumptions_required':!marginVerified?'cost_verification':recommendationExcludedByMargin||requiresManualMarginOverride?'margin_reprice':profitRow?.launchEconomicsEligible===true?'economics_pass':'final_profit_review';
     return {sku:vid,status,stockEligible,factoryCandidate,freightVerified,finalMarginPercent:margin,contributionMarginPercent:profitRow?.contributionMarginPercent??null,
@@ -444,7 +444,7 @@ async function previewLaunchAuditSummary(req,res){
     sku:String(x.sku||''),
     contributionMarginPercent:Number(x.contributionMarginPercent),
     targetMargin30Pass:Number(x.contributionMarginPercent)>=30,
-    candidateTier:x.estimatedMarginTier===25?'priority':x.estimatedMarginTier===20?'conditional':'excluded',
+    candidateTier:x.estimatedMarginTier===25?'priority':[20,15].includes(x.estimatedMarginTier)?'conditional':'excluded',
     finalMarginPercent:x.finalMarginPercent??null,estimateOnly:true,
     maxCombinedAdsReturnsForPositiveProfitJpy:Number(x.maxCombinedAdsReturnsForPositiveProfitJpy),
     maxCombinedAdsReturnsForFivePercentNetJpy:Number(x.maxCombinedAdsReturnsForFivePercentNetJpy),

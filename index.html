@@ -442,7 +442,7 @@ function recommendationCard(p,rank){
  const margin=verified?Number(p.verifiedContributionMarginPercent):null;
  const threshold=Number(oddlyMarginOverrides[String(p.id)]||25);
  const verifiedProfitLabel=verified&&p.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0?'<div class="tiny">検証済み最終利益 '+yen(Number(p.finalProfitJpy))+' / 利益率 '+margin.toFixed(1)+'%</div>':recommendationProfitReady(p)?'<div class="tiny">推薦用利益試算済み '+yen(Number(p.discoveryEstimatedProfitJpy))+' / 利益率 '+Number(p.discoveryEstimatedMarginPercent).toFixed(1)+'%（本番公開は最終利益確認待ち）</div>':'<div class="tiny">利益試算未完了（推薦不可）</div>';
- const marginSelector=verified&&margin>=20&&margin<25?'<label class="tiny">この商品の利益率基準 <select onchange="setProductMarginThreshold(\''+id+'\',this.value)"><option value="25"'+(threshold===25?' selected':'')+'>25%（標準）</option><option value="20"'+(threshold===20?' selected':'')+'>20%</option></select></label>':'';
+ const marginSelector=verified&&margin>=15&&margin<25?'<label class="tiny">この商品の利益率基準 <select onchange="setProductMarginThreshold(\''+id+'\',this.value)"><option value="25"'+(threshold===25?' selected':'')+'>25%（標準）</option><option value="20"'+(threshold===20?' selected':'')+'>20%</option><option value="15"'+(threshold===15?' selected':'')+'>15%</option></select></label>':'';
  return '<div class="card recommendationCard"><div class="pic" onclick="openDetail(\''+id+'\')">'+(p.image?'<img src="'+esc(p.image)+'" alt="">':'商品')+'</div><div class="recommendBadges"><span class="score '+cls+'">AI SCORE '+m.score+'</span><span class="rankBadge">#'+rank+'</span></div><button type="button" class="recommendDetailHint recommendationDetailButton" onclick="openDetail(\''+id+'\')">商品詳細を見る →</button><div class="title">'+esc(japaneseProductName(p))+'</div><div class="meta">参考売価 '+yen(m.sell)+' / 他店舗掲載 '+listed+'件</div>'+oddlyFactoryStockBadge(p)+verifiedProfitLabel+'<button type="button" class="selectionToggle recommendationToggle" aria-checked="'+selected+'" onclick="toggleCandidate(\''+id+'\')"><span class="switchTrack" aria-hidden="true"><span class="switchThumb"></span></span><span>'+(selected?'販売候補選択中':'販売候補未選択')+'</span></button>'+marginSelector+'<button type="button" class="adpsFavoriteButton" aria-label="お気に入りを切り替え" onclick="toggleAdpsFavorite(\''+js(p.id)+'\')">'+(isAdpsFavorite(p.id)?'♥ 保存済み':'♡ お気に入り')+'</button>'+'</div>';
 }
 let latestProductSearch=0;
@@ -529,48 +529,48 @@ function verifiedMarginRecommendation(p){
  // Publication gate: estimated discovery economics must never count as final verified profit.
  if(p?.contributionMarginVerified!==true)return false;
  const margin=Number(p?.verifiedContributionMarginPercent);
- if(!Number.isFinite(margin)||margin<20)return false;
+ if(!Number.isFinite(margin)||margin<15)return false;
  const threshold=effectiveMarginThreshold(p);
- return [20,25].includes(threshold)&&margin>=threshold&&p?.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0;
+ return [15,20,25].includes(threshold)&&margin>=threshold&&p?.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0;
 }
 // Browser preferences alone cannot authorize the exception. The server must independently recheck its stored approval at write time.
 function effectiveMarginThreshold(p,now=Date.now()){
  const selected=Number(oddlyMarginOverrides[String(p.id)]||25);
  if(selected===25)return 25;
- if(selected!==20)return NaN;
+ if(![15,20].includes(selected))return NaN;
  const vid=String(p.verifiedVariantId||'');
  const record=serverMarginApprovals.get(vid);
  const at=Date.parse(record?.approvedAt||'');
- if(!/^\d{10,25}$/.test(vid)||record?.approved!==true||record?.source!=='product-specific-owner-approval'||record?.vid!==vid||record?.threshold!==20||!/^[-a-zA-Z0-9_]{12,100}$/.test(String(record?.approvalId||''))||!Number.isFinite(at)||at>now||now-at>30*86400000)return 25;
- return 20;
+ if(!/^\d{10,25}$/.test(vid)||record?.approved!==true||record?.source!=='product-specific-owner-approval'||record?.vid!==vid||record?.threshold!==selected||!/^[-a-zA-Z0-9_]{12,100}$/.test(String(record?.approvalId||''))||!Number.isFinite(at)||at>now||now-at>30*86400000)return 25;
+ return selected;
 }
 function recommendationProfitReady(p){
  const threshold=effectiveMarginThreshold(p);
  const margin=Number(p?.discoveryEstimatedMarginPercent);
  const profit=Number(p?.discoveryEstimatedProfitJpy);
- return p?.discoveryProfitChecked===true&&p?.discoveryProfitEstimateOnly===true&&p?.discoveryProfitInputsVerified===true&&[20,25].includes(threshold)&&Number.isFinite(margin)&&margin>=threshold&&Number.isFinite(profit)&&profit>0;
+ return p?.discoveryProfitChecked===true&&p?.discoveryProfitEstimateOnly===true&&p?.discoveryProfitInputsVerified===true&&[15,20,25].includes(threshold)&&Number.isFinite(margin)&&margin>=threshold&&Number.isFinite(profit)&&profit>0;
 }
 function setProductMarginThreshold(id,value){
  const threshold=Number(value);
- if(![20,25].includes(threshold))return;
+ if(![15,20,25].includes(threshold))return;
  const p=[...(today?.products||[]),...results,...active].find(x=>String(x.id)===String(id));
  if(!p)return;
  const verifiedReady=p.contributionMarginVerified===true&&p.finalProfitVerified===true&&Number.isFinite(Number(p.finalProfitJpy))&&Number(p.finalProfitJpy)>0;
  const estimatedReady=p.discoveryProfitChecked===true&&p.discoveryProfitEstimateOnly===true&&p.discoveryProfitInputsVerified===true&&Number.isFinite(Number(p.discoveryEstimatedProfitJpy))&&Number(p.discoveryEstimatedProfitJpy)>0;
  const margin=verifiedReady?Number(p.verifiedContributionMarginPercent):estimatedReady?Number(p.discoveryEstimatedMarginPercent):NaN;
- if(!Number.isFinite(margin)||threshold>25||threshold<20||margin<threshold)return;
+ if(!Number.isFinite(margin)||threshold>25||threshold<15||margin<threshold)return;
  const saveThreshold=()=>{oddlyMarginOverrides[String(id)]=threshold;localStorage.setItem('oddlyMarginOverrides',JSON.stringify(oddlyMarginOverrides));renderMarginReview();renderRecommendTop();};
  if(threshold===25){saveThreshold();return;}
  const vid=String(p.verifiedVariantId||'');
- if(!/^\d{10,25}$/.test(vid))return showCandidateToast('20%例外には確認済みのCJ SKUが必要です');
- const key=getTestAdminKey();if(!key)return showCandidateToast('20%例外の確認には管理者認証が必要です');
+ if(!/^\d{10,25}$/.test(vid))return showCandidateToast('利益率例外には確認済みのCJ SKUが必要です');
+ const key=getTestAdminKey();if(!key)return showCandidateToast('利益率例外の確認には管理者認証が必要です');
  // Only read existing server approvals here. Selecting a dropdown cannot create an approval.
  fetch('/api/cj?action=margin-exception&vid='+encodeURIComponent(vid),{headers:{Authorization:'Bearer '+key},cache:'no-store'}).then(async r=>{
    const record=await r.json();
-   if(!r.ok||record.ok!==true||record.approved!==true){serverMarginApprovals.delete(vid);showCandidateToast('このSKUの20%サーバー承認は未確認です');renderMarginReview();return;}
+   if(!r.ok||record.ok!==true||record.approved!==true||record.threshold!==threshold){serverMarginApprovals.delete(vid);showCandidateToast('このSKUの利益率例外サーバー承認は未確認です');renderMarginReview();return;}
    serverMarginApprovals.set(vid,record);
    saveThreshold();
-   if(effectiveMarginThreshold(p)!==20)showCandidateToast('20%の承認記録が無効または期限切れです');
+   if(effectiveMarginThreshold(p)!==threshold)showCandidateToast('利益率例外の承認記録が無効または期限切れです');
  }).catch(()=>{serverMarginApprovals.delete(vid);showCandidateToast('サーバー承認を取得できません');renderMarginReview();});
 }
 function orderedRecommendedProducts(){
@@ -659,7 +659,7 @@ async function addTestCatalogProducts(){
 function renderMarginReview(){
  const container=document.getElementById('oddlyMarginReview');
  if(!container)return;
- const rows=[...(today?.products||[]),...results].filter((p,i,all)=>all.findIndex(x=>String(x.id)===String(p.id))===i).filter(p=>p.contributionMarginVerified===true&&Number.isFinite(Number(p.verifiedContributionMarginPercent))&&Number(p.verifiedContributionMarginPercent)>=20&&Number(p.verifiedContributionMarginPercent)<25);
+ const rows=[...(today?.products||[]),...results].filter((p,i,all)=>all.findIndex(x=>String(x.id)===String(p.id))===i).filter(p=>p.contributionMarginVerified===true&&Number.isFinite(Number(p.verifiedContributionMarginPercent))&&Number(p.verifiedContributionMarginPercent)>=15&&Number(p.verifiedContributionMarginPercent)<25);
  container.innerHTML=rows.length?'<div class="tiny" style="margin:12px 0 6px">利益率の個別審査（25%未満・販売承認ではありません）</div>'+rows.map(p=>{
  const m=Number(p.verifiedContributionMarginPercent),selected=Number(oddlyMarginOverrides[String(p.id)]||25),id=js(p.id);
  const options=[25,20].map(v=>'<option value="'+v+'"'+(selected===v?' selected':'')+'>'+v+'%</option>').join('');
@@ -774,10 +774,10 @@ async function inspectDiscoveryVariantStock(pool){
        const adCostJpy=Math.ceil(landed*0.2);
        const returnReserveJpy=Math.ceil(landed*SAFE_RETURN_RESERVE_RATE);
        const {calculateTargetSalePrice}=await import('./lib/target-price.js');
-       const scenarios=[25,20].map(targetMarginPercent=>calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent,shippingVerified:true}));
+       const scenarios=[25,20,15].map(targetMarginPercent=>calculateTargetSalePrice({productCostJpy,shippingCostJpy:freight.shippingCostJpy,adCostPerOrderJpy:adCostJpy,returnReserveJpy,paymentFixedFeeJpy:0,paymentFeeRatePercent:4.5,targetMarginPercent,shippingVerified:true}));
        const proposal=scenarios[0];
        if(scenarios.every(x=>x.ready&&Number.isSafeInteger(x.priceJpy)&&x.priceJpy>0&&x.priceJpy<=10000000)){
-        p.discoveryPriceLabel='CJ見積・送料照合済み / 想定売価 基本25%: '+scenarios[0].priceJpy.toLocaleString('ja-JP')+'円 / 例外20%: '+scenarios[1].priceJpy.toLocaleString('ja-JP')+'円（決済手数料4.5%・広告費・返品引当は仮定。20%は商品別サーバー承認が必要。本番公開不可）';
+        p.discoveryPriceLabel='CJ見積・送料照合済み / 想定売価 基本25%: '+scenarios[0].priceJpy.toLocaleString('ja-JP')+'円 / 例外20%: '+scenarios[1].priceJpy.toLocaleString('ja-JP')+'円（決済手数料4.5%・広告費・返品引当は仮定。20%・15%は商品別サーバー承認が必要。本番公開不可）';
         p.discoveryProfitChecked=true;
         p.discoveryProfitEstimateOnly=true;
         p.discoveryProfitInputsVerified=true;
@@ -2429,14 +2429,14 @@ async function runDraftMarginAudit(){
  const j=await r.json();
  if(!r.ok||j.ok!==true||j.readOnly!==true||j.catalogComplete!==true||!Number.isSafeInteger(j.targetCount)||j.targetCount<1||!Array.isArray(j.rows)||j.rows.length!==j.targetCount||j.total!==j.targetCount||!j.rows.every(p=>p&&/^\d{10,25}$/.test(String(p.sku||'')))||new Set(j.rows.map(p=>p.sku)).size!==j.targetCount)throw Error(j.error||'対象下書き商品の監査が不完全です');
  currentStockEvidence=typeof j.stockEvidence==='string'?j.stockEvidence:null;
- const labels={'provisional-pass':'25%基準を試算上クリア','exception-review':'20%例外承認が必要','exclude':'20%未満：候補除外対象','hold':'保留：在庫・送料・費用未確認'};
+ const labels={'provisional-pass':'25%基準を試算上クリア','exception-review':'20%・15%例外承認が必要','exclude':'15%未満：候補除外対象','hold':'保留：在庫・送料・費用未確認'};
  const validPrice=n=>Number.isSafeInteger(n)&&n>0;
  out.textContent='監査対象：'+j.targetCount+'件（現在の下書き商品）\n\n'+j.rows.map(p=>{
    if(p.ok!==true)return p.title+'：保留：取得失敗\n'+(p.reason||'原因不明');
    const status=labels[p.estimatedAuditStatus]||'保留';
-   const tier=p.estimatedMarginTier===25?'利益試算：25%以上':p.estimatedMarginTier===20?'利益試算：20%以上25%未満（SKU別承認が必要）':p.assumptionsReady===true?'利益試算：20%未満（現価格では対象外）':'利益試算：未確認';
+   const tier=p.estimatedMarginTier===25?'利益試算：25%以上':p.estimatedMarginTier===20?'利益試算：20%以上25%未満（SKU別承認が必要）':p.estimatedMarginTier===15?'利益試算：15%以上20%未満（SKU別承認が必要）':p.assumptionsReady===true?'利益試算：15%未満（現価格では対象外）':'利益試算：未確認';
    const prices=p.requiredSalePriceByMargin||{};
-   const guidance='現在価格 '+(validPrice(p.salePriceJpy)?yen(p.salePriceJpy):'未確認')+'／25%に必要な価格 '+(validPrice(prices['25'])?yen(prices['25']):'未算出')+'／20%に必要な価格 '+(validPrice(prices['20'])?yen(prices['20']):'未算出')+'（費用想定に基づく試算）';
+   const guidance='現在価格 '+(validPrice(p.salePriceJpy)?yen(p.salePriceJpy):'未確認')+'／25%に必要な価格 '+(validPrice(prices['25'])?yen(prices['25']):'未算出')+'／20%に必要な価格 '+(validPrice(prices['20'])?yen(prices['20']):'未算出')+'／15%に必要な価格 '+(validPrice(prices['15'])?yen(prices['15']):'未算出')+'（費用想定に基づく試算）';
    const details=['CJ倉庫在庫 '+(p.cjStockVerified===true?(p.cjStockQuantity+'件'):'未確認（'+(p.cjStockReason||'不明')+'）')+'／工場在庫 '+(Number.isSafeInteger(p.factoryStockQuantity)?p.factoryStockQuantity+'件':'未確認')+(p.requiresFactoryReplenishment===true?'（取り寄せ候補・補充日数未確認）':''),'送料 '+(p.cjFreightVerified===true?(p.cjFreightJpy+'円'):'未確認（'+(p.cjFreightReason||'不明')+'）'),'決済 '+(p.paymentFeeAssumptionsReady===true?'設定済':'未確認'),'広告 '+(p.plannedAdCostPerOrderJpy??'未設定'),'返品 '+(p.returnReservePerOrderJpy??'未設定')].join('／');
    return p.title+'：'+status+'／利益率 '+(Number.isFinite(p.finalMarginPercent)?p.finalMarginPercent+'%':'未確定')+'\n'+tier+'\n'+guidance+'\n'+details;
  }).join('\n\n')+'\n試算結果のみ。公開・価格・候補状態は変更しません。';

@@ -398,7 +398,9 @@ test('legacy diagnostics use exact net margin tiers, server exception evidence a
  assert.equal(check(row).requiresManualMarginOverride,true);
  assert.equal(check({...row,marginExceptionApproved:true}).recommendedByMargin,false);
  assert.equal(check({...row,marginExceptionApproved:true,marginExceptionApprovalId:'server-id'}).recommendedByMargin,true);
- assert.equal(check({...row,estimatedMarginTier:null,finalMarginPercent:20}).recommendationExcludedByMargin,true);
+ assert.equal(check({...row,estimatedMarginTier:null,finalMarginPercent:15}).recommendationExcludedByMargin,true);
+ assert.equal(check({...row,estimatedMarginTier:15,finalMarginPercent:17}).requiresManualMarginOverride,true);
+ assert.equal(check({...row,estimatedMarginTier:15,finalMarginPercent:17,marginExceptionApproved:true,marginExceptionApprovalId:'server-id'}).recommendedByMargin,true);
  assert.equal(check({...row,estimatedMarginTier:25}).publicationApproved,false);
  const factory=run([sku],[{vid:sku,launchEligible:false,recommendationStockEligible:true,requiresFactoryReplenishment:true}],[row],freight);
  assert.equal(factory.factoryCandidate,true);
