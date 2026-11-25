@@ -2419,7 +2419,16 @@ async function runDraftMarginAudit(){
  const j=await r.json();
  if(!r.ok||j.ok!==true||j.readOnly!==true||j.catalogComplete!==true||!Number.isSafeInteger(j.targetCount)||j.targetCount<1||!Array.isArray(j.rows)||j.rows.length!==j.targetCount||j.total!==j.targetCount||!j.rows.every(p=>p&&/^\d{10,25}$/.test(String(p.sku||'')))||new Set(j.rows.map(p=>p.sku)).size!==j.targetCount)throw Error(j.error||'対象下書き商品の監査が不完全です');
  const labels={'provisional-pass':'25%基準を試算上クリア','exception-review':'20%例外承認が必要','exclude':'20%未満：候補除外対象','hold':'保留：在庫・送料・費用未確認'};
- out.textContent='監査対象：'+j.targetCount+'件（現在の下書き商品）\n\n'+j.rows.map(p=>{const status=p.ok===true?(labels[p.estimatedAuditStatus]||'保留'):'保留：取得失敗';const details=p.ok===true?['CJ倉庫在庫 '+(p.cjStockVerified===true?(p.cjStockQuantity+'件'):'未確認（'+(p.cjStockReason||'不明')+'）')+'／工場在庫 '+(Number.isSafeInteger(p.factoryStockQuantity)?p.factoryStockQuantity+'件':'未確認')+(p.requiresFactoryReplenishment===true?'（取り寄せ候補・補充日数未確認）':''),'送料 '+(p.cjFreightVerified===true?(p.cjFreightJpy+'円'):'未確認（'+(p.cjFreightReason||'不明')+'）'),'決済 '+(p.paymentFeeAssumptionsReady===true?'設定済':'未確認'),'広告 '+(p.plannedAdCostPerOrderJpy??'未設定'),'返品 '+(p.returnReservePerOrderJpy??'未設定')].join('／'):(p.reason||'原因不明');return p.title+'：'+status+'／利益率 '+(Number.isFinite(p.finalMarginPercent)?p.finalMarginPercent+'%':'未確定')+'\n'+details;}).join('\n\n')+'\n試算結果のみ。公開・価格・候補状態は変更しません。';
+ const validPrice=n=>Number.isSafeInteger(n)&&n>0;
+ out.textContent='監査対象：'+j.targetCount+'件（現在の下書き商品）\n\n'+j.rows.map(p=>{
+   if(p.ok!==true)return p.title+'：保留：取得失敗\n'+(p.reason||'原因不明');
+   const status=labels[p.estimatedAuditStatus]||'保留';
+   const tier=p.estimatedMarginTier===25?'利益試算：25%以上':p.estimatedMarginTier===20?'利益試算：20%以上25%未満（SKU別承認が必要）':p.assumptionsReady===true?'利益試算：20%未満（現価格では対象外）':'利益試算：未確認';
+   const prices=p.requiredSalePriceByMargin||{};
+   const guidance='現在価格 '+(validPrice(p.salePriceJpy)?yen(p.salePriceJpy):'未確認')+'／25%に必要な価格 '+(validPrice(prices['25'])?yen(prices['25']):'未算出')+'／20%に必要な価格 '+(validPrice(prices['20'])?yen(prices['20']):'未算出')+'（費用想定に基づく試算）';
+   const details=['CJ倉庫在庫 '+(p.cjStockVerified===true?(p.cjStockQuantity+'件'):'未確認（'+(p.cjStockReason||'不明')+'）')+'／工場在庫 '+(Number.isSafeInteger(p.factoryStockQuantity)?p.factoryStockQuantity+'件':'未確認')+(p.requiresFactoryReplenishment===true?'（取り寄せ候補・補充日数未確認）':''),'送料 '+(p.cjFreightVerified===true?(p.cjFreightJpy+'円'):'未確認（'+(p.cjFreightReason||'不明')+'）'),'決済 '+(p.paymentFeeAssumptionsReady===true?'設定済':'未確認'),'広告 '+(p.plannedAdCostPerOrderJpy??'未設定'),'返品 '+(p.returnReservePerOrderJpy??'未設定')].join('／');
+   return p.title+'：'+status+'／利益率 '+(Number.isFinite(p.finalMarginPercent)?p.finalMarginPercent+'%':'未確定')+'\n'+tier+'\n'+guidance+'\n'+details;
+ }).join('\n\n')+'\n試算結果のみ。公開・価格・候補状態は変更しません。';
  }catch(e){out.textContent='監査停止：'+String(e.message||e)}
 }
 async function saveDraftCostScenario(){
