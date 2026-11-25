@@ -87,3 +87,12 @@ test('integrated CJ draft preflight uses supplier prices and stops before creati
  calls.length=0;assert.equal((await prepareDisputeDraft({...input,items:[{lineItemId:'12345',quantity:3}]},{token:'test',fetcher})).ok,false);assert.equal(calls.length,1);
  calls.length=0;assert.equal((await prepareDisputeDraft({...input,expectType:2},{token:'test',fetcher})).ok,false);assert.equal(calls.length,2);
 });
+
+test('simulated return submission reserves once and requires exact readback',async()=>{
+ const {simulateDisputeSubmission}=await import('../lib/routes/shopify-return-audit.js');
+ const draft={ok:true,submissionAllowed:false,payload:{orderId:'CJ123',businessDisputeId:'RET123'}};
+ for(const scenario of ['ok','duplicate','timeout','wrong-order','persist-failure']){
+  let writes=0,reads=0,saves=0;const result=await simulateDisputeSubmission(draft,{reserve:async()=>scenario!=='duplicate',submitMock:async()=>{writes++;if(scenario==='timeout')throw Error('timeout');return {ok:true,disputeId:'SH12345'};},readMock:async()=>{reads++;return {ok:true,disputeId:'SH12345',orderId:scenario==='wrong-order'?'CJ999':'CJ123',businessDisputeId:'RET123'};},persist:async()=>{saves++;return scenario!=='persist-failure';}});
+  assert.equal(result.ok,scenario==='ok');assert.equal(result.simulated,true);assert.equal(result.customerRefundAuthorized,false);assert.equal(result.automaticRetry,false);assert.equal(writes,scenario==='duplicate'?0:1);assert.equal(reads,['duplicate','timeout'].includes(scenario)?0:1);assert.equal(saves,['ok','persist-failure'].includes(scenario)?1:0);
+ }
+});
