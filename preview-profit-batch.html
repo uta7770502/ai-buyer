@@ -67,7 +67,7 @@ async function run(){
   try{
    const qs=new URLSearchParams({vid});
    const controller=new AbortController();
-   const timeout=setTimeout(()=>controller.abort(),15000);
+   const timeout=setTimeout(()=>controller.abort(),60000);
    let r,j;
    try{
      r=await fetch('/api/cj-profit-audit?'+qs.toString(),{headers,cache:'no-store',signal:controller.signal});
@@ -79,7 +79,9 @@ async function run(){
    const tr=document.createElement('tr');
    if(!r.ok||j.ok!==true||j.readOnly!==true||!x||x.ok!==true||x.sku!==vid||j.rows.length!==1){
     unknown++;
-    tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="7">'+'監査失敗・確認が必要'+'</td>';
+    const labels={'cj-cost-unverified':'CJ仕入原価・SKU・通貨を確認できません','shopify-product-unverified':'Shopify商品情報を確認できません','duplicate-cj-variant-id':'CJ SKU重複','price-or-variant-unverified':'販売価格またはSKU未確認'};
+    tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="7"></td>';
+    tr.lastElementChild.textContent=r.status===401||r.status===403?'管理者認証を確認してください':r.status===429?'アクセス集中・再監査対象':Object.hasOwn(labels,x?.reason)?labels[x.reason]:'監査失敗（HTTP '+r.status+'）・確認が必要';
    }else{
     successfulRows.push(x);
     const tier=x.estimatedMarginTier;
@@ -101,8 +103,8 @@ async function run(){
   }catch(e){
    const tr=document.createElement('tr');
    unknown++;
-   const timeout=e&&e.name==='AbortError';
-   tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">'+(timeout?'15秒超過':'通信失敗')+'</td><td colspan="7">'+(timeout?'この商品を保留して次の商品へ進みました':'再試行対象')+'</td>';
+   const timeout=e&&(e.name==='AbortError'||e.name==='TimeoutError');
+   tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">'+(timeout?'60秒超過':'通信失敗')+'</td><td colspan="7">'+(timeout?'この商品を保留して次の商品へ進みました':'再試行対象')+'</td>';
    tbody.appendChild(tr);
   }
   completed++;bar.style.width=(completed/vids.length*100)+'%';
