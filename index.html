@@ -1361,12 +1361,16 @@ async function runAdminStockDryRun(){
       if(typeof data.inSync==='number')lines.push('在庫一致: '+data.inSync);
       if(typeof data.needsSync==='number')lines.push('在庫差異（未更新）: '+data.needsSync);
       if(typeof data.blocked==='number')lines.push('確認不可・停止対象: '+data.blocked);
-      if(typeof data.factoryReplenishment==='number')lines.push('工場取り寄せ: '+data.factoryReplenishment);
+      if(typeof data.factoryReplenishment==='number')lines.push('工場取り寄せ: '+data.factoryReplenishment+'件（補充日数は別途確認）');
+      if(typeof data.recommendationEligible==='number')lines.push('在庫条件を満たす候補: '+data.recommendationEligible+'件（利益・安全審査は別途）');
       if(Array.isArray(data.rows)){
         const reasons={};
         let differences=0;
         for(const row of data.rows){
           if(row?.ok!==true){const reason=String(row?.reason||row?.error||'unknown');reasons[reason]=(reasons[reason]||0)+1;}
+          if(row?.ok===true&&row.factoryReplenishmentRequired===true){
+            lines.push('取り寄せ候補: '+String(row.title||'商品名なし').slice(0,65)+' / CJ倉庫 '+String(row.cjStock??'不明')+' / 工場 '+String(row.factoryStock??'不明')+' / 補充日数未確認');
+          }
           if(row?.ok===true&&Number.isSafeInteger(row.shopifyStock)&&Number.isSafeInteger(row.cjStock)&&row.shopifyStock!==row.cjStock){
             differences++;
             lines.push('差異 '+differences+': '+String(row.title||'商品名なし').slice(0,65));
@@ -2585,10 +2589,13 @@ async function checkReleaseReadiness(){
       const webhookState=j.externalChecks?.shopifyWebhookVerified?'Webhook OK':'Webhook要確認';
       const cjState=j.externalChecks?.cjApiVerified?'CJ接続OK':'CJ接続要確認';
       const redisState=j.externalChecks?.redisPing?'Redis OK':'Redis要確認';
-      const legalState=j.legalReady?'法務OK':'法務情報要入力';
+      const legalState=j.legalReady?'ADPS法務入力済':'ADPS法務情報要確認';
+      const policyState=j.shopifyPolicyAudit?.verified===true?'Shopify規約未登録 '+Number(j.shopifyPolicyAudit.missingTypes?.length||0)+'件（内容照合は別途）':'Shopify規約未確認';
+      const deliveryState=j.shopifyDeliveryAudit?.verified===true?'配送レート未設定拠点 '+String(j.shopifyDeliveryAudit.locationsWithoutRates??'不明'):'Shopify配送設定未確認';
+      const marketState=j.shopifyMarketsAudit?.verified===true?'有効販売市場 '+String(j.shopifyMarketsAudit.activeCount??'不明')+'件':'Shopify販売市場未確認';
       const checkoutState=j.checkoutEnabled?'Checkout ON':'Checkout OFF';
-      const prelaunchState=j.prelaunchReady?'公開直前READY':'公開前チェック残り';
-      meta.textContent=base+' / '+shopifyState+' / '+webhookState+' / '+cjState+' / '+redisState+' / '+legalState+' / '+checkoutState+' / '+prelaunchState+' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP');
+      const prelaunchState=j.prelaunchReady?'バックエンド検査OK（公開承認ではありません）':'公開前チェック残り';
+      meta.textContent=base+' / '+shopifyState+' / '+webhookState+' / '+cjState+' / '+redisState+' / '+legalState+' / '+policyState+' / '+deliveryState+' / '+marketState+' / '+checkoutState+' / '+prelaunchState+' / 確認: '+new Date(releaseReadinessCheckedAt).toLocaleString('ja-JP');
     }
     renderAutomationDashboard();renderOrderFlowOverview();renderGoLiveReadiness();
     renderTestChecklist();
