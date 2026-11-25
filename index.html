@@ -1387,6 +1387,11 @@ async function runAdminStockDryRun(){
         }
         for(const [reason,count] of Object.entries(reasons))lines.push('停止理由 '+reason+': '+count);
       }
+      if(data.syncPlan?.mode==='read-only-cas-preview'){
+        const ready=data.syncPlan.ready===true&&data.syncPlan.writeLocked===true&&data.syncPlan.mutationPerformed===false;
+        lines.push('在庫同期計画: '+(ready?'検証済み（変更予定 '+data.syncPlan.changeCount+'件）':'保留'));
+        lines.push('工場在庫は即納在庫に加算しません。書き込みは停止中です。');
+      }
       if(currentStockEvidence)lines.push('実在庫確認結果を公開準備チェックに引継ぎ済（15分間有効）');
       lines.push('在庫変更: なし（読み取り専用）');
       result.textContent=lines.join('\n');
