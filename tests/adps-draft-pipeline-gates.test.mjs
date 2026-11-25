@@ -144,3 +144,18 @@ test('stop sync requires persisted Shopify DRAFT and matching product ID',()=>{
  assert.match(source,/d\.productUpdate\?\.product\?\.id!==productId/);
  assert.match(source,/statusReadback\?\.product\?\.id!==productId\|\|statusReadback\.product\.status!==status/);
 });
+
+
+test('generated customer copy does not expose supplier freight or unconfirmed return-day estimates',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('function shopifyDescription(p){');const end=html.indexOf('function storefrontJaTitle(',start);
+ assert.ok(start>=0&&end>start);
+ const render=Function('esc','yen',html.slice(start,end)+';return shopifyDescription;')(s=>String(s),n=>'¥'+n);
+ for(const p of [{name:'テスト商品',price:2500,shippingJpy:1142,returnDays:7},{name:'テスト商品',price:2500,shippingJpy:0,returnDays:30}]){
+  const result=render(p);
+  assert.match(result,/配送料は配送先とご注文内容に応じて、ご注文確定前に表示されます。/);
+  assert.match(result,/返品条件はストアポリシーをご確認ください。/);
+  assert.doesNotMatch(result,/送料目安|返品目安|¥1142|¥0|7日以内|30日以内/);
+  assert.match(result,/販売価格: ¥2500/);
+ }
+});
