@@ -2410,14 +2410,17 @@ async function savePaymentFeeAssumptions(){
   out.textContent='保存応答：'+j.updatedCount+'項目。店舗共通の想定値として保存しました。';
  }catch(e){out.textContent='保存停止：'+String(e.message||e)}
 }
+let currentStockEvidence=null;
 async function runDraftMarginAudit(){
  const out=document.getElementById('draftMarginAuditResult'),key=getTestAdminKey();
  if(!key){out.textContent='管理者キーが必要です';return}
+ currentStockEvidence=null;
  out.textContent='利益監査中…';
  try{
  const r=await fetch('/api/cj-profit-audit',{headers:{Authorization:'Bearer '+key},cache:'no-store'});
  const j=await r.json();
  if(!r.ok||j.ok!==true||j.readOnly!==true||j.catalogComplete!==true||!Number.isSafeInteger(j.targetCount)||j.targetCount<1||!Array.isArray(j.rows)||j.rows.length!==j.targetCount||j.total!==j.targetCount||!j.rows.every(p=>p&&/^\d{10,25}$/.test(String(p.sku||'')))||new Set(j.rows.map(p=>p.sku)).size!==j.targetCount)throw Error(j.error||'対象下書き商品の監査が不完全です');
+ currentStockEvidence=typeof j.stockEvidence==='string'?j.stockEvidence:null;
  const labels={'provisional-pass':'25%基準を試算上クリア','exception-review':'20%例外承認が必要','exclude':'20%未満：候補除外対象','hold':'保留：在庫・送料・費用未確認'};
  const validPrice=n=>Number.isSafeInteger(n)&&n>0;
  out.textContent='監査対象：'+j.targetCount+'件（現在の下書き商品）\n\n'+j.rows.map(p=>{
@@ -2537,7 +2540,7 @@ async function runOneActionPrelaunch(){
     const r=await fetch('/api/prelaunch-one-action',{
       method:'POST',
       headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-      body:'{}'
+      body:JSON.stringify({stockEvidence:currentStockEvidence})
     });
     const j=await r.json();
     if(!r.ok||!j.ok)throw new Error(j.error||'公開直前準備を完了できませんでした');
@@ -2553,7 +2556,7 @@ async function runOneActionPrelaunch(){
     if(status)status.textContent='3/6 Shopify下書きの既知情報を再同期中…';
     const repair=await repairPrelaunchDraftMetadata(j.productAudit?.products||[]);
     if(repair.updated>0){
-      const rr=await fetch('/api/prelaunch-one-action',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:'{}'});
+      const rr=await fetch('/api/prelaunch-one-action',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({stockEvidence:currentStockEvidence})});
       const refreshed=await rr.json();
       if(rr.ok&&refreshed.ok){
         j.blockers=refreshed.blockers||j.blockers;
