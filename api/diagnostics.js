@@ -4,7 +4,7 @@ import automationReconciliation from '../lib/routes/automation-reconciliation.js
 import cjHealth from '../lib/routes/cj-health.js';
 import cjFreight from '../lib/routes/cj-freight.js';
 import cjShopifyStockSync from '../lib/routes/cj-shopify-stock-sync.js';
-import { validateCJStockResponse } from '../lib/cj-stock-validation.js';
+import { validateCJStockResponse, classifyCJAvailability } from '../lib/cj-stock-validation.js';
 import shopifyFulfillmentSync from '../lib/routes/shopify-fulfillment-sync.js';
 import releaseReadiness from '../lib/routes/release-readiness.js';
 import shopifySandboxOrder from '../lib/routes/shopify-sandbox-order.js';
@@ -122,6 +122,7 @@ async function previewCjStockAudit(req,res){
       const valid=rr.ok?validateCJStockResponse(jj):{ok:false,reason:'cj-http-error'};
       const total=valid.ok?valid.total:null;
       const available=valid.ok&&total>0;
+      const candidate=classifyCJAvailability(valid,5);
       const dataShape=Array.isArray(jj.data)?'array':jj.data===null?'null':typeof jj.data;
       const warehouseFlagValues=Array.isArray(jj.data)
         ?[...new Set(jj.data.map(x=>x?.verifiedWarehouse===undefined?'missing':String(x.verifiedWarehouse)))].slice(0,5)
@@ -130,6 +131,10 @@ async function previewCjStockAudit(req,res){
         vid,ok:valid.ok,reason:valid.ok?null:valid.reason,
         status:!valid.ok?'unverified':available?'available':'out-of-stock',
         warehouseRowCount:Array.isArray(jj.data)?jj.data.length:0,totalInventory:total,
+        factoryStockQuantity:valid.ok?valid.factoryTotal:null,
+        recommendationStockEligible:candidate.recommendationEligible,
+        requiresFactoryReplenishment:candidate.requiresFactoryReplenishment,
+        recommendationStockReason:candidate.reason,factoryLeadTimeVerified:false,
         diagnostic:valid.ok?null:{
           httpStatus:rr.status,
           cjResult:jj.result===true?'true':jj.result===false?'false':'missing',
@@ -157,7 +162,7 @@ async function previewCjStockAudit(req,res){
     }
     const launchEligible=rows.filter(x=>x.ok&&Number.isSafeInteger(x.totalInventory)&&x.totalInventory>=5).length;
     for(const row of rows)row.launchEligible=row.ok&&Number.isSafeInteger(row.totalInventory)&&row.totalInventory>=5;
-    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,launchEligible,minimumLaunchInventory:5,allVerified:rows.every(x=>x.ok),rows});
+    return res.status(200).json({ok:true,readOnly:true,total:rows.length,available:rows.filter(x=>x.status==='available').length,unavailable:rows.filter(x=>x.status==='out-of-stock').length,unverified:rows.filter(x=>x.status==='unverified').length,launchEligible,stockCandidateCount:rows.filter(x=>x.recommendationStockEligible===true).length,factoryReplenishmentCandidates:rows.filter(x=>x.requiresFactoryReplenishment===true).length,minimumLaunchInventory:5,allVerified:rows.every(x=>x.ok),rows});
   }catch(e){return res.status(503).json({ok:false,error:'CJ stock audit failed'})}
 }
 
