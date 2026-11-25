@@ -23,3 +23,21 @@ test('CJ stock and freight are verified independently',()=>{
  assert.match(source,/logistic\/freightCalculate/);
  assert.match(source,/cjStockAvailable=stock\.total>=5/);
 });
+
+test('read-only margin audit accepts the current complete set, not a fixed nine products',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const block=html.slice(html.indexOf('async function runDraftMarginAudit(){'),html.indexOf('async function saveDraftCostScenario(){'));
+ const guard=block.split('\n').find(line=>line.includes('j.catalogComplete!==true'));
+ assert.ok(guard);
+ const check=Function('r','j',guard+';return true;');
+ for(const count of [8,9,10]){
+   const rows=Array.from({length:count},(_,i)=>({sku:String(1000000000+i)}));
+   const result={ok:true,readOnly:true,catalogComplete:true,targetCount:count,total:count,rows};
+   assert.equal(check({ok:true},result),true);
+   assert.throws(()=>check({ok:true},{...result,rows:rows.slice(1)}));
+   assert.throws(()=>check({ok:true},{...result,catalogComplete:false}));
+   assert.throws(()=>check({ok:true},{...result,rows:[...rows.slice(1),rows[1]]}));
+ }
+ assert.match(source,/catalogComplete:!requestedSku&&rows.length===products.length,targetCount:products.length/);
+ assert.match(source,/data.products.pageInfo\?\.hasNextPage!==false/);
+});
