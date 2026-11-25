@@ -120,3 +120,13 @@ test('profit batch counts margin tiers independently from factory replenishment 
  assert.match(html,/別集計：在庫・納期保留/);
  assert.match(html,/td\.textContent=values\[i\]/);
 });
+
+test('factory inquiry includes only cost-checked eligible replenishment variants and is not an order',()=>{
+ const html=fs.readFileSync(new URL('../preview-profit-batch.html',import.meta.url),'utf8');
+ const a=html.indexOf('function buildFactoryInquiry('),b=html.indexOf('const inquiryCard=',a);
+ const make=Function(html.slice(a,b)+';return buildFactoryInquiry')();
+ const base={ok:true,cjStockVerified:true,stockCandidateEligible:true,requiresFactoryReplenishment:true,supplierQuoteVerified:true,cjFreightVerified:true,assumptionsReady:true,estimatedMarginTier:15,sku:'1234567890123'};
+ assert.match(make([base]),/1234567890123/);assert.match(make([base]),/not an order/);
+ assert.equal(make([{...base,estimatedMarginTier:null}]),'');assert.equal(make([{...base,cjStockVerified:false}]),'');assert.equal(make([{...base,sku:'invalid'}]),'');assert.equal(make([{...base,requiresFactoryReplenishment:false}]),'');
+ assert.equal(make([base,base]).match(/1234567890123/g).length,1);
+});

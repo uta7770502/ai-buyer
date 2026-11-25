@@ -26,6 +26,7 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 <div class="card" style="overflow:auto">
 <table><thead><tr><th>商品／SKU</th><th>利益判定</th><th>在庫判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
+<div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補のみを抽出します。CJへの問い合わせ用英文です。送信・販売承認は行いません。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
 <div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
 <script>
 
@@ -37,12 +38,19 @@ if(keyInput.value)authStatus.textContent='同じタブの管理者キーを引�
 clearKey.addEventListener('click',()=>{keyInput.value='';try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者キーを消去しました。';});
 function setBusy(busy){btn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
 function yen(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
+function buildFactoryInquiry(rows){
+ const vids=[...new Set(rows.filter(r=>r?.ok===true&&r.cjStockVerified===true&&r.stockCandidateEligible===true&&r.requiresFactoryReplenishment===true&&r.supplierQuoteVerified===true&&r.cjFreightVerified===true&&r.assumptionsReady===true&&[25,20,15].includes(r.estimatedMarginTier)&&/^\d{10,25}$/.test(r.sku)).map(r=>r.sku))];
+ if(!vids.length)return '';
+ return 'Hello CJ team, we are preparing a dropshipping store for customers in Japan. Could you please confirm the following for each variant ID?\n\n'+vids.map(v=>'- '+v).join('\n')+'\n\n1. Is factory stock available for dropshipping to Japan?\n2. How many business days are needed to replenish CJ warehouse stock after receiving an order? Is 2–3 business days realistic for each variant?\n3. What is the total estimated processing time before dispatch, including quality inspection and packaging?\n4. Are there any order quantity restrictions, and can you confirm the current replenishment estimate in writing?\n\nThis is a pre-launch inquiry only, not an order. Thank you.';
+}
+const inquiryCard=document.getElementById('factoryInquiryCard'),inquiry=document.getElementById('factoryInquiry'),copyStatus=document.getElementById('factoryCopyStatus');
+document.getElementById('copyFactoryInquiry').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(inquiry.value);copyStatus.textContent='コピーしました。';}catch{inquiry.focus();inquiry.select();copyStatus.textContent='選択された文章を手動でコピーしてください。';}});
 async function run(){
  if(btn.disabled)return;
  const key=keyInput.value.trim();
  if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return}
  authStatus.textContent='管理者認証を確認中…';
- setBusy(true);tbody.innerHTML='';bar.style.width='0%';let completed=0,pass=0,exception20=0,exception15=0,excluded=0,unknown=0,stockHold=0;
+ setBusy(true);inquiryCard.hidden=true;inquiry.value='';copyStatus.textContent='';const successfulRows=[];tbody.innerHTML='';bar.style.width='0%';let completed=0,pass=0,exception20=0,exception15=0,excluded=0,unknown=0,stockHold=0;
  const headers={Authorization:'Bearer '+key};
  let vids;
  try{
@@ -73,6 +81,7 @@ async function run(){
     unknown++;
     tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="7">'+'監査失敗・確認が必要'+'</td>';
    }else{
+    successfulRows.push(x);
     const tier=x.estimatedMarginTier;
     const costReady=x.supplierQuoteVerified===true&&x.cjFreightVerified===true&&x.assumptionsReady===true;
     const stockOk=x.cjStockVerified===true&&x.cjStockAvailable===true&&Number.isSafeInteger(x.cjStockQuantity)&&x.cjStockQuantity>=5;
@@ -103,6 +112,7 @@ async function run(){
  statusEl.textContent='完了：'+completed+' / '+vids.length;
  document.getElementById('summary').textContent='利益判定：25%以上 '+pass+'件 / 20%例外 '+exception20+'件 / 15%例外 '+exception15+'件 / 15%未満 '+excluded+'件 / 未確認 '+unknown+'件。別集計：在庫・納期保留 '+stockHold+'件（取得成功行）';
  document.getElementById('decision').textContent='運用判断：25% PASSは利益試算の条件達成のみ。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは補充日数確認まで販売保留。';
+ inquiry.value=buildFactoryInquiry(successfulRows);inquiryCard.hidden=!inquiry.value;
  setBusy(false);
 }
 btn.addEventListener('click',run);
