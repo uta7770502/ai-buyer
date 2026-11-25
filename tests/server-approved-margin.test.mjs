@@ -20,9 +20,9 @@ test('Redis-backed approval loader accepts matching record and rejects tampering
  const {loadMarginException}=await import('data:text/javascript,'+encodeURIComponent(mocked));
  const now=Date.parse('2026-11-09T00:00:00Z');
  const vid='1234567890123';
- const base={approved:true,source:'product-specific-owner-approval',vid,threshold:25,approvedAt:new Date(now-1000).toISOString(),approvalId:'approval-test-123'};
+ const base={approved:true,source:'product-specific-owner-approval',vid,threshold:20,approvedAt:new Date(now-1000).toISOString(),approvalId:'approval-test-123'};
  const fetcher=record=>async(url,opts)=>({ok:true,json:async()=>({result:JSON.stringify(record)})});
- assert.equal((await loadMarginException(vid,{now,fetcher:fetcher(base)}))?.threshold,25);
+ assert.equal((await loadMarginException(vid,{now,fetcher:fetcher(base)}))?.threshold,20);
  for(const record of [{...base,vid:'9999999999999'},{...base,approvedAt:new Date(now-31*86400000).toISOString()},{...base,approvalId:'bad'},{...base,threshold:30}])assert.equal(await loadMarginException(vid,{now,fetcher:fetcher(record)}),null);
  assert.equal(await loadMarginException('invalid',{now,fetcher:fetcher(base)}),null);
  assert.equal(await loadMarginException(vid,{now,fetcher:async()=>{throw Error('offline')}}),null);
@@ -33,19 +33,19 @@ test('stored approval wrapper never trusts caller-supplied approval and fails cl
  t.after(()=>{for(const [k,v] of Object.entries(oldEnv)){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
  process.env.VERCEL_ENV='preview';process.env.VERCEL_GIT_COMMIT_REF='safety-gate-20261024';
  const marginModule='export const assessVerifiedProductMargin=(e)=>({approved:!!e.marginException,threshold:e.threshold,record:e.marginException||null});';
- const loaderModule='export const loadMarginException=async(id)=>({approved:true,source:"product-specific-owner-approval",vid:id,threshold:25,approvedAt:"2026-11-16T00:00:00Z",approvalId:"approval-test-123"});';
+ const loaderModule='export const loadMarginException=async(id)=>({approved:true,source:"product-specific-owner-approval",vid:id,threshold:20,approvedAt:"2026-11-16T00:00:00Z",approvalId:"approval-test-123"});';
  const mocked=wrapper
   .replace("'./server-margin-exception.js'",JSON.stringify('data:text/javascript,'+encodeURIComponent(loaderModule)))
   .replace("'./verified-product-margin.js'",JSON.stringify('data:text/javascript,'+encodeURIComponent(marginModule)));
  const {assessMarginWithStoredApproval}=await import('data:text/javascript,'+encodeURIComponent(mocked));
- const attacker={expectedVid:'1234567890123',threshold:20,marginException:{approved:true,threshold:20,source:'product-specific-owner-approval'}};
+ const attacker={expectedVid:'1234567890123',threshold:30,marginException:{approved:true,threshold:20,source:'product-specific-owner-approval'}};
  const rejected=await assessMarginWithStoredApproval(attacker);
  assert.equal(rejected.approved,false);
  assert.equal(rejected.record,null);
- const accepted=await assessMarginWithStoredApproval({...attacker,threshold:25});
+ const accepted=await assessMarginWithStoredApproval({...attacker,threshold:20});
  assert.equal(accepted.approved,true);
- assert.equal(accepted.record.threshold,25);
- const defaultTier=await assessMarginWithStoredApproval({...attacker,threshold:30});
+ assert.equal(accepted.record.threshold,20);
+ const defaultTier=await assessMarginWithStoredApproval({...attacker,threshold:25});
  assert.equal(defaultTier.record,null);
 });
 
