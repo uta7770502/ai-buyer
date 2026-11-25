@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import handler,{verifyStockReadback,verifyStockWritePlan} from '../lib/routes/cj-shopify-stock-sync.js';
+import handler,{verifyStockReadback,verifyStockWritePlan,executeStockWritePlan} from '../lib/routes/cj-shopify-stock-sync.js';
 import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
 async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
@@ -144,4 +144,22 @@ test('stock CAS plan rejects duplicate targets, invalid quantities and unchanged
  const x={inventoryItemId:'gid://shopify/InventoryItem/1',locationId:'gid://shopify/Location/1',quantity:5,changeFromQuantity:0};
  assert.equal(verifyStockWritePlan([x]),true);
  for(const rows of [[],[x,x],[{...x,quantity:-1}],[{...x,quantity:2147483648}],[{...x,quantity:0}],[{...x,changeFromQuantity:null}],[{...x,locationId:'wrong'}],[null]])assert.equal(verifyStockWritePlan(rows),false);
+});
+
+for(const scenario of ['ok','reject','timeout','missing','mismatch','readback-timeout','invalid'])test('mock inventory execution: '+scenario,async()=>{
+ const x={inventoryItemId:'gid://shopify/InventoryItem/1',locationId:'gid://shopify/Location/1',quantity:5,changeFromQuantity:0};
+ const calls=[];
+ const result=await executeStockWritePlan(scenario==='invalid'?[]:[x],async(query,variables)=>{
+  if(query==='mutation'){
+   calls.push('write');assert.deepEqual(variables.input.quantities,[x]);assert.ok(variables.idempotencyKey);
+   if(scenario==='timeout')throw Error('timeout');
+   return {inventorySetQuantities:scenario==='missing'?{}:scenario==='reject'?{userErrors:[{message:'rejected'}]}:{userErrors:[],inventoryAdjustmentGroup:{createdAt:'2026-11-25'}}};
+  }
+  calls.push('read');assert.deepEqual(variables.ids,[x.inventoryItemId]);
+  if(scenario==='readback-timeout')throw Error('timeout');
+  return {nodes:[{id:x.inventoryItemId,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:x.locationId},quantities:[{name:'available',quantity:scenario==='mismatch'?4:5}]}]}}]};
+ },'mutation');
+ assert.equal(result.error===null,scenario==='ok');
+ assert.equal(result.unknown,['timeout','missing','mismatch','readback-timeout'].includes(scenario));
+ assert.deepEqual(calls,scenario==='invalid'?[]:['ok','mismatch','readback-timeout'].includes(scenario)?['write','read']:['write']);
 });
