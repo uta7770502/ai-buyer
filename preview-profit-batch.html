@@ -27,6 +27,7 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 <table><thead><tr><th>商品／SKU</th><th>利益判定</th><th>在庫判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
 <div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補を保持します。発送準備3〜7営業日は店舗の運用目安で、CJのSKU別保証ではありません。例外・遅延時のみ必要に応じて問い合わせ文を使用してください。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
+<div class="card"><b>公開前の在庫・最終準備監査</b><p class="muted">現在の下書き全件のCJ在庫とShopifyロケーション別在庫を再取得し、成功時のみサーバー発行の確認証跡を公開前チェックへ引き継ぎます。書き込み・注文・公開は行いません。</p><button class="secondary" type="button" id="stockAndReady">在庫同期計画・公開前準備を確認</button><pre id="stockReadyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
 <div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
 <script>
 
@@ -41,7 +42,8 @@ if(initialVids.length){retryBtn.hidden=false;retryBtn.textContent='指定 '+init
 try{keyInput.value=sessionStorage.getItem('aiBuyerAdminKey')||''}catch{}
 if(keyInput.value)authStatus.textContent='同じタブの管理者キーを引き継ぎました。監査開始時に認証します。';
 clearKey.addEventListener('click',()=>{keyInput.value='';try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者キーを消去しました。';});
-function setBusy(busy){btn.disabled=busy;retryBtn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
+const stockReadyBtn=document.getElementById('stockAndReady'),stockReadyResult=document.getElementById('stockReadyResult');
+function setBusy(busy){btn.disabled=busy;retryBtn.disabled=busy;stockReadyBtn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
 function yen(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
 function buildFactoryInquiry(rows){
  const vids=[...new Set(rows.filter(r=>r?.ok===true&&r.cjStockVerified===true&&r.stockCandidateEligible===true&&r.requiresFactoryReplenishment===true&&r.supplierQuoteVerified===true&&r.cjFreightVerified===true&&r.assumptionsReady===true&&[25,20,15].includes(r.estimatedMarginTier)&&/^\d{10,25}$/.test(r.sku)).map(r=>r.sku))];
@@ -133,6 +135,38 @@ async function run(onlyPending=false){
  retryBtn.textContent='未確認 '+retryVids.length+' 商品だけ再監査';
  setBusy(false);
 }
+async function runStockAndReady(){
+ if(stockReadyBtn.disabled)return;
+ const key=keyInput.value.trim();
+ if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return;}
+ const headers={Authorization:'Bearer '+key};
+ setBusy(true);stockReadyResult.textContent='現在の全下書き商品を読み取り専用で確認中…';
+ const lines=[];
+ try{
+  const response=await fetch('/api/cj-stock-sync',{method:'GET',headers,cache:'no-store',signal:AbortSignal.timeout(60000)});
+  const data=await response.json();
+  if(response.status===401||response.status===403){try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者認証に失敗しました。';}
+  lines.push('在庫監査 HTTP '+response.status);
+  if(Array.isArray(data.rows)){
+   for(const row of data.rows){
+    lines.push(String(row.title||row.vid||'商品')+'：'+(row.ok===true?'CJ倉庫 '+String(row.cjStock??'未確認')+' / 工場 '+String(row.factoryStock??'未確認')+' / Shopify '+String(row.shopifyStock??'未確認'):String(row.reason||'未確認')));
+   }
+  }
+  const complete=response.ok&&data.ok===true&&data.readOnly===true&&data.allVerified===true&&Number.isSafeInteger(data.variants)&&data.variants>0&&Array.isArray(data.rows)&&data.rows.length===data.variants&&data.syncPlan?.ready===true&&data.syncPlan?.writeLocked===true&&data.syncPlan?.mutationPerformed===false&&typeof data.stockEvidence==='string';
+  if(!complete){lines.push('在庫監査保留：'+String(data.diagnosticCode||data.code||data.error||'全件の確認証跡がありません'));return;}
+  lines.push('同期計画：'+data.syncPlan.changeCount+'件の変更予定（書き込みなし）');
+  stockReadyResult.textContent=lines.join('\n')+'\n公開前の残項目を確認中…';
+  const rr=await fetch('/api/prelaunch-one-action',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({stockEvidence:data.stockEvidence}),cache:'no-store',signal:AbortSignal.timeout(60000)});
+  const result=await rr.json();
+  if(!rr.ok||result.ok!==true||result.safetyContract!=='prelaunch-read-only-v1'){lines.push('公開前監査を確認できません（HTTP '+rr.status+'）');return;}
+  lines.push('実在庫証跡：'+(result.readiness?.variantLevelInventoryVerified===true?'確認済み':'未確認'));
+  lines.push('公開直前準備：'+(result.readyToFinalManualStep===true?'READY（手動承認が必要）':'保留'));
+  for(const b of Array.isArray(result.blockers)?result.blockers:[])lines.push('残項目：'+String(b));
+  for(const w of Array.isArray(result.warnings)?result.warnings:[])lines.push('注意：'+String(w));
+ }catch(e){lines.push('監査通信エラー：'+(e?.name==='TimeoutError'||e?.name==='AbortError'?'時間切れ':'通信失敗'));}
+ finally{lines.push('商品公開・在庫更新・実注文：実行なし');stockReadyResult.textContent=lines.join('\n');setBusy(false);}
+}
+stockReadyBtn.addEventListener('click',runStockAndReady);
 btn.addEventListener('click',()=>run(false));
 retryBtn.addEventListener('click',()=>run(true));
 keyInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();run();}});
