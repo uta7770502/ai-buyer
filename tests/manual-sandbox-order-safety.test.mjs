@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../lib/routes/shopify-sandbox-order.js';
-function setup(t,override={},stored=null,freightOptions=[{logisticName:'Test',totalPostageFee:2}]){
+function setup(t,override={},stored=null,freightOptions=[{logisticName:'Test',totalPostageFee:2}],stockResponse={result:true,data:[{cjInventoryNum:5,factoryInventoryNum:0,totalInventoryNum:5}]}){
  const env={VERCEL_ENV:'test',AI_BUYER_ADMIN_KEY:'admin',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'token',CJ_ACCESS_TOKEN:'cj',CJ_SANDBOX_ORDER_ENABLED:'true',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'redis',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10',CJ_ORDER_LIMIT_CURRENCY:'USD'};
  const old={...process.env};Object.assign(process.env,env);t.after(()=>{for(const k of Object.keys(process.env))if(!(k in old))delete process.env[k];Object.assign(process.env,old)});
  const order={test:true,cancelledAt:null,displayFinancialStatus:'PAID',currencyCode:'USD',currentTotalPriceSet:{shopMoney:{amount:'20'}},shippingAddress:{name:'Test',address1:'Test',city:'Test',countryCodeV2:'JP'},lineItems:{pageInfo:{hasNextPage:false},nodes:[{id:'gid://shopify/LineItem/1',sku:'CJ-VID123',quantity:1}]},...override};
  let state=stored,creates=0,failSave=false,ambiguous=false;const calls=[];
  t.mock.method(globalThis,'fetch',async(url,opts)=>{
-  const body=JSON.parse(opts.body);calls.push({url,body});const response=result=>({ok:true,json:async()=>result});
+  const body=opts.body?JSON.parse(opts.body):[];calls.push({url,body});const response=result=>({ok:true,json:async()=>result});
   if(url.includes('graphql.json'))return response({data:{order}});
   if(url.startsWith('https://redis.invalid')){if(body[0]==='GET')return response({result:state});if(body[0]==='SET'){if(body.includes('NX')&&state!==null)return response({result:null});if(failSave&&body[2].startsWith('created:'))return response({result:null});state=body[2];return response({result:'OK'});}throw Error('Unexpected Redis write');}
+  if(url.includes('/product/stock/queryByVid?'))return response(stockResponse);
   if(url.endsWith('/logistic/freightCalculate'))return response({result:true,data:freightOptions});
   if(url.endsWith('/shopping/order/createOrderV2')){creates++;assert.equal(body.isSandbox,1);assert.equal(body.payType,3);if(ambiguous)throw Error('Timeout');return response({result:true,data:{orderId:'CJ-123'}});}
   throw Error('Unexpected API');
@@ -33,4 +34,19 @@ test('read-only sandbox preflight obtains a shipping quote without reservation o
 for(const quote of [{totalPostageFee:''},{totalPostageFee:null},{totalPostageFee:true},{totalPostageFee:1,currency:'JPY'}])test('invalid or non-USD freight does not reserve or create an order '+JSON.stringify(quote),async t=>{
  const f=setup(t,{},null,[{logisticName:'Test',...quote}]);const r=await f.run();
  assert.equal(r.code,422);assert.equal(f.creates,0);assert.ok(!f.calls.some(c=>c.body[0]==='SET'));
+});
+
+test('factory stock is retained as a planning candidate, not an executable sandbox order',async t=>{
+ const f=setup(t,{},null,undefined,{result:true,data:[{cjInventoryNum:0,factoryInventoryNum:10,totalInventoryNum:10}]});
+ const preview=await f.run(true);assert.equal(preview.code,200);assert.equal(preview.body.eligible,false);assert.equal(preview.body.requiresFactoryReplenishment,true);assert.equal(preview.body.dispatchPlanningWindow.guaranteed,false);
+ assert.equal((await f.run()).code,409);assert.equal(f.creates,0);assert.ok(!f.calls.some(c=>c.body[0]==='SET'));
+});
+test('invalid stock never proceeds to freight or reservation',async t=>{
+ const f=setup(t,{},null,undefined,{result:false});
+ assert.equal((await f.run()).code,503);assert.equal(f.creates,0);assert.ok(!f.calls.some(c=>c.body[0]==='SET'||c.url.endsWith('/logistic/freightCalculate')));
+});
+test('duplicate SKU quantities are aggregated before inventory check',async t=>{
+ const line={id:'gid://shopify/LineItem/1',sku:'CJ-VID123',quantity:3};
+ const f=setup(t,{lineItems:{pageInfo:{hasNextPage:false},nodes:[line,{...line,id:'gid://shopify/LineItem/2'}]}});
+ assert.equal((await f.run()).code,422);assert.equal(f.creates,0);assert.ok(!f.calls.some(c=>c.body[0]==='SET'));
 });
