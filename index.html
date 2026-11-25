@@ -1348,10 +1348,12 @@ async function runAdminStockDryRun(){
   const result=document.getElementById('adminStockDryRunResult');
   const key=getTestAdminKey();
   if(!key){if(result)result.textContent='管理者キーを入力してください。キーは画面外に送信・表示しません。';return}
+  currentStockEvidence=null;
   if(result)result.textContent='読み取り専用で在庫を診断しています...';
   try{
     const response=await fetch('/api/diagnostics?action=cj-shopify-stock-sync',{method:'GET',headers:{Authorization:'Bearer '+key},cache:'no-store',signal:AbortSignal.timeout(60000)});
     const data=await response.json();
+    if(response.ok&&data.ok===true&&data.readOnly===true&&data.allVerified===true&&typeof data.stockEvidence==='string')currentStockEvidence=data.stockEvidence;
     if(result){
       const lines=[
         'HTTP '+response.status,
@@ -1385,6 +1387,7 @@ async function runAdminStockDryRun(){
         }
         for(const [reason,count] of Object.entries(reasons))lines.push('停止理由 '+reason+': '+count);
       }
+      if(currentStockEvidence)lines.push('実在庫確認結果を公開準備チェックに引継ぎ済（15分間有効）');
       lines.push('在庫変更: なし（読み取り専用）');
       result.textContent=lines.join('\n');
     }
