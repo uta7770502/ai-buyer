@@ -94,3 +94,26 @@ test('legal config validates return days and email before save',()=>{
   assert.match(index,/返品受付日数は1〜365日の整数/);
   assert.match(index,/メールアドレスの形式を確認してください/);
 });
+
+test('Shopify policy drafts use stored values and refuse incomplete or invalid configuration',()=>{
+ const start=index.indexOf('function makeShopifyPolicyDrafts(config){');
+ const end=index.indexOf('async function prepareShopifyPolicyDrafts(){',start);
+ assert.ok(start>=0&&end>start);
+ const make=Function(index.slice(start,end)+';return makeShopifyPolicyDrafts;')();
+ const commerce={sellerName:'Fixture shop',representative:'Fixture rep',address:'Fixture address',phone:'03-0000-0000',email:'fixture@example.com',paymentTiming:'注文時',shippingWindow:'確認済みの発送条件',returnDays:7,returnConditions:'確認済み返品条件',returnShipping:'確認済み送料負担',additionalFees:'確認済み追加料金'};
+ const config={ok:true,legalReady:true,commerce};
+ const drafts=make(config);
+ assert.equal(drafts.length,3);
+ assert.match(drafts[0].body,/返品受付日数：7日/);
+ assert.ok(drafts[0].body.includes(commerce.returnConditions));
+ assert.ok(drafts[1].body.includes(commerce.shippingWindow));
+ assert.ok(drafts[2].body.includes(commerce.representative));
+ assert.deepEqual(make({...config,legalReady:false}),[]);
+ for(const patch of [{shippingWindow:''},{returnConditions:' '},{returnDays:0},{returnDays:366},{returnDays:'7'}]){
+   assert.deepEqual(make({...config,commerce:{...commerce,...patch}}),[]);
+ }
+ const ui=index.slice(end,index.indexOf('async function loadLegalAdminForm',end));
+ assert.match(ui,/Authorization:'Bearer '\+key/);
+ assert.match(ui,/field\.value=draft\.body/);
+ assert.doesNotMatch(ui,/method:'POST'|innerHTML|shopPolicyUpdate|localStorage/);
+});
