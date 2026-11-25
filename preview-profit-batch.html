@@ -27,7 +27,7 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 <table><thead><tr><th>商品／SKU</th><th>利益判定</th><th>在庫判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
 <div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補を保持します。発送準備3〜7営業日は店舗の運用目安で、CJのSKU別保証ではありません。例外・遅延時のみ必要に応じて問い合わせ文を使用してください。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
-<div class="card"><b>公開前の在庫・最終準備監査</b><p class="muted">現在の下書き全件のCJ在庫とShopifyロケーション別在庫を再取得し、成功時のみサーバー発行の確認証跡を公開前チェックへ引き継ぎます。書き込み・注文・公開は行いません。</p><button class="secondary" type="button" id="stockAndReady">在庫同期計画・公開前準備を確認</button><pre id="stockReadyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
+<div class="card"><b>公開前の在庫・最終準備監査</b><p class="muted">現在の下書き全件のCJ在庫とShopifyロケーション別在庫を再取得し、成功時のみサーバー発行の確認証跡を公開前チェックへ引き継ぎます。書き込み・注文・公開は行いません。</p><button class="secondary" type="button" id="stockAndReady">在庫同期計画・公開前準備を確認</button><button class="secondary" type="button" id="authOnly">Shopify接続・権限だけ確認</button><pre id="authOnlyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">接続確認：未実行</pre><pre id="stockReadyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
 <div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
 <script>
 
@@ -43,7 +43,8 @@ try{keyInput.value=sessionStorage.getItem('aiBuyerAdminKey')||''}catch{}
 if(keyInput.value)authStatus.textContent='同じタブの管理者キーを引き継ぎました。監査開始時に認証します。';
 clearKey.addEventListener('click',()=>{keyInput.value='';try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者キーを消去しました。';});
 const stockReadyBtn=document.getElementById('stockAndReady'),stockReadyResult=document.getElementById('stockReadyResult');
-function setBusy(busy){btn.disabled=busy;retryBtn.disabled=busy;stockReadyBtn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
+const authOnlyBtn=document.getElementById('authOnly'),authOnlyResult=document.getElementById('authOnlyResult');
+function setBusy(busy){btn.disabled=busy;retryBtn.disabled=busy;stockReadyBtn.disabled=busy;authOnlyBtn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
 function yen(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
 function buildFactoryInquiry(rows){
  const vids=[...new Set(rows.filter(r=>r?.ok===true&&r.cjStockVerified===true&&r.stockCandidateEligible===true&&r.requiresFactoryReplenishment===true&&r.supplierQuoteVerified===true&&r.cjFreightVerified===true&&r.assumptionsReady===true&&[25,20,15].includes(r.estimatedMarginTier)&&/^\d{10,25}$/.test(r.sku)).map(r=>r.sku))];
@@ -169,6 +170,31 @@ async function runStockAndReady(){
  }catch(e){lines.push('監査通信エラー：'+(e?.name==='TimeoutError'||e?.name==='AbortError'?'時間切れ':'通信失敗'));}
  finally{lines.push('商品公開・在庫更新・実注文：実行なし');stockReadyResult.textContent=lines.join('\n');setBusy(false);}
 }
+async function runAuthOnly(){
+ if(authOnlyBtn.disabled)return;
+ const key=keyInput.value.trim();
+ if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return;}
+ setBusy(true);authOnlyResult.textContent='Shopify接続と監査権限を確認中…';
+ const lines=[];
+ try{
+  const r=await fetch('/api/release-readiness',{method:'GET',headers:{Authorization:'Bearer '+key},cache:'no-store',signal:AbortSignal.timeout(60000)});
+  const j=await r.json();
+  if(!r.ok||j.ok!==true||j.safetyContract!=='sandbox-v1'){lines.push('接続監査失敗：HTTP '+r.status);return;}
+  const a=j.auditScopeStatus||{};
+  lines.push('Admin API：'+(j.externalChecks?.shopifyAdminVerified===true?'接続済み':'未確認'));
+  lines.push('Storefrontトークン：'+(j.checks?.shopifyStorefrontToken===true?'設定済み':'未設定'));
+  lines.push('Storefront API：'+(j.shopifyStorefrontVerified===true?'接続済み':'未確認'));
+  lines.push('認証方式：'+(a.credentialSource||'未確認'));
+  lines.push('監査権限：'+(a.verified===true?(Array.isArray(a.missing)&&a.missing.length?a.missing.join(', ')+' 不足':'不足なし'):'未確認'));
+  lines.push('代替OAuthセッション：'+(a.alternateSessionStatus||'未確認'));
+  lines.push('規約：'+(j.shopifyPolicyAudit?.verified===true?'取得成功':'未確認'));
+  lines.push('配送：'+(j.shopifyDeliveryAudit?.verified===true?'取得成功':'未確認'));
+  lines.push('販売市場：'+(j.shopifyMarketsAudit?.verified===true?'取得成功':'未確認'));
+  lines.push('在庫監査・在庫書き込み・商品公開は実行していません。');
+ }catch(e){lines.push('接続確認失敗：通信または時間制限');}
+ finally{authOnlyResult.textContent=lines.join('\n');setBusy(false);}
+}
+authOnlyBtn.addEventListener('click',runAuthOnly);
 stockReadyBtn.addEventListener('click',runStockAndReady);
 btn.addEventListener('click',()=>run(false));
 retryBtn.addEventListener('click',()=>run(true));
