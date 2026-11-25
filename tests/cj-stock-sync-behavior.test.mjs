@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import handler,{verifyStockReadback} from '../lib/routes/cj-shopify-stock-sync.js';
+import handler,{verifyStockReadback,verifyStockWritePlan} from '../lib/routes/cj-shopify-stock-sync.js';
 import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
 async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
@@ -138,4 +138,10 @@ test('inventory readback accepts only exact location and quantity for every uniq
  assert.equal(verifyStockReadback([target],[node]),true);
  for(const bad of [[],[null],[{...node,id:'wrong'}],[{...node,inventoryLevels:{...node.inventoryLevels,pageInfo:{hasNextPage:true}}}],[{...node,inventoryLevels:{...node.inventoryLevels,nodes:[{location:{id:target.locationId},quantities:[{name:'available',quantity:4}]}]}}]])assert.equal(verifyStockReadback([target],bad),false);
  assert.equal(verifyStockReadback([target,target],[node,node]),false);
+});
+
+test('stock CAS plan rejects duplicate targets, invalid quantities and unchanged rows',()=>{
+ const x={inventoryItemId:'gid://shopify/InventoryItem/1',locationId:'gid://shopify/Location/1',quantity:5,changeFromQuantity:0};
+ assert.equal(verifyStockWritePlan([x]),true);
+ for(const rows of [[],[x,x],[{...x,quantity:-1}],[{...x,quantity:2147483648}],[{...x,quantity:0}],[{...x,changeFromQuantity:null}],[{...x,locationId:'wrong'}],[null]])assert.equal(verifyStockWritePlan(rows),false);
 });
