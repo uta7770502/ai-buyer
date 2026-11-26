@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import handler,{verifyStockReadback,verifyStockWritePlan,executeStockWritePlan} from '../lib/routes/cj-shopify-stock-sync.js';
 import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
-async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled'}={}){
+async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled',readbackChanged=false,readbackFailure=false}={}){
   const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'safety-gate-20261024',SHOPIFY_TOKEN_ENCRYPTION_KEY:'ab'.repeat(32)};
   for(const [k,v] of Object.entries(env)){const old=process.env[k];process.env[k]=v;t.after(()=>old===undefined?delete process.env[k]:process.env[k]=old);}
   t.mock.method(globalThis,'setTimeout',fn=>{fn();return 0;});
@@ -25,6 +25,11 @@ async function run(t,{failure=false,throws=false,transient=false,mutation='ok',d
       events.push('write');input=body.variables.input;
       if(mutation==='timeout')throw Error('timeout');
       return reply({data:{inventorySetQuantities:mutation==='missing'?{}:mutation==='reject'?{userErrors:[{message:'compare failed'}]}:{userErrors:[],inventoryAdjustmentGroup:{createdAt:'2026-10-25'}}}});
+    }
+    if(body.query.includes('StockSyncPreviewReadback')){
+      events.push('readback');
+      if(readbackFailure)throw Error('readback unavailable');
+      return reply({data:{nodes:body.variables.ids.map((id,i)=>({id,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:'gid://shopify/Location/1'},quantities:[{name:'available',quantity:readbackChanged&&i===0?1:0}]}]}}))}});
     }
     events.push('read');
     // ADPS's inventory scope can read location IDs without read_locations.
@@ -178,4 +183,14 @@ test('order preflight stops at CJ rate limit without retrying or reading later S
  const {verifyOrderStock}=await import('../lib/cj-order-stock-preflight.js');
  let calls=0;const result=await verifyOrderStock([{vid:'1234567890',quantity:1},{vid:'1234567891',quantity:1}],{base:'https://example.invalid',fetcher:async()=>{calls++;return {ok:false,status:429};}});
  assert.equal(result.ok,false);assert.equal(result.diagnostic,'cj-rate-limited');assert.equal(calls,1);
+});
+
+for(const scenario of ['readbackChanged','readbackFailure'])test('stock preview refuses evidence when '+scenario,async t=>{
+ const {res,events}=await run(t,{dry:true,[scenario]:true});
+ assert.equal(res.body.syncPlan.ready,false);
+ assert.equal(res.body.syncPlan.locationReadbackVerified,false);
+ assert.equal(res.body.stockEvidence,null);
+ assert.deepEqual(res.body.syncPlan.quantities,[]);
+ assert.equal(res.body.syncPlan.reason,'shopify-stock-changed-or-readback-unverified');
+ assert.deepEqual(events,['read','cj','cj','readback']);
 });
