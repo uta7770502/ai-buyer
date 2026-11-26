@@ -195,3 +195,25 @@ test('apply mode rejects duplicate supplier variants and duplicate inventory ite
   assert.match(source,/DUPLICATE_OR_EMPTY_STOCK_IDENTIFIERS/);
   assert.ok(source.indexOf('new Set(vids)')<source.indexOf('const token=await cjToken();'));
 });
+
+test('preview stock readback detects concurrent changes, missing locations and incomplete responses',async()=>{
+ const {verifyStockReadback}=await import('../lib/routes/cj-shopify-stock-sync.js');
+ const expected=[{inventoryItemId:'gid://shopify/InventoryItem/1',locationId:'gid://shopify/Location/2',quantity:0},{inventoryItemId:'gid://shopify/InventoryItem/3',locationId:'gid://shopify/Location/2',quantity:15}];
+ const nodes=expected.map(x=>({id:x.inventoryItemId,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:x.locationId},quantities:[{name:'available',quantity:x.quantity}]}]}}));
+ assert.equal(verifyStockReadback(expected,nodes),true);
+ for(const mutate of [
+  n=>{n[0].inventoryLevels.nodes[0].quantities[0].quantity=1},
+  n=>{n[1].inventoryLevels.nodes[0].location.id='gid://shopify/Location/9'},
+  n=>{n[0].inventoryLevels.pageInfo.hasNextPage=true},
+  n=>{n[0].inventoryLevels.nodes[0].quantities.push({name:'available',quantity:0})},
+  n=>{n.pop()},
+  n=>{n[1].id=n[0].id}
+ ]){const copy=structuredClone(nodes);mutate(copy);assert.equal(verifyStockReadback(expected,copy),false);}
+});
+test('preview evidence and executable quantities require a fresh successful location readback',()=>{
+ assert.ok(source.indexOf('query StockSyncPreviewReadback')>source.indexOf('const planReady='));
+ assert.match(source,/locationReadbackVerified=verifyStockReadback\(expected,readback\?\.nodes\)/);
+ assert.match(source,/ready:planReady&&locationReadbackVerified/);
+ assert.match(source,/quantities:planReady&&locationReadbackVerified\?/);
+ assert.match(source,/stockEvidence:!apply&&locationReadbackVerified&&/);
+});
