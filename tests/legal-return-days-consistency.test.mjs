@@ -111,3 +111,22 @@ test('simulated customer refund never sends notifications or retries uncertain w
   assert.equal(r.ok,scenario==='ok');assert.equal(r.notificationAllowed,false);assert.equal(r.automaticRetry,false);assert.equal(writes,scenario==='duplicate'?0:1);assert.equal(Boolean(r.notificationPreview),scenario==='ok');
  }
 });
+
+test('return audit shares CJ token provider and performs a single linked-order read before supplier lookups',()=>{
+ const source=readFileSync(new URL('../lib/routes/shopify-return-audit.js',import.meta.url),'utf8');
+ assert.equal((source.match(/await linkedSandboxOrder\(/g)||[]).length,1);
+ assert.match(source,/cjToken=await getCJAccessToken\(\)/);
+ assert.match(source,/linked\.data\?\.orderId!==linked\.id/);
+ assert.match(source,/readSupplierDispute\(disputeId,\{token:cjToken\}\)/);
+ assert.match(source,/readDisputableProducts\(linked.id,\{token:cjToken\}\)/);
+ assert.doesNotMatch(source,/token:process\.env\.CJ_ACCESS_TOKEN/);
+});
+test('return detail admin UI uses authenticated read-only diagnostics route',()=>{
+ const ui=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const code=ui.slice(ui.indexOf('async function runReturnDetailAudit()'),ui.indexOf('async function runReturnAudit()'));
+ assert.match(code,/action:'shopify-return-audit'/);
+ assert.match(code,/method:'GET',headers:\{Authorization:'Bearer '\+key\}/);
+ assert.match(code,/j\.refundIssued!==false\|\|j\.returnCreated!==false\|\|j\.customerNotified!==false/);
+ assert.match(code,/result\.textContent=lines\.join/);
+ assert.doesNotMatch(code,/innerHTML|localStorage/);
+});
