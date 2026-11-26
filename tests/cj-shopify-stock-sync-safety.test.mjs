@@ -136,7 +136,9 @@ test('stock sync verifies returned draft status and approved vendor before any s
   assert.match(source,/p\.status!=='DRAFT'/);
   assert.match(source,/\['ODDLY','AI BUYER'\]\.includes\(p\.vendor\)/);
   assert.match(source,/product-not-approved-draft/);
-  assert.ok(source.indexOf("p.status!=='DRAFT'")<source.indexOf('const stock=await cjStock'));
+  const guard=source.indexOf("p.status!=='DRAFT'");
+  const lookup=source.search(/\b(?:let|const) stock=await cjStock\(/);
+  assert.ok(guard>=0&&lookup>guard,'draft/vendor guard must precede the first stock lookup');
 });
 
 test('stock sync rejects malformed Shopify GraphQL envelopes before trusting inventory data',()=>{
