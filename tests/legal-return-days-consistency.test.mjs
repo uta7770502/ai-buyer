@@ -164,3 +164,11 @@ test('reconciled supplier terms cannot use caller quantities or unverified price
  for(const x of [{...line,quantity:3},{...line,sku:'wrong'}])assert.equal((await prepareReconciledReturnTerms([x],linked,eligible,{token:'test',fetcher})).ok,false);
  assert.equal((await prepareReconciledReturnTerms([line],linked,{...eligible,eligibleItems:[{...eligible.eligibleItems[0],price:null}]},{token:'test',fetcher})).ok,false);assert.equal(calls,1);
 });
+
+test('customer payment balance is independently verified in matching JPY currencies',async()=>{
+ const {summarizeRefundBalance}=await import('../lib/routes/shopify-return-audit.js');
+ const money=amount=>({shopMoney:{amount,currencyCode:'JPY'},presentmentMoney:{amount,currencyCode:'JPY'}});
+ const order={currencyCode:'JPY',presentmentCurrencyCode:'JPY',totalReceivedSet:money('4400.00'),totalRefundedSet:money('1000')};
+ const r=summarizeRefundBalance(order);assert.equal(r.ok,true);assert.equal(r.remainingJPY,3400);assert.equal(r.returnEntitlementVerified,false);assert.equal(r.refundAuthorized,false);
+ for(const bad of [{...order,presentmentCurrencyCode:'USD'},{...order,totalRefundedSet:money('4500')},{...order,totalReceivedSet:money('4.5')},{...order,totalReceivedSet:{shopMoney:{amount:'4400',currencyCode:'JPY'}}},{...order,totalRefundedSet:null}])assert.equal(summarizeRefundBalance(bad).ok,false);
+});
