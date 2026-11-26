@@ -139,3 +139,16 @@ test('return detail validates order ownership complete pagination and exact quan
  const rows=summarizeReturnLines(record,ctx);assert.equal(rows.length,1);assert.equal(rows[0].sku,'123456789012');assert.equal(rows[0].cjLineLinkVerified,false);
  for(const bad of [{...record,order:{id:'gid://shopify/Order/9'}},{...record,returnLineItems:{...record.returnLineItems,pageInfo:{hasNextPage:true}}},{...record,returnLineItems:{...record.returnLineItems,nodes:[{...line,quantity:1}]}},{...record,returnLineItems:{...record.returnLineItems,nodes:[{...line,refundedQuantity:2}]}}])assert.equal(summarizeReturnLines(bad,ctx),null);
 });
+
+test('supplier return lines require exact store line ID and variant, not equal quantities alone',async()=>{
+ const {reconcileReturnSupplierLines}=await import('../lib/routes/shopify-return-audit.js');
+ const line={returnLineId:'gid://shopify/ReturnLineItem/3',orderLineId:'gid://shopify/LineItem/4',sku:'123456789012',quantity:1,refundedQuantity:0};
+ const p={lineItemId:'CJ123',storeLineItemId:'4',vid:line.sku,quantity:2};
+ const linked={id:'ORDER123',data:{orderId:'ORDER123',productList:[p]}};
+ const eligible={ok:true,orderId:linked.id,eligibleItems:[{lineItemId:p.lineItemId,quantity:2}]};
+ const r=reconcileReturnSupplierLines([line],linked,eligible);assert.equal(r.ok,true);assert.equal(r.matches[0].cjLineItemId,p.lineItemId);assert.equal(r.submissionAllowed,false);
+ for(const bad of [{...line,sku:'other'},{...line,orderLineId:'gid://shopify/LineItem/9'},{...line,quantity:3},{...line,refundedQuantity:1}])assert.equal(reconcileReturnSupplierLines([bad],linked,eligible).ok,false);
+ assert.equal(reconcileReturnSupplierLines([line,line],linked,eligible).ok,false);
+ assert.equal(reconcileReturnSupplierLines([line],{...linked,data:{...linked.data,productList:[p,{...p,lineItemId:'CJ456'}]}},eligible).ok,false);
+ assert.equal(reconcileReturnSupplierLines([line],linked,{...eligible,eligibleItems:[]}).ok,false);
+});
