@@ -31,7 +31,7 @@ function configure(t,fetcher){
  t.after(()=>{for(const k of Object.keys(process.env))if(!(k in previous))delete process.env[k];Object.assign(process.env,previous)});
  t.mock.method(globalThis,'fetch',fetcher||(()=>{throw Error('Unexpected network request')}));
 }
-function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=false}={}){
+function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=false,wrongTracking=false}={}){
  let state=initial,mutations=0,sets=0;const calls=[];
  const fetcher=async(url,options)=>{
   const body=options.body?JSON.parse(options.body):null;calls.push(body);
@@ -49,7 +49,7 @@ function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=
   if(body.query.startsWith('mutation')){
    mutations++;assert.equal(body.variables.fulfillment.notifyCustomer,false);
    if(uncertain)throw Error('Timed out after acceptance');
-   return json({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS'},userErrors:[]}}});
+   return json({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS',trackingInfo:[{number:wrongTracking?'WRONG':body.variables.fulfillment.trackingInfo.number}]},userErrors:[]}}});
   }
   throw Error('Unexpected request');
  };
@@ -71,19 +71,19 @@ test('dry-run writes neither Redis nor Shopify',async t=>{
  const m=mockStore();configure(t,m.fetcher);const r=await invoke(sync,{...payload,dryRun:true});
  assert.equal(r.data.eligible,true);assert.equal(m.sets,0);assert.equal(m.mutations,0);
 });
-for(const change of [{test:false},{cancelledAt:'2026-10-09'},{displayFinancialStatus:'REFUNDED'}])test('reject unsafe Shopify order '+JSON.stringify(change),async t=>{
+for(const change of [{id:'gid://shopify/Order/999'},{test:false},{cancelledAt:'2026-10-09'},{displayFinancialStatus:'REFUNDED'}])test('reject unsafe Shopify order '+JSON.stringify(change),async t=>{
  const m=mockStore({currentOrder:{...order,...change}});configure(t,m.fetcher);const r=await invoke(sync,payload);
  assert.equal(r.code,422);assert.equal(m.sets,0);assert.equal(m.mutations,0);
 });
 test('split fulfillment orders require review',async t=>{
- const m=mockStore({currentOrder:{...order,fulfillmentOrders:{nodes:[target,{...target,id:'other'}]}}});configure(t,m.fetcher);
+ const m=mockStore({currentOrder:{...order,fulfillmentOrders:{pageInfo:{hasNextPage:false},nodes:[target,{...target,id:'gid://shopify/FulfillmentOrder/2',status:'CLOSED'}]}}});configure(t,m.fetcher);
  assert.equal((await invoke(sync,payload)).code,409);assert.equal(m.mutations,0);
 });
 test('successful sync persists completion and duplicate checks stay read-only',async t=>{
  const m=mockStore();configure(t,m.fetcher);assert.equal((await performSync()).data.ok,true);
  assert.equal(m.state,'synced:gid://shopify/Fulfillment/99');assert.equal((await invoke(sync,{...payload,checkOnly:true})).data.duplicateConfirmed,true);assert.equal(m.mutations,1);
 });
-for(const scenario of [{uncertain:true},{persistFail:true}])test('uncertain outcome never retries '+JSON.stringify(scenario),async t=>{
+for(const scenario of [{uncertain:true},{persistFail:true},{wrongTracking:true}])test('uncertain outcome never retries '+JSON.stringify(scenario),async t=>{
  const m=mockStore(scenario);configure(t,m.fetcher);const first=await performSync();
  assert.equal(first.data.needsReview,true);assert.equal(first.data.ok,false);
  assert.equal((await invoke(sync,payload)).code,409);assert.equal(m.mutations,1);
