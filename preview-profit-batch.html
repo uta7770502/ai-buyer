@@ -222,6 +222,12 @@ async function runStockTrial(){
    lines.push('在庫同期試験：更新・照合成功');
    const names={'gid://shopify/InventoryItem/69763196354808':'猫の肉球デザイン マグカップ','gid://shopify/InventoryItem/69763196387576':'犬用 ボールおもちゃ'};
    for(const target of j.targets)lines.push((names[target.inventoryItemId]||'商品')+'：'+String(target.changeFromQuantity)+' → '+String(target.quantity));
+  }else if(r.ok&&j.ok===true&&j.trial===true&&j.writeOutcome==='already-matched'&&j.inventoryMatched===true&&j.mutationPerformed===false&&j.writeLocked===true&&Array.isArray(j.targets)&&j.targets.length===2){
+   lines.push('在庫同期：CJ・Shopify一致（追加更新なし）');
+   const names={'gid://shopify/InventoryItem/69763196354808':'猫の肉球デザイン マグカップ','gid://shopify/InventoryItem/69763196387576':'犬用 ボールおもちゃ'};
+   for(const target of j.targets)lines.push((names[target.inventoryItemId]||'商品')+'：'+String(target.quantity));
+   lines.push('過去の試験実行記録：'+(j.priorTrialVerified===true?'確認済み':'未確認'));
+   lines.push('再更新不要。');
   }else{
    lines.push('在庫同期試験：成功未確認');
    lines.push(String(j.error||j.code||'結果の照合が必要です'));
