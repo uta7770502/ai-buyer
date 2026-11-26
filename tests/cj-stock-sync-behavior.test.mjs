@@ -4,7 +4,7 @@ import handler,{verifyStockReadback,verifyStockWritePlan,executeStockWritePlan} 
 import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
 async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled',readbackChanged=false,readbackFailure=false,trial=false,trialLock='OK',trialConfirm='ODDLY_TWO_DRAFT_STOCK_TRIAL',trialWrongTarget=false,trialEnv='preview'}={}){
-  const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:trial?'jhw0b5-1k.myshopify.com':'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify',VERCEL_ENV:trialEnv,UPSTASH_REDIS_REST_URL:'https://stock-test.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',VERCEL_GIT_COMMIT_REF:'safety-gate-20261024',SHOPIFY_TOKEN_ENCRYPTION_KEY:'ab'.repeat(32)};
+  const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:trial?'jhw0b5-1k.myshopify.com':'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify',VERCEL_ENV:trialEnv,KV_REST_API_URL:'https://stock-test.invalid',KV_REST_API_TOKEN:'test-redis',UPSTASH_REDIS_REST_URL:'https://production-not-used.invalid',UPSTASH_REDIS_REST_TOKEN:'not-used',VERCEL_GIT_COMMIT_REF:'safety-gate-20261024',SHOPIFY_TOKEN_ENCRYPTION_KEY:'ab'.repeat(32)};
   for(const [k,v] of Object.entries(env)){const old=process.env[k];process.env[k]=v;t.after(()=>old===undefined?delete process.env[k]:process.env[k]=old);}
   t.mock.method(globalThis,'setTimeout',fn=>{fn();return 0;});
   const events=[];let input;
