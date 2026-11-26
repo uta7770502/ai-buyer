@@ -7,10 +7,10 @@
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#f6f8fc;color:#0d2f5f}
 main{max-width:920px;margin:auto;padding:20px}.card{background:white;border:1px solid #dbe3ef;border-radius:18px;padding:18px;margin:12px 0}
 h1{font-size:24px;margin:0 0 8px}.muted{color:#64748b;font-size:13px}.bar{height:10px;background:#e5eaf2;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:#174a8b;width:0}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 6px;border-bottom:1px solid #edf1f6;text-align:left;vertical-align:top}
+table{width:100%;min-width:980px;border-collapse:collapse;font-size:13px}th,td{padding:10px 6px;border-bottom:1px solid #edf1f6;text-align:left;vertical-align:top}
 .pass{color:#147a3d;font-weight:700}.hold{color:#a05a00;font-weight:700}.bad{color:#b42318;font-weight:700}
 button{width:100%;padding:14px;border:0;border-radius:12px;background:#174a8b;color:white;font-weight:700;font-size:16px}
-code{font-size:11px;word-break:break-all}
+code{font-size:11px;word-break:normal;overflow-wrap:anywhere}th:nth-child(1),td:nth-child(1){min-width:170px;max-width:220px}th:nth-child(2),td:nth-child(2){min-width:95px}th:nth-child(3),td:nth-child(3){min-width:155px}th:nth-child(4),td:nth-child(4){min-width:105px}th:nth-child(n+5),td:nth-child(n+5){white-space:nowrap}.audit-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}.audit-table-scroll:focus-visible{outline:2px solid #174a8b;outline-offset:-2px}@media(max-width:600px){main{padding:12px}.card{padding:14px}.audit-table-scroll{padding:12px}}
 input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:12px;font:inherit;color:inherit;margin:8px 0}button:disabled{opacity:.55}button.secondary{background:#eef3fa;color:#174a8b;font-size:13px;margin-top:8px}
 </style>
 </head>
@@ -23,7 +23,8 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 </div>
 <div class="card"><label for="batchAdminKey"><b>管理者キー</b></label><input id="batchAdminKey" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="管理者キーを入力"><div id="authStatus" class="muted" role="status" aria-live="polite">この画面で認証できます。キーは監査時の認証にのみ使用します。</div><button class="secondary" type="button" id="clearKey">キーを消去</button><button type="button" id="run" style="margin-top:12px">現在の下書き商品を順番に監査</button><button class="secondary" type="button" id="retry" hidden>未確認商品だけ再監査</button><div id="scopeStatus" class="muted" role="status" style="margin-top:8px"></div></div>
 <div class="card"><div id="summary" class="muted">結果集計：未実行</div><div id="decision" class="muted" style="margin-top:8px"></div></div>
-<div class="card" style="overflow:auto">
+<p class="muted">商品監査表は左右にスクロールすると、送料・利益率・最低売価まで確認できます。</p>
+<div class="card audit-table-scroll" role="region" aria-label="商品監査結果（横スクロール）" tabindex="0">
 <table><thead><tr><th>商品／SKU</th><th>利益判定</th><th>在庫判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
 <div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補を保持します。発送準備3〜7営業日は店舗の運用目安で、CJのSKU別保証ではありません。例外・遅延時のみ必要に応じて問い合わせ文を使用してください。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
