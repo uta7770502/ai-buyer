@@ -172,3 +172,26 @@ test('customer payment balance is independently verified in matching JPY currenc
  const r=summarizeRefundBalance(order);assert.equal(r.ok,true);assert.equal(r.remainingJPY,3400);assert.equal(r.returnEntitlementVerified,false);assert.equal(r.refundAuthorized,false);
  for(const bad of [{...order,presentmentCurrencyCode:'USD'},{...order,totalRefundedSet:money('4500')},{...order,totalReceivedSet:money('4.5')},{...order,totalReceivedSet:{shopMoney:{amount:'4400',currencyCode:'JPY'}}},{...order,totalRefundedSet:null}])assert.equal(summarizeRefundBalance(bad).ok,false);
 });
+
+test('return audit rejects oversized pages and accepts exactly fifty unique returns',async()=>{
+ const {summarizeReturns}=await import('../lib/routes/shopify-return-audit.js');
+ const nodes=Array.from({length:51},(_,i)=>({id:'gid://shopify/Return/'+(i+1),status:'REQUESTED',totalQuantity:1}));
+ assert.equal(summarizeReturns({pageInfo:{hasNextPage:false},nodes:nodes.slice(0,50)}).length,50);
+ assert.equal(summarizeReturns({pageInfo:{hasNextPage:false},nodes}),null);
+});
+test('supplier compensation rejects fractional cents and out-of-range amounts',async()=>{
+ const {readSupplierDispute}=await import('../lib/routes/shopify-return-audit.js');
+ const id='SH123456';
+ for(const amount of [0,12.34,12.345,1000001]){
+  const r=await readSupplierDispute(id,{token:'test',fetcher:async()=>({ok:true,json:async()=>({code:200,result:true,data:{id,status:'Processing',refundAmount:amount}})})});
+  assert.equal(r.ok,amount===0||amount===12.34);
+  if(r.ok)assert.equal(r.customerRefundAuthorized,false);
+ }
+});
+test('JPY balance checks exact decimal identity without unsafe rounding',async()=>{
+ const {summarizeRefundBalance}=await import('../lib/routes/shopify-return-audit.js');
+ const pair=(a,b=a)=>({shopMoney:{amount:a,currencyCode:'JPY'},presentmentMoney:{amount:b,currencyCode:'JPY'}});
+ const order={currencyCode:'JPY',presentmentCurrencyCode:'JPY',totalReceivedSet:pair('004400.00','4400'),totalRefundedSet:pair('1000')};
+ assert.equal(summarizeRefundBalance(order).remainingJPY,3400);
+ for(const totalReceivedSet of [pair('9007199254740992'),pair('9007199254740992','9007199254740993'),pair('4400','4401'),pair('4400.01')])assert.equal(summarizeRefundBalance({...order,totalReceivedSet}).ok,false);
+});
