@@ -165,6 +165,14 @@ async function runStockAndReady(){
   const result=await rr.json();
   if(!rr.ok||result.ok!==true||result.safetyContract!=='prelaunch-read-only-v1'){lines.push('公開前監査を確認できません（HTTP '+rr.status+'）');return;}
   lines.push('実在庫証跡：'+(result.readiness?.variantLevelInventoryVerified===true?'確認済み':'未確認'));
+  const stages=result.verificationStages;
+  if(stages&&typeof stages==='object'){
+   const labels={supplierInventoryReadOnly:'CJ実在庫取得',inventoryWrite:'在庫更新実行',draftAudit:'下書き商品監査',orderReconciliation:'注文照合キュー',policyRetrieval:'法務情報取得',deliveryRetrieval:'配送設定取得',marketRetrieval:'販売市場取得',orderFulfillmentEndToEnd:'注文・発送・追跡の実連携',returnEndToEnd:'返品の実連携'};
+   lines.push('── 検証内訳 ──');
+   for(const [stage,label] of Object.entries(labels))lines.push(label+'：'+(stages[stage]?.verified===true?'確認済み':'未検証'));
+   lines.push('※ 法務・配送設定の取得成功は、内容の適法性や海外配送の保証ではありません。');
+   lines.push('※ 注文照合キューの確認は、実注文の連携成功を意味しません。');
+  }
   lines.push('公開直前準備：'+(result.readyToFinalManualStep===true?'READY（手動承認が必要）':'保留'));
   for(const b of Array.isArray(result.blockers)?result.blockers:[])lines.push('残項目：'+String(b));
   for(const w of Array.isArray(result.warnings)?result.warnings:[])lines.push('注意：'+String(w));
