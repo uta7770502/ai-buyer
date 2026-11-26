@@ -49,9 +49,9 @@ function fixture(t,{sandbox=1,simulationTimeout=false,cjTimeout=false}={}){
   }
   if(String(url).endsWith('/graphql.json')){
    if(body.query.includes('ProductVariant'))return response({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJ-VID123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
-   if(body.query.startsWith('query'))return response({data:{order:{test:true,cancelledAt:null,displayFinancialStatus:'PAID',fulfillmentOrders:{pageInfo:{hasNextPage:false},nodes:fulfillments?[]:[{id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]}]}}}});
+   if(body.query.startsWith('query'))return response({data:{order:{id:body.variables.id,test:true,cancelledAt:null,displayFinancialStatus:'PAID',fulfillmentOrders:{pageInfo:{hasNextPage:false},nodes:fulfillments?[]:[{id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]}]}}}});
    assert.equal(body.variables.fulfillment.notifyCustomer,false);fulfillments++;
-   return response({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS'},userErrors:[]}}});
+   return response({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS',trackingInfo:[{number:body.variables.fulfillment.trackingInfo.number}]},userErrors:[]}}});
   }
   throw Error('Unexpected external API; real payment endpoints are forbidden');
  });
