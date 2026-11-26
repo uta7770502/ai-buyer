@@ -130,3 +130,12 @@ test('return detail admin UI uses authenticated read-only diagnostics route',()=
  assert.match(code,/result\.textContent=lines\.join/);
  assert.doesNotMatch(code,/innerHTML|localStorage/);
 });
+
+test('return detail validates order ownership complete pagination and exact quantities',async()=>{
+ const {summarizeReturnLines}=await import('../lib/routes/shopify-return-audit.js');
+ const ctx={orderId:'gid://shopify/Order/1',returnId:'gid://shopify/Return/2',totalQuantity:2};
+ const line={__typename:'ReturnLineItem',id:'gid://shopify/ReturnLineItem/3',quantity:2,refundableQuantity:1,refundedQuantity:1,returnReason:'DEFECTIVE',fulfillmentLineItem:{lineItem:{id:'gid://shopify/LineItem/4',sku:'123456789012'}}};
+ const record={id:ctx.returnId,order:{id:ctx.orderId},totalQuantity:2,returnLineItems:{pageInfo:{hasNextPage:false},nodes:[line]}};
+ const rows=summarizeReturnLines(record,ctx);assert.equal(rows.length,1);assert.equal(rows[0].sku,'123456789012');assert.equal(rows[0].cjLineLinkVerified,false);
+ for(const bad of [{...record,order:{id:'gid://shopify/Order/9'}},{...record,returnLineItems:{...record.returnLineItems,pageInfo:{hasNextPage:true}}},{...record,returnLineItems:{...record.returnLineItems,nodes:[{...line,quantity:1}]}},{...record,returnLineItems:{...record.returnLineItems,nodes:[{...line,refundedQuantity:2}]}}])assert.equal(summarizeReturnLines(bad,ctx),null);
+});
