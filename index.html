@@ -1355,6 +1355,7 @@ async function runReturnDetailAudit(){
   for(const x of j.rows){lines.push(String(x.id)+' / '+(labels[x.status]||'未確認')+' / 数量 '+String(x.quantity));if(x.reviewRequired)lines.push('  要確認: '+(x.status==='REQUESTED'?'返品条件・理由・CJ対象可否':'返送先・CJ回答・返金額'));}
   if(returnId){if(!Array.isArray(j.returnLines))throw Error('返品明細未確認');for(const x of j.returnLines)lines.push('明細 SKU '+(x.sku||'未確認')+' / 返品 '+x.quantity+' / 返金可能数量 '+x.refundableQuantity+' / 返金済数量 '+x.refundedQuantity+' / CJ明細照合未完了');}
   if(j.supplierEligibility)lines.push(j.supplierEligibility.ok===true&&Array.isArray(j.supplierEligibility.eligibleItems)?'CJ返品可能明細: '+j.supplierEligibility.eligibleItems.length+'件（申請未実行）':'CJ返品対象: 未確認');
+  if(j.supplierLineReconciliation)lines.push(j.supplierLineReconciliation.ok===true?'Shopify・CJ返品明細照合: '+j.supplierLineReconciliation.matches.length+'件一致（申請未実行）':'Shopify・CJ返品明細照合: 要確認');
   if(j.supplierDispute)lines.push(j.supplierDispute.ok===true&&j.supplierDispute.shopifyOrderLinkVerified===true?'CJ案件: '+String(j.supplierDispute.status)+' / 仕入先返金報告額 '+(j.supplierDispute.reportedSupplierRefundUSD??'未確認')+' USD（入金未確認）':'CJ案件: 未確認');
   lines.push('実際の返品申請・返金・通知は未実行。');result.textContent=lines.join('\n');
  }catch(e){result.textContent=e?.name==='AbortError'?'照会が時間切れになりました。再確認してください。':(e?.message==='管理者認証に失敗しました。'?e.message:'返品情報を確認できません。注文ID・権限・接続を確認してください。');}
