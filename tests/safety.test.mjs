@@ -32,13 +32,21 @@ function configure(t,fetcher){
  t.mock.method(globalThis,'fetch',fetcher||(()=>{throw Error('Unexpected network request')}));
 }
 function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=false,wrongTracking=false}={}){
- let state=initial,mutations=0,sets=0;const calls=[];
+ let state=initial,mutations=0,sets=0;const calls=[],orderLocks=new Map();
  const fetcher=async(url,options)=>{
   const body=options.body?JSON.parse(options.body):null;calls.push(body);
   if(String(url).startsWith('https://redis.invalid')){
-   if(body[0]==='GET')return json({result:body[1].startsWith('ai-buyer:cj-sandbox:')?'created:CJ123':state});
+   if(body[0]==='GET'){
+    if(body[1].startsWith('ai-buyer:cj-sandbox:'))return json({result:'created:CJ123'});
+    if(body[1].startsWith('ai-buyer:fulfillment-order:'))return json({result:orderLocks.get(body[1])??null});
+    return json({result:state});
+   }
    if(body[0]==='SET'){
     sets++;
+    if(body[1].startsWith('ai-buyer:fulfillment-order:')){
+     assert.ok(body.includes('NX'));if(orderLocks.has(body[1]))return json({result:null});
+     orderLocks.set(body[1],body[2]);return json({result:'OK'});
+    }
     if(body.includes('NX')&&state!==null)return json({result:null});
     if(!body.includes('NX')&&persistFail)throw Error('Store unavailable');
     state=body[2];return json({result:'OK'});
