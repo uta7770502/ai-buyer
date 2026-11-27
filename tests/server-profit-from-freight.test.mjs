@@ -50,9 +50,18 @@ test('fractional payment fee is conservatively displayed as whole yen',()=>{
 test('international freight estimates require an explicitly matching destination',()=>{
  for(const destination of ['US','GB','AU','DE']){
   const quote={...freight,destination};
-  const result=estimateProfitFromServerFreight(quote,costs,{now,expectedVid:'v1',expectedDestination:destination});
+  const overseasCosts={...costs,importDutyEstimateJpy:100,importTaxEstimateJpy:50,crossBorderFeeEstimateJpy:25};
+  const result=estimateProfitFromServerFreight(quote,overseasCosts,{now,expectedVid:'v1',expectedDestination:destination});
+  assert.equal(result.approvalEligible,false);
+  assert.equal(result.landedCostVerified,false);
+  assert.equal(result.breakdown.importDutyEstimateJpy,100);
+  assert.equal(result.breakdown.adCostJpy,400);
+  assert.equal(estimateProfitFromServerFreight(quote,costs,{now,expectedVid:'v1',expectedDestination:destination}).ready,false);
+  for(const bad of ['',null,-1,true,' ',Infinity]){
+   assert.equal(estimateProfitFromServerFreight(quote,{...overseasCosts,importDutyEstimateJpy:bad},{now,expectedVid:'v1',expectedDestination:destination}).ready,false);
+  }
   assert.equal(result.ready,true);
-  assert.equal(result.profitJpy,860);
+  assert.equal(result.profitJpy,685);
   assert.equal(estimateProfitFromServerFreight(quote,costs,{now,expectedVid:'v1'}).ready,false);
   assert.equal(estimateProfitFromServerFreight(quote,costs,{now,expectedVid:'v1',expectedDestination:'JP'}).ready,false);
   assert.equal(estimateProfitFromServerFreight({...quote,fxVerified:false},costs,{now,expectedVid:'v1',expectedDestination:destination}).ready,false);
