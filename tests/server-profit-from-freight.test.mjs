@@ -46,3 +46,16 @@ test('fractional payment fee is conservatively displayed as whole yen',()=>{
  assert.equal(result.breakdown.paymentFeeJpy,1);
  assert.equal(result.profitJpy,100);
 });
+
+test('international freight estimates require an explicitly matching destination',()=>{
+ for(const destination of ['US','GB','AU','DE']){
+  const quote={...freight,destination};
+  const result=estimateProfitFromServerFreight(quote,costs,{now,expectedVid:'v1',expectedDestination:destination});
+  assert.equal(result.ready,true);
+  assert.equal(result.profitJpy,860);
+  assert.equal(estimateProfitFromServerFreight(quote,costs,{now,expectedVid:'v1'}).ready,false);
+  assert.equal(estimateProfitFromServerFreight(quote,costs,{now,expectedVid:'v1',expectedDestination:'JP'}).ready,false);
+  assert.equal(estimateProfitFromServerFreight({...quote,fxVerified:false},costs,{now,expectedVid:'v1',expectedDestination:destination}).ready,false);
+ }
+ assert.equal(estimateProfitFromServerFreight({...freight,destination:'XX'},costs,{now,expectedVid:'v1',expectedDestination:'XX'}).ready,false);
+});
