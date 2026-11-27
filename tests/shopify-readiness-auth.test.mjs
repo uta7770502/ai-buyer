@@ -6,7 +6,7 @@ import { redisConnection } from '../lib/redis-connection.js';
 
 const source=readFileSync(new URL('../lib/routes/release-readiness.js',import.meta.url),'utf8')
   .replace("import { redisConnection } from '../redis-connection.js';",'')
-  .replace("import { loadShopifySession } from '../shopify-session-store.js';",'').replace("import { loadLegalConfig } from '../legal-config-store.js';",'').replace('export default async function handler','async function handler')+'\nthis.handler=handler;';
+  .replace("import { loadShopifySession } from '../shopify-session-store.js';",'').replace("import { loadLegalConfig } from '../legal-config-store.js';",'').replace('export default async function handler','async function handler').replace(/^export function (compareMarketDeliveryCountries|summarizeDeliveryCountryConfiguration)\(/gm,'function $1(')+'\nthis.handler=handler;';
 
 function run(env={},loadLegalConfig=async()=>null,fetchOverride){
   const context={loadShopifySession:async()=>null,loadLegalConfig,process:{env:{AI_BUYER_ADMIN_KEY:'test-admin-key',...env}},fetch:async()=>{throw Error('Network calls must not be made in this fixture')},AbortSignal,Date,Boolean,String,Number,RegExp};
@@ -170,4 +170,39 @@ test('OAuth requests only read access for new store audits and identifies missin
  assert.equal(body.auditScopeStatus.verified,true);
  assert.deepEqual(body.auditScopeStatus.missing,['read_legal_policies','read_shipping','read_markets']);
  assert.ok(body.remainingLiveVerification.includes('Shopify監査権限不足：read_legal_policies'));
+});
+
+test('delivery country reconciliation distinguishes inactive markets from missing rates',async()=>{
+ const {summarizeDeliveryCountryConfiguration,compareMarketDeliveryCountries}=await import('../lib/routes/release-readiness.js');
+ const page=nodes=>({pageInfo:{hasNextPage:false},nodes});
+ const zone=(codes,active=true)=>({zone:{countries:codes.map(countryCode=>({code:{countryCode,restOfWorld:false}}))},methodDefinitions:page([{active}])});
+ const profiles=page([{profileLocationGroups:[{locationGroupZones:page([zone(['JP','US','GB']),zone(['AU'],false)])}]}]);
+ const delivery=summarizeDeliveryCountryConfiguration(profiles);
+ assert.deepEqual(delivery,{countryCoverageVerified:true,configuredRateCountries:['GB','JP','US']});
+ const market={countryCoverageVerified:true,activeCountryCodes:['JP','AU']};
+ const result=compareMarketDeliveryCountries(market,delivery);
+ assert.equal(result.verified,true);
+ assert.deepEqual(result.activeWithoutConfiguredRate,['AU']);
+ assert.deepEqual(result.configuredRateOutsideActiveMarket,['GB','US']);
+ assert.equal(result.provesProductDelivery,false);
+ assert.equal(compareMarketDeliveryCountries({...market,countryCoverageVerified:false},delivery).verified,false);
+ for(const incomplete of [{...profiles,pageInfo:{hasNextPage:true}},page([]),page([{profileLocationGroups:[{locationGroupZones:{pageInfo:{hasNextPage:true},nodes:[]}}]}]),page([{profileLocationGroups:[{locationGroupZones:page([{...zone(['JP']),methodDefinitions:{pageInfo:{hasNextPage:true},nodes:[]}}])}]}]),page([{profileLocationGroups:[{locationGroupZones:page([{...zone(['JP']),zone:{countries:[{code:{restOfWorld:true}}]}}])}]}])]){
+  assert.equal(summarizeDeliveryCountryConfiguration(incomplete).countryCoverageVerified,false);
+ }
+});
+test('readiness reconciles actual country fields without claiming product delivery',async()=>{
+ const base=services();
+ const page=nodes=>({pageInfo:{hasNextPage:false},nodes});
+ const {body}=await run(launchEnv,async()=>null,async(url,options={})=>{
+  const query=JSON.parse(options.body||'{}').query||'';
+  if(query.includes('ReadinessDeliveryProfiles'))return {ok:true,json:async()=>({data:{deliveryProfiles:page([{name:'General',coversAllItems:false,locationsWithoutRatesCount:0,activeMethodDefinitionsCount:1,zoneCountryCount:2}])}})};
+  if(query.includes('ReadinessDeliveryCountryConfiguration'))return {ok:true,json:async()=>({data:{deliveryProfiles:page([{profileLocationGroups:[{locationGroupZones:page([{zone:{countries:['JP','US'].map(countryCode=>({code:{countryCode,restOfWorld:false}}))},methodDefinitions:page([{active:true}])}])}]}])}})};
+  if(query.includes('ReadinessMarkets'))return {ok:true,json:async()=>({data:{markets:page([{name:'Japan',status:'ACTIVE',type:'REGION',conditions:{regionsCondition:{applicationLevel:'SPECIFIED',regions:page(['JP','AU'].map(code=>({__typename:'MarketRegionCountry',code})))}}}])}})};
+  return base(url,options);
+ });
+ assert.equal(body.marketDeliveryCoverage.verified,true);
+ assert.deepEqual(body.marketDeliveryCoverage.activeWithoutConfiguredRate,['AU']);
+ assert.deepEqual(body.marketDeliveryCoverage.configuredRateOutsideActiveMarket,['US']);
+ assert.ok(body.remainingLiveVerification.includes('販売市場に対応する配送設定なし：AU'));
+ assert.equal(body.readyForLive,false);
 });
