@@ -79,7 +79,7 @@ function services(failed){return async(url,options={})=>{
 };}
 test('storefront outage is a warning, not a blocker for backend sandbox checks',async()=>{
  const {body}=await run(launchEnv,async()=>null,services('storefront'));
- assert.equal(body.prelaunchReady,true);
+ assert.equal(body.prelaunchReady,false);
  assert.equal(body.safeToTest,true);
  assert.equal(body.readyForLive,false);
  assert.ok(body.warnings.includes('Shopify Storefront API connection unverified; backend sandbox validation can continue'));
@@ -87,7 +87,8 @@ test('storefront outage is a warning, not a blocker for backend sandbox checks',
 });
 test('complete read-only diagnostics pass without claiming live acceptance',async()=>{
  const {body}=await run(launchEnv,async()=>null,services());
- assert.deepEqual(body.blockers,[]);assert.equal(body.prelaunchReady,true);
+ assert.deepEqual(body.blockers,[]);assert.equal(body.prelaunchReady,false);
+ assert.equal(body.safeToTest,true);
  assert.equal(body.readyForLive,false);assert.equal(body.liveIntegrationVerified,false);
  assert.ok(body.remainingLiveVerification.length>0);
 });
