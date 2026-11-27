@@ -29,7 +29,7 @@ input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;b
 </div>
 <div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補を保持します。発送準備3〜7営業日は店舗の運用目安で、CJのSKU別保証ではありません。例外・遅延時のみ必要に応じて問い合わせ文を使用してください。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
 <div class="card"><b>公開前の在庫・最終準備監査</b><p class="muted">現在の下書き全件のCJ在庫とShopifyロケーション別在庫を再取得し、成功時のみサーバー発行の確認証跡を公開前チェックへ引き継ぎます。書き込み・注文・公開は行いません。</p><button class="secondary" type="button" id="stockAndReady">在庫同期計画・公開前準備を確認</button><button class="secondary" type="button" id="authOnly">Shopify接続・権限だけ確認</button><pre id="authOnlyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">接続確認：未実行</pre><pre id="stockReadyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
-<div class="card"><b>承認済み2商品の在庫同期試験（1回限り）</b><p class="muted">猫の肉球デザイン マグカップ・犬用 ボールおもちゃのみ。最新CJ倉庫在庫をShopify下書きへ反映し、更新後の数値を照合します。工場在庫・公開・決済・注文は対象外です。</p><button class="secondary" type="button" id="stockTrial">承認済み2商品の在庫同期試験を実行</button><pre id="stockTrialResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
+<div class="card"><b>承認済み2商品の在庫同期試験（再更新禁止）</b><p class="muted">猫の肉球デザイン マグカップ・犬用 ボールおもちゃのみ。確認済み在庫の再書き込みは禁止されています。現在の在庫照合は上の読み取り専用監査を使用してください。工場在庫・公開・決済・注文は対象外です。</p><button class="secondary" type="button" id="stockTrial">再更新禁止の確認</button><pre id="stockTrialResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
 <div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
 <script>
 
@@ -207,34 +207,7 @@ async function runAuthOnly(){
  finally{authOnlyResult.textContent=lines.join('\n');setBusy(false);}
 }
 async function runStockTrial(){
- if(stockTrialBtn.disabled||trialAttempted)return;
- const key=keyInput.value.trim();
- if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return;}
- if(!window.confirm('承認済み2商品のShopify在庫を更新します。商品公開・決済・実注文は行いません。実行しますか？'))return;
- trialAttempted=true;setBusy(true);
- stockTrialResult.textContent='CJ最新在庫の取得・更新・照合を実行中。再操作しないでください。';
- const lines=[];
- try{
-  const r=await fetch('/api/cj-stock-sync?trial=approved-two-drafts',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({confirm:'ODDLY_TWO_DRAFT_STOCK_TRIAL'}),cache:'no-store',signal:AbortSignal.timeout(90000)});
-  const j=await r.json();
-  lines.push('HTTP '+r.status);
-  if(r.ok&&j.ok===true&&j.trial===true&&j.writeOutcome==='verified'&&j.writeLocked===true&&j.retrySafe===false&&Array.isArray(j.targets)&&j.targets.length===2){
-   lines.push('在庫同期試験：更新・照合成功');
-   const names={'gid://shopify/InventoryItem/69763196354808':'猫の肉球デザイン マグカップ','gid://shopify/InventoryItem/69763196387576':'犬用 ボールおもちゃ'};
-   for(const target of j.targets)lines.push((names[target.inventoryItemId]||'商品')+'：'+String(target.changeFromQuantity)+' → '+String(target.quantity));
-  }else if(r.ok&&j.ok===true&&j.trial===true&&j.writeOutcome==='already-matched'&&j.inventoryMatched===true&&j.mutationPerformed===false&&j.writeLocked===true&&Array.isArray(j.targets)&&j.targets.length===2){
-   lines.push('在庫同期：CJ・Shopify一致（追加更新なし）');
-   const names={'gid://shopify/InventoryItem/69763196354808':'猫の肉球デザイン マグカップ','gid://shopify/InventoryItem/69763196387576':'犬用 ボールおもちゃ'};
-   for(const target of j.targets)lines.push((names[target.inventoryItemId]||'商品')+'：'+String(target.quantity));
-   lines.push('過去の試験実行記録：'+(j.priorTrialVerified===true?'確認済み':'未確認'));
-   lines.push('再更新不要。');
-  }else{
-   lines.push('在庫同期試験：成功未確認');
-   lines.push(String(j.error||j.code||'結果の照合が必要です'));
-   lines.push('再実行せず、Shopifyの現在庫を確認してください。');
-  }
- }catch{lines.push('通信エラー：更新結果不明。再実行せずShopifyの現在庫を確認してください。');}
- finally{lines.push('商品公開・決済・実注文：対象外');stockTrialResult.textContent=lines.join('\n');setBusy(false);}
+ stockTrialResult.textContent='承認済み2商品の再更新は禁止されています。在庫同期計画・公開前準備を確認してください。';
 }
 stockTrialBtn.addEventListener('click',runStockTrial);
 authOnlyBtn.addEventListener('click',runAuthOnly);
