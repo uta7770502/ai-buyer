@@ -102,3 +102,28 @@ test('sandbox disabled blocks simulation before accessing services',async t=>{
  const f=fixture(t);process.env.CJ_SANDBOX_ORDER_ENABLED='false';
  assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).code,503);assert.equal(f.calls.length,0);
 });
+
+test('competing tracking numbers for the same test order cannot create two fulfillments',async t=>{
+ const f=fixture(t);
+ assert.equal((await f.paidWebhook()).data.ok,true);
+ assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).data.ok,true);
+ assert.equal((await call(simulate,{orderId:'123',phase:'tracking'})).data.ok,true);
+ const track=await call(tracking,{shopifyOrderId:'123'},'GET');
+ const p={orderId:'gid://shopify/Order/123',trackingNumber:track.data.trackingNumber};
+ assert.ok(p.trackingNumber);
+ const pre=await call(sync,{...p,dryRun:true});assert.equal(pre.data.eligible,true);
+ const other={...p,trackingNumber:'SBXABCDEF0123456789ABCDEF01'};
+ assert.notEqual(other.trackingNumber,p.trackingNumber);
+ f.cjOrder.trackNumber=other.trackingNumber;
+ const otherPre=await call(sync,{...other,dryRun:true});assert.equal(otherPre.data.eligible,true);
+ // Both preflights are valid and both tracking sources are recognized.
+ // Race two requests before either can observe a closed fulfillment order.
+ const results=await Promise.all([
+  call(sync,{...p,preflightToken:pre.data.preflightToken}),
+  call(sync,{...other,preflightToken:otherPre.data.preflightToken})
+ ]);
+ assert.equal(results.filter(r=>r.data.ok===true).length,1);
+ assert.equal(results.filter(r=>r.code===409&&r.data.automaticRetry===false).length,1);
+ assert.equal(f.fulfillments,1);
+ assert.equal([...f.store.keys()].filter(k=>k.startsWith('ai-buyer:fulfillment-order:')).length,1);
+});
