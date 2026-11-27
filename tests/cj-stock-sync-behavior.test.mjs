@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import handler,{verifyStockReadback,verifyStockWritePlan,executeStockWritePlan} from '../lib/routes/cj-shopify-stock-sync.js';
 import {verifyStockEvidence} from '../lib/stock-audit-evidence.js';
 
-async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled',readbackChanged=false,readbackFailure=false,trial=false,trialLock='OK',trialConfirm='ODDLY_TWO_DRAFT_STOCK_TRIAL',trialWrongTarget=false,trialEnv='preview'}={}){
+async function run(t,{failure=false,throws=false,transient=false,mutation='ok',dry=false,duplicateSku=false,duplicateItem=false,empty=false,tracking='enabled',readbackChanged=false,readbackFailure=false,trial=false,trialLock='OK',trialConfirm='ODDLY_TWO_DRAFT_STOCK_TRIAL',trialWrongTarget=false,trialEnv='preview',matched=false,journal='verified',statusOnly=false}={}){
   const env={AI_BUYER_ADMIN_KEY:'test-key',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_ACCESS_TOKEN:'test-cj',SHOPIFY_ALLOWED_SHOP_DOMAIN:trial?'jhw0b5-1k.myshopify.com':'test.myshopify.com',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-shopify',VERCEL_ENV:trialEnv,KV_REST_API_URL:'https://stock-test.invalid',KV_REST_API_TOKEN:'test-redis',UPSTASH_REDIS_REST_URL:'https://production-not-used.invalid',UPSTASH_REDIS_REST_TOKEN:'not-used',VERCEL_GIT_COMMIT_REF:'safety-gate-20261024',SHOPIFY_TOKEN_ENCRYPTION_KEY:'ab'.repeat(32)};
   for(const [k,v] of Object.entries(env)){const old=process.env[k];process.env[k]=v;t.after(()=>old===undefined?delete process.env[k]:process.env[k]=old);}
   t.mock.method(globalThis,'setTimeout',fn=>{fn();return 0;});
@@ -12,10 +12,10 @@ async function run(t,{failure=false,throws=false,transient=false,mutation='ok',d
     const reply=data=>({ok:true,status:200,json:async()=>data});
     if(String(url).startsWith('https://stock-test.invalid')){
       const cmd=JSON.parse(opts.body);
-      assert.equal(cmd[0],'SET');
+      assert.equal(cmd[0],'GET');
       assert.equal(cmd[1],'adps:stock-trial:oddly:20261127:two-drafts');
-      events.push(cmd.includes('NX')?'reserve':'record');
-      return reply({result:cmd.includes('NX')?trialLock:'OK'});
+      events.push('journal');
+      return reply({result:journal});
     }
     if(String(url).includes('queryByVid')){
       events.push('cj');
@@ -40,19 +40,19 @@ async function run(t,{failure=false,throws=false,transient=false,mutation='ok',d
     if(body.query.includes('StockSyncPreviewReadback')){
       events.push('readback');
       if(readbackFailure)throw Error('readback unavailable');
-      return reply({data:{nodes:body.variables.ids.map((id,i)=>({id,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:trial?'gid://shopify/Location/95718932728':'gid://shopify/Location/1'},quantities:[{name:'available',quantity:readbackChanged&&i===0?1:0}]}]}}))}});
+      return reply({data:{nodes:body.variables.ids.map((id,i)=>({id,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:trial?'gid://shopify/Location/95718932728':'gid://shopify/Location/1'},quantities:[{name:'available',quantity:readbackChanged&&i===0?1:matched?5:0}]}]}}))}});
     }
     events.push('read');
     if(trial){
       const entries=[['15441910399224','1416372414316679168','69763196354808'],['15441910431992','2408310600381614000',trialWrongTarget?'999':'69763196387576']];
-      return reply({data:{products:{pageInfo:{hasNextPage:false},nodes:entries.map(([product,sku,item])=>({id:'gid://shopify/Product/'+product,title:'Test draft',status:'DRAFT',vendor:'ODDLY',variants:{pageInfo:{hasNextPage:false},nodes:[{id:'v'+item,sku,inventoryPolicy:'DENY',inventoryItem:{id:'gid://shopify/InventoryItem/'+item,tracked:true,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:'gid://shopify/Location/95718932728'},quantities:[{name:'available',quantity:0}]}]}}}]}}))}}});
+      return reply({data:{products:{pageInfo:{hasNextPage:false},nodes:entries.map(([product,sku,item])=>({id:'gid://shopify/Product/'+product,title:'Test draft',status:'DRAFT',vendor:'ODDLY',variants:{pageInfo:{hasNextPage:false},nodes:[{id:'v'+item,sku,inventoryPolicy:'DENY',inventoryItem:{id:'gid://shopify/InventoryItem/'+item,tracked:true,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:'gid://shopify/Location/95718932728'},quantities:[{name:'available',quantity:matched?5:0}]}]}}}]}}))}}});
     }
     // ADPS's inventory scope can read location IDs without read_locations.
     assert.doesNotMatch(body.query,/location\s*\{[^}]*\bname\b/);
     return reply({data:{products:{pageInfo:{hasNextPage:false},nodes:[{id:'p1',title:'test',status:'DRAFT',vendor:'ODDLY',variants:{pageInfo:{hasNextPage:false},nodes:(empty?[]:[1,2]).map(n=>({id:'v'+n,sku:'142105742165633024'+(duplicateSku?1:n),inventoryPolicy:'DENY',inventoryItem:{...(n===2&&tracking==='missing'?{}:{tracked:n===2&&tracking==='disabled'?false:true}),id:'gid://shopify/InventoryItem/'+(duplicateItem?1:n),inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:'gid://shopify/Location/1'},quantities:[{name:'available',quantity:0}]}]}}}))}}]}}});
   });
   const res={setHeader(){},status(n){this.code=n;return this;},json(body){this.body=body;return this;}};
-  await handler({method:trial?'POST':dry?'GET':'POST',query:trial?{trial:'approved-two-drafts'}:{apply:'true'},body:trial?{confirm:trialConfirm}:undefined,headers:{authorization:'Bearer test-key'}},res);
+  await handler({method:trial?(statusOnly?'GET':'POST'):dry?'GET':'POST',query:trial?{trial:'approved-two-drafts'}:{apply:'true'},body:trial?{confirm:trialConfirm}:undefined,headers:{authorization:'Bearer test-key'}},res);
   return {res,events,input};
 }
 test('apply is fail-closed before Shopify or CJ requests, including supplier failure scenarios',async t=>{
@@ -210,19 +210,22 @@ for(const scenario of ['readbackChanged','readbackFailure'])test('stock preview 
  assert.deepEqual(events,['read','cj','cj','readback']);
 });
 
-test('approved two-draft trial reserves once, writes only the approved IDs and verifies the result',async t=>{
- const {res,events,input}=await run(t,{trial:true});
- assert.equal(res.code,200);assert.equal(res.body.writeOutcome,'verified');assert.equal(res.body.writeLocked,true);assert.equal(res.body.retrySafe,false);
- assert.deepEqual(events,['read','cj','cj','readback','reserve','write','verify-write','record']);
- assert.deepEqual(input.quantities.map(q=>q.inventoryItemId),['gid://shopify/InventoryItem/69763196354808','gid://shopify/InventoryItem/69763196387576']);
- assert.ok(input.quantities.every(q=>q.quantity===5&&q.changeFromQuantity===0));
+test('closed trial rejects even an originally valid write plan without reserving or writing',async t=>{
+ const {res,events}=await run(t,{trial:true});
+ assert.equal(res.code,409);assert.equal(res.body.code,'TRIAL_CLOSED_STOCK_NOT_MATCHED');assert.equal(res.body.writeLocked,true);assert.equal(res.body.retrySafe,false);assert.equal(res.body.mutationPerformed,false);
+ assert.deepEqual(events,['read','cj','cj','readback']);
 });
-for(const scenario of [{trialWrongTarget:true},{readbackChanged:true},{trialLock:null},{trialConfirm:'wrong'},{trialEnv:'production'}])test('trial blocks unsafe scenario '+JSON.stringify(scenario),async t=>{
+for(const scenario of [{trialWrongTarget:true},{readbackChanged:true},{trialConfirm:'wrong'},{trialEnv:'production'}])test('closed trial blocks unsafe scenario '+JSON.stringify(scenario),async t=>{
  const {res,events}=await run(t,{trial:true,...scenario});
- assert.equal(res.code,409);assert.equal(res.body.ok,false);assert.ok(!events.includes('write'));
+ assert.equal(res.code,409);assert.equal(res.body.ok,false);assert.ok(!events.includes('write'));assert.ok(!events.includes('journal'));
 });
-test('trial timeout is recorded as unknown and cannot be retried automatically',async t=>{
- const {res,events}=await run(t,{trial:true,mutation:'timeout'});
- assert.equal(res.code,503);assert.equal(res.body.writeOutcome,'unknown');assert.equal(res.body.retrySafe,false);
- assert.equal(events.filter(x=>x==='write').length,1);assert.ok(!events.includes('verify-write'));assert.ok(events.includes('record'));
+for(const statusOnly of [true,false])for(const journal of ['verified','reserved','unknown','rejected',null])test('matched trial is read-only with journal '+journal+' GET='+statusOnly,async t=>{
+ const {res,events}=await run(t,{trial:true,statusOnly,matched:true,journal});
+ assert.equal(res.code,200);assert.equal(res.body.writeOutcome,'already-matched');assert.equal(res.body.mutationPerformed,false);assert.equal(res.body.readOnly,true);
+ assert.equal(res.body.priorTrialVerified,journal==='verified');assert.equal(res.body.journal,journal??'missing');assert.equal(res.body.targets.length,2);
+ assert.deepEqual(events,['read','cj','cj','readback','journal']);
+});
+test('read-only trial status blocks changed readback',async t=>{
+ const {res,events}=await run(t,{trial:true,statusOnly:true,matched:true,readbackChanged:true});
+ assert.equal(res.code,409);assert.equal(res.body.mutationPerformed,false);assert.ok(!events.includes('journal'));assert.ok(!events.includes('write'));
 });
