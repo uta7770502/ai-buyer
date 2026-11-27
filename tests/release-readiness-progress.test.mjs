@@ -13,7 +13,8 @@ test('release readiness does not present historical draft and freight checks as 
 test('release readiness keeps live inventory verification incomplete until Preview evidence exists',()=>{
   assert.match(source,/variantLevelInventoryVerified:false/);
   assert.match(source,/CJの販売バリエーション別実在庫dry-run/);
-  assert.match(source,/CJ在庫→Shopify在庫同期のPreview実行/);
+  assert.match(source,/承認済み2商品のCJ・Shopify在庫一致と過去の同期実行記録の読み取り専用照合（再書き込み禁止）/);
+  assert.doesNotMatch(source,/CJ在庫→Shopify在庫同期のPreview実行/);
 });
 
 test('stock synchronization stays opt-in',()=>{
