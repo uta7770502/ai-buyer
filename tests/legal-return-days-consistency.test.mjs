@@ -195,3 +195,21 @@ test('JPY balance checks exact decimal identity without unsafe rounding',async()
  assert.equal(summarizeRefundBalance(order).remainingJPY,3400);
  for(const totalReceivedSet of [pair('9007199254740992'),pair('9007199254740992','9007199254740993'),pair('4400','4401'),pair('4400.01')])assert.equal(summarizeRefundBalance({...order,totalReceivedSet}).ok,false);
 });
+
+test('offline return journey stops before refund or notification when evidence or supplier result fails',async()=>{
+ const {simulateReturnJourney}=await import('../lib/routes/shopify-return-audit.js');
+ const orderId='gid://shopify/Order/1',returnId='gid://shopify/Return/2',cj='ORDER123';
+ const input={testOrder:true,returnStatus:'REQUESTED',orderId,returnId,linked:{id:cj,data:{orderId:cj,productList:[{lineItemId:'CJ123',storeLineItemId:'4',vid:'123456789012',quantity:1}]}},lines:[{returnLineId:'gid://shopify/ReturnLineItem/3',orderLineId:'gid://shopify/LineItem/4',sku:'123456789012',quantity:1,refundableQuantity:1,refundedQuantity:0}],eligibility:{ok:true,orderId:cj,eligibleItems:[{lineItemId:'CJ123',quantity:1,price:9.99}]},terms:{ok:true,orderId:cj,reasons:[{disputeReasonId:1}],allowedExpectTypes:[1]},balance:{ok:true,currency:'JPY',paidJPY:3000,priorRefundJPY:500,remainingJPY:2500,refundAuthorized:false},entitlement:{verified:true,orderId,returnId,currency:'JPY',amountJPY:1500},selection:{expectType:1,refundType:1,disputeReasonId:1,messageText:'Damaged item'},requestedJPY:1500};
+ for(const scenario of ['ok','live','wrong-entitlement','excess','supplier-rejected','supplier-mismatch','refund-mismatch','persist-failure','missing-adapter']){
+  const calls=[];
+  const supplier={reserve:async()=>{calls.push('supplier-reserve');return true},submitMock:async()=>{calls.push('supplier-submit');return {ok:scenario!=='supplier-rejected',disputeId:'SH12345'}},readMock:async()=>({ok:true,disputeId:'SH12345',orderId:scenario==='supplier-mismatch'?'wrong':cj,businessDisputeId:'return-2'}),persist:async()=>true};
+  const customer={reserve:async()=>{calls.push('refund-reserve');return true},refundMock:async()=>{calls.push('refund');return {ok:true,refundId:'gid://shopify/Refund/5'}},readMock:async()=>({refundId:'gid://shopify/Refund/5',orderId,returnId,currency:'JPY',amountJPY:scenario==='refund-mismatch'?1499:1500,status:'SUCCESS'}),persist:async()=>scenario!=='persist-failure'};
+  const patch=scenario==='live'?{testOrder:false}:scenario==='wrong-entitlement'?{entitlement:{...input.entitlement,orderId:'gid://shopify/Order/9'}}:scenario==='excess'?{requestedJPY:1501}:{};
+  const result=await simulateReturnJourney({...input,...patch},scenario==='missing-adapter'?{supplier}:{supplier,customer});
+  assert.equal(result.ok,scenario==='ok',scenario);
+  assert.equal(result.refundIssued,false);assert.equal(result.customerNotified,false);assert.equal(result.notificationAllowed,false);assert.equal(result.automaticRetry,false);
+  assert.equal(Boolean(result.notificationPreview),scenario==='ok');
+  if(['live','wrong-entitlement','excess','missing-adapter'].includes(scenario))assert.deepEqual(calls,[]);
+  if(['supplier-rejected','supplier-mismatch'].includes(scenario))assert.ok(!calls.includes('refund'));
+ }
+});
