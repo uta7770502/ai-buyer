@@ -21,3 +21,10 @@ test('stock synchronization stays opt-in',()=>{
   assert.match(source,/CJ_SHOPIFY_STOCK_SYNC_ENABLED/);
   assert.match(source,/stock sync remains dry-run only/);
 });
+
+test('sandbox connectivity cannot mark incomplete live audit as prelaunch ready',()=>{
+  assert.match(source,/prelaunchReady:false/);
+  assert.match(source,/comprehensiveLivePrelaunchAuditPassed:false/);
+  assert.match(source,/safeToTest:blockers.length===0/);
+  assert.match(source,/readyForLive:false/);
+});
