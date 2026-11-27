@@ -142,12 +142,12 @@ test('return detail validates order ownership complete pagination and exact quan
 
 test('supplier return lines require exact store line ID and variant, not equal quantities alone',async()=>{
  const {reconcileReturnSupplierLines}=await import('../lib/routes/shopify-return-audit.js');
- const line={returnLineId:'gid://shopify/ReturnLineItem/3',orderLineId:'gid://shopify/LineItem/4',sku:'123456789012',quantity:1,refundedQuantity:0};
+ const line={returnLineId:'gid://shopify/ReturnLineItem/3',orderLineId:'gid://shopify/LineItem/4',sku:'123456789012',quantity:1,refundableQuantity:1,refundedQuantity:0};
  const p={lineItemId:'CJ123',storeLineItemId:'4',vid:line.sku,quantity:2};
  const linked={id:'ORDER123',data:{orderId:'ORDER123',productList:[p]}};
  const eligible={ok:true,orderId:linked.id,eligibleItems:[{lineItemId:p.lineItemId,quantity:2}]};
  const r=reconcileReturnSupplierLines([line],linked,eligible);assert.equal(r.ok,true);assert.equal(r.matches[0].cjLineItemId,p.lineItemId);assert.equal(r.submissionAllowed,false);
- for(const bad of [{...line,sku:'other'},{...line,orderLineId:'gid://shopify/LineItem/9'},{...line,quantity:3},{...line,refundedQuantity:1}])assert.equal(reconcileReturnSupplierLines([bad],linked,eligible).ok,false);
+ for(const bad of [{...line,sku:'other'},{...line,orderLineId:'gid://shopify/LineItem/9'},{...line,quantity:3},{...line,refundedQuantity:1},{...line,refundableQuantity:0},{...line,refundableQuantity:undefined},{...line,refundableQuantity:2}])assert.equal(reconcileReturnSupplierLines([bad],linked,eligible).ok,false);
  assert.equal(reconcileReturnSupplierLines([line,line],linked,eligible).ok,false);
  assert.equal(reconcileReturnSupplierLines([line],{...linked,data:{...linked.data,productList:[p,{...p,lineItemId:'CJ456'}]}},eligible).ok,false);
  assert.equal(reconcileReturnSupplierLines([line],linked,{...eligible,eligibleItems:[]}).ok,false);
@@ -155,13 +155,13 @@ test('supplier return lines require exact store line ID and variant, not equal q
 
 test('reconciled supplier terms cannot use caller quantities or unverified prices',async()=>{
  const {prepareReconciledReturnTerms}=await import('../lib/routes/shopify-return-audit.js');
- const line={returnLineId:'gid://shopify/ReturnLineItem/3',orderLineId:'gid://shopify/LineItem/4',sku:'123456789012',quantity:1,refundedQuantity:0};
+ const line={returnLineId:'gid://shopify/ReturnLineItem/3',orderLineId:'gid://shopify/LineItem/4',sku:'123456789012',quantity:1,refundableQuantity:1,refundedQuantity:0};
  const p={lineItemId:'CJ123',storeLineItemId:'4',vid:line.sku,quantity:2};
  const linked={id:'ORDER123',data:{orderId:'ORDER123',productList:[p]}};
  const eligible={ok:true,orderId:linked.id,eligibleItems:[{lineItemId:p.lineItemId,quantity:2,price:9.99}]};
  let calls=0;const fetcher=async(url,opt)=>{calls++;assert.ok(String(url).endsWith('/disputeConfirmInfo'));const selected=JSON.parse(opt.body).productInfoList;assert.deepEqual(selected,[{lineItemId:'CJ123',quantity:1,price:9.99}]);return {ok:true,json:async()=>({code:200,result:true,data:{orderId:linked.id,productInfoList:selected,expectResultOptionList:['1'],disputeReasonList:[{disputeReasonId:1,reasonName:'Damage'}],maxProductPrice:9.99,maxPostage:0,maxIossTaxAmount:0,maxIossHandTaxAmount:0,maxAmount:9.99}})}};
  const r=await prepareReconciledReturnTerms([line],linked,eligible,{token:'test',fetcher});assert.equal(r.ok,true);assert.equal(r.terms.maxRefundUSD,9.99);assert.equal(r.submissionAllowed,false);assert.equal(r.customerRefundAuthorized,false);assert.equal(calls,1);
- for(const x of [{...line,quantity:3},{...line,sku:'wrong'}])assert.equal((await prepareReconciledReturnTerms([x],linked,eligible,{token:'test',fetcher})).ok,false);
+ for(const x of [{...line,quantity:3},{...line,sku:'wrong'},{...line,refundableQuantity:0}])assert.equal((await prepareReconciledReturnTerms([x],linked,eligible,{token:'test',fetcher})).ok,false);
  assert.equal((await prepareReconciledReturnTerms([line],linked,{...eligible,eligibleItems:[{...eligible.eligibleItems[0],price:null}]},{token:'test',fetcher})).ok,false);assert.equal(calls,1);
 });
 
