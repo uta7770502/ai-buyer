@@ -1,0 +1,52 @@
+name: ADPS English localization tests
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'lib/*translation*.js'
+      - 'lib/english-draft-pipeline-hook.js'
+      - 'api/shopify-publish.js'
+      - 'lib/oddly-localization-catalog-audit.js'
+      - 'lib/oddly-factual-translation-source.js'
+      - 'tests/oddly-factual-translation-source.test.mjs'
+      - 'tests/oddly-localization-catalog-audit.test.mjs'
+      - 'lib/oddly-storefront-locales.js'
+      - 'tests/*translation*.test.mjs'
+      - 'tests/oddly-storefront-locales.test.mjs'
+      - '.github/workflows/adps-english-localization-tests.yml'
+  push:
+    branches: [safety-gate-20261024]
+    paths:
+      - 'lib/*translation*.js'
+      - 'lib/oddly-storefront-locales.js'
+      - 'tests/*translation*.test.mjs'
+      - 'tests/oddly-storefront-locales.test.mjs'
+      - '.github/workflows/adps-english-localization-tests.yml'
+permissions:
+  contents: read
+jobs:
+  localization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Shopify draft route syntax
+        run: node --check api/shopify-publish.js
+      - name: Run isolated translation and locale tests (no external API credentials)
+        run: |
+          node --experimental-default-type=module --test \
+            tests/product-localization-preflight.test.mjs \
+            tests/shopify-translation-registration.test.mjs \
+            tests/product-translation-orchestrator.test.mjs \
+            tests/oddly-storefront-locales.test.mjs \
+            tests/shopify-storefront-localization-readiness.test.mjs \
+            tests/shopify-english-draft-sync.test.mjs \
+            tests/gemini-english-translation-provider.test.mjs \
+            tests/english-translation-integration.test.mjs \
+            tests/english-translation-batch-gate.test.mjs \
+            tests/english-draft-pipeline-hook.test.mjs \
+            tests/oddly-localization-catalog-audit.test.mjs \
+            tests/oddly-factual-translation-source.test.mjs

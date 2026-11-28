@@ -134,6 +134,10 @@ test('sandbox order is created once and duplicate delivery is skipped',async()=>
     seen.push(target);
     const json=data=>({ok:true,json:async()=>data});
     if(target.includes('myshopify.com'))return json({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJVARIANT123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
+    if(target.includes('/product/stock/queryByVid?')){
+      assert.equal(target.split('?')[1],'vid=CJVARIANT123');
+      return json({result:true,data:[{cjInventoryNum:10,factoryInventoryNum:0,totalInventoryNum:10}]});
+    }
     if(target.includes('freightCalculate'))return json({result:true,data:[{logisticName:'Test Shipping',totalPostageFee:5}]});
     if(target==='https://redis.test/'){
       const [cmd,key,value,flag]=JSON.parse(options.body);
@@ -161,6 +165,10 @@ test('ambiguous CJ timeout is held for review and never retried',async()=>{
     const target=String(url);
     const json=data=>({ok:true,json:async()=>data});
     if(target.includes('myshopify.com'))return json({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJVARIANT123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
+    if(target.includes('/product/stock/queryByVid?')){
+      assert.equal(target.split('?')[1],'vid=CJVARIANT123');
+      return json({result:true,data:[{cjInventoryNum:10,factoryInventoryNum:0,totalInventoryNum:10}]});
+    }
     if(target.includes('freightCalculate'))return json({result:true,data:[{logisticName:'Test Shipping',totalPostageFee:5}]});
     if(target==='https://redis.test/'){
       const [cmd,key,value,flag]=JSON.parse(options.body);
@@ -189,6 +197,10 @@ test('CJ success with failed final persistence requires review without reorderin
     const target=String(url);
     const json=data=>({ok:true,json:async()=>data});
     if(target.includes('myshopify.com'))return json({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJVARIANT123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
+    if(target.includes('/product/stock/queryByVid?')){
+      assert.equal(target.split('?')[1],'vid=CJVARIANT123');
+      return json({result:true,data:[{cjInventoryNum:10,factoryInventoryNum:0,totalInventoryNum:10}]});
+    }
     if(target.includes('freightCalculate'))return json({result:true,data:[{logisticName:'Test Shipping',totalPostageFee:5}]});
     if(target==='https://redis.test/'){
       const [cmd,key,value,flag]=JSON.parse(options.body);
@@ -219,6 +231,10 @@ test('CJ rejection is recorded for review and never automatically retried',async
     const target=String(url);
     const json=data=>({ok:true,json:async()=>data});
     if(target.includes('myshopify.com'))return json({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJVARIANT123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
+    if(target.includes('/product/stock/queryByVid?')){
+      assert.equal(target.split('?')[1],'vid=CJVARIANT123');
+      return json({result:true,data:[{cjInventoryNum:10,factoryInventoryNum:0,totalInventoryNum:10}]});
+    }
     if(target.includes('freightCalculate'))return json({result:true,data:[{logisticName:'Test Shipping',totalPostageFee:5}]});
     if(target==='https://redis.test/'){
       const [cmd,key,value,flag]=JSON.parse(options.body);

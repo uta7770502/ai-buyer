@@ -11,7 +11,7 @@ import cj from '../api/cj.js';
 import diagnostics from '../api/diagnostics.js';
 import { createShopifyBrowserSession } from '../lib/shopify-auth-context.js';
 process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY='33'.repeat(32);
-const env={SHOPIFY_TOKEN_ENCRYPTION_KEY:'33'.repeat(32),SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-admin-token',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10', CJ_ORDER_LIMIT_CURRENCY:'USD',ODDLY_SELLER_NAME:'Seller',ODDLY_REPRESENTATIVE_NAME:'Rep',ODDLY_SELLER_ADDRESS:'Tokyo',ODDLY_SUPPORT_PHONE:'03-0000-0000',ODDLY_SUPPORT_EMAIL:'support@example.com',ODDLY_PAYMENT_TIMING:'注文時',ODDLY_SHIPPING_WINDOW:'7日以内',ODDLY_RETURN_DAYS:'7',ODDLY_RETURN_CONDITIONS:'未使用品',ODDLY_RETURN_SHIPPING:'お客様都合はお客様負担',ODDLY_ADDITIONAL_FEES:'送料は商品ページに表示',ODDLY_PRIVACY_CONTACT:'privacy@example.com',ODDLY_CHECKOUT_ENABLED:'false'};
+const env={SHOPIFY_TOKEN_ENCRYPTION_KEY:'33'.repeat(32),SHOPIFY_SHOP:'test',SHOPIFY_STOREFRONT_ACCESS_TOKEN:'test-storefront',SHOPIFY_WEBHOOK_BASE_URL:'https://ai-buyer-nine.vercel.app',AI_BUYER_ADMIN_KEY:'test-admin',SHOPIFY_CLIENT_SECRET:'test-secret',SHOPIFY_CLIENT_ID:'test-id',SHOPIFY_ADMIN_ACCESS_TOKEN:'test-admin-token',SHOPIFY_ALLOWED_SHOP_DOMAIN:'test.myshopify.com',CJ_ACCESS_TOKEN:'test-cj',UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test-redis',CJ_SANDBOX_ORDER_ENABLED:'true',SHOPIFY_FULFILLMENT_SYNC_ENABLED:'true',CJ_SHOPIFY_STOCK_SYNC_ENABLED:'true',CJ_MAX_ITEMS_PER_ORDER:'10',CJ_MAX_ORDER_VALUE:'100',CJ_MAX_FREIGHT_USD:'10', CJ_ORDER_LIMIT_CURRENCY:'USD',ODDLY_SELLER_NAME:'Seller',ODDLY_REPRESENTATIVE_NAME:'Rep',ODDLY_SELLER_ADDRESS:'Tokyo',ODDLY_SUPPORT_PHONE:'03-0000-0000',ODDLY_SUPPORT_EMAIL:'support@example.com',ODDLY_PAYMENT_TIMING:'注文時',ODDLY_SHIPPING_WINDOW:'7日以内',ODDLY_RETURN_DAYS:'7',ODDLY_RETURN_CONDITIONS:'未使用品',ODDLY_RETURN_SHIPPING:'お客様都合はお客様負担',ODDLY_ADDITIONAL_FEES:'送料は商品ページに表示',ODDLY_PRIVACY_CONTACT:'privacy@example.com',ODDLY_CHECKOUT_ENABLED:'false'};
 const headers={authorization:'Bearer test-admin',cookie:'shopify_session='+encodeURIComponent(createShopifyBrowserSession('test.myshopify.com',3600))+'; shopify_connected_shop=test.myshopify.com'};
 const payload={orderId:'gid://shopify/Order/123',trackingNumber:'TRACK123'};
 const target={id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]};
@@ -31,14 +31,22 @@ function configure(t,fetcher){
  t.after(()=>{for(const k of Object.keys(process.env))if(!(k in previous))delete process.env[k];Object.assign(process.env,previous)});
  t.mock.method(globalThis,'fetch',fetcher||(()=>{throw Error('Unexpected network request')}));
 }
-function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=false}={}){
- let state=initial,mutations=0,sets=0;const calls=[];
+function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=false,wrongTracking=false}={}){
+ let state=initial,mutations=0,sets=0;const calls=[],orderLocks=new Map();
  const fetcher=async(url,options)=>{
   const body=options.body?JSON.parse(options.body):null;calls.push(body);
   if(String(url).startsWith('https://redis.invalid')){
-   if(body[0]==='GET')return json({result:body[1].startsWith('ai-buyer:cj-sandbox:')?'created:CJ123':state});
+   if(body[0]==='GET'){
+    if(body[1].startsWith('ai-buyer:cj-sandbox:'))return json({result:'created:CJ123'});
+    if(body[1].startsWith('ai-buyer:fulfillment-order:'))return json({result:orderLocks.get(body[1])??null});
+    return json({result:state});
+   }
    if(body[0]==='SET'){
     sets++;
+    if(body[1].startsWith('ai-buyer:fulfillment-order:')){
+     assert.ok(body.includes('NX'));if(orderLocks.has(body[1]))return json({result:null});
+     orderLocks.set(body[1],body[2]);return json({result:'OK'});
+    }
     if(body.includes('NX')&&state!==null)return json({result:null});
     if(!body.includes('NX')&&persistFail)throw Error('Store unavailable');
     state=body[2];return json({result:'OK'});
@@ -49,7 +57,7 @@ function mockStore({initial=null,currentOrder=order,uncertain=false,persistFail=
   if(body.query.startsWith('mutation')){
    mutations++;assert.equal(body.variables.fulfillment.notifyCustomer,false);
    if(uncertain)throw Error('Timed out after acceptance');
-   return json({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS'},userErrors:[]}}});
+   return json({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS',trackingInfo:[{number:wrongTracking?'WRONG':body.variables.fulfillment.trackingInfo.number}]},userErrors:[]}}});
   }
   throw Error('Unexpected request');
  };
@@ -71,19 +79,19 @@ test('dry-run writes neither Redis nor Shopify',async t=>{
  const m=mockStore();configure(t,m.fetcher);const r=await invoke(sync,{...payload,dryRun:true});
  assert.equal(r.data.eligible,true);assert.equal(m.sets,0);assert.equal(m.mutations,0);
 });
-for(const change of [{test:false},{cancelledAt:'2026-10-09'},{displayFinancialStatus:'REFUNDED'}])test('reject unsafe Shopify order '+JSON.stringify(change),async t=>{
+for(const change of [{id:'gid://shopify/Order/999'},{test:false},{cancelledAt:'2026-10-09'},{displayFinancialStatus:'REFUNDED'}])test('reject unsafe Shopify order '+JSON.stringify(change),async t=>{
  const m=mockStore({currentOrder:{...order,...change}});configure(t,m.fetcher);const r=await invoke(sync,payload);
  assert.equal(r.code,422);assert.equal(m.sets,0);assert.equal(m.mutations,0);
 });
 test('split fulfillment orders require review',async t=>{
- const m=mockStore({currentOrder:{...order,fulfillmentOrders:{nodes:[target,{...target,id:'other'}]}}});configure(t,m.fetcher);
+ const m=mockStore({currentOrder:{...order,fulfillmentOrders:{pageInfo:{hasNextPage:false},nodes:[target,{...target,id:'gid://shopify/FulfillmentOrder/2',status:'CLOSED'}]}}});configure(t,m.fetcher);
  assert.equal((await invoke(sync,payload)).code,409);assert.equal(m.mutations,0);
 });
 test('successful sync persists completion and duplicate checks stay read-only',async t=>{
  const m=mockStore();configure(t,m.fetcher);assert.equal((await performSync()).data.ok,true);
  assert.equal(m.state,'synced:gid://shopify/Fulfillment/99');assert.equal((await invoke(sync,{...payload,checkOnly:true})).data.duplicateConfirmed,true);assert.equal(m.mutations,1);
 });
-for(const scenario of [{uncertain:true},{persistFail:true}])test('uncertain outcome never retries '+JSON.stringify(scenario),async t=>{
+for(const scenario of [{uncertain:true},{persistFail:true},{wrongTracking:true}])test('uncertain outcome never retries '+JSON.stringify(scenario),async t=>{
  const m=mockStore(scenario);configure(t,m.fetcher);const first=await performSync();
  assert.equal(first.data.needsReview,true);assert.equal(first.data.ok,false);
  assert.equal((await invoke(sync,payload)).code,409);assert.equal(m.mutations,1);
@@ -98,11 +106,11 @@ test('authorization failure does not contact services',async t=>{
 test('missing client ID and noninteger quantity limit fail release gate',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
-  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
+  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'},{handle:'read_inventory'},{handle:'write_inventory'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
  if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
@@ -169,11 +177,11 @@ for(const sandboxFlag of [0,undefined])test('real or unconfirmed CJ orders canno
 test('release readiness distinguishes Redis ping from unverified external integrations',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
-  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
+  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'},{handle:'read_inventory'},{handle:'write_inventory'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
  if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});
@@ -195,11 +203,11 @@ test('release readiness distinguishes Redis ping from unverified external integr
 test('release readiness fails closed for missing numeric safety limits',async t=>{
  configure(t,async(url,opts={})=>{
  const u=String(url);
- if(u.startsWith('https://redis.invalid'))return json({result:'PONG'});
+ if(u.startsWith('https://redis.invalid'))return json({result:opts.body?null:'PONG'});
  if(u.includes('.myshopify.com/admin/api/')){
   const body=opts.body?JSON.parse(opts.body):{};
   if(String(body.query||'').includes('ReadinessWebhooks'))return json({data:{webhookSubscriptions:{nodes:[{topic:'ORDERS_PAID',uri:'https://ai-buyer-nine.vercel.app/api/shopify-order-webhook'}],pageInfo:{hasNextPage:false}}}});
-  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'}]}}});
+  if(String(body.query||'').includes('ReadinessScopes'))return json({data:{currentAppInstallation:{accessScopes:[{handle:'write_merchant_managed_fulfillment_orders'},{handle:'read_inventory'},{handle:'write_inventory'}]}}});
   return json({data:{shop:{id:'gid://shopify/Shop/1',name:'Test'}}});
  }
  if(u.includes('/api/2026-10/graphql.json')&&!u.includes('/admin/api/'))return json({data:{shop:{name:'Test Store'}}});

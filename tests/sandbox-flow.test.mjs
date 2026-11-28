@@ -27,6 +27,10 @@ function fixture(t,{sandbox=1,simulationTimeout=false,cjTimeout=false}={}){
    }
    throw Error('Unexpected Redis command');
   }
+  if(String(url).includes('/product/stock/queryByVid?')){
+   assert.equal(String(url).split('?')[1],'vid=CJ-VID123');
+   return response({result:true,data:[{cjInventoryNum:10,factoryInventoryNum:0,totalInventoryNum:10}]});
+  }
   if(String(url).endsWith('/logistic/freightCalculate'))return response({result:true,data:[{logisticName:'Mock shipping',totalPostageFee:2}]});
   if(String(url).endsWith('/shopping/order/createOrderV2')){
    assert.equal(body.isSandbox,1);assert.equal(body.payType,3);creates++;
@@ -45,9 +49,9 @@ function fixture(t,{sandbox=1,simulationTimeout=false,cjTimeout=false}={}){
   }
   if(String(url).endsWith('/graphql.json')){
    if(body.query.includes('ProductVariant'))return response({data:{node:{id:'gid://shopify/ProductVariant/22',sku:'CJ-VID123',product:{id:'gid://shopify/Product/33',vendor:'AI BUYER'}}}});
-   if(body.query.startsWith('query'))return response({data:{order:{test:true,cancelledAt:null,displayFinancialStatus:'PAID',fulfillmentOrders:{pageInfo:{hasNextPage:false},nodes:fulfillments?[]:[{id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]}]}}}});
+   if(body.query.startsWith('query'))return response({data:{order:{id:body.variables.id,test:true,cancelledAt:null,displayFinancialStatus:'PAID',fulfillmentOrders:{pageInfo:{hasNextPage:false},nodes:fulfillments?[]:[{id:'gid://shopify/FulfillmentOrder/1',status:'OPEN',supportedActions:[{action:'CREATE_FULFILLMENT'}]}]}}}});
    assert.equal(body.variables.fulfillment.notifyCustomer,false);fulfillments++;
-   return response({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS'},userErrors:[]}}});
+   return response({data:{fulfillmentCreate:{fulfillment:{id:'gid://shopify/Fulfillment/99',status:'SUCCESS',trackingInfo:[{number:body.variables.fulfillment.trackingInfo.number}]},userErrors:[]}}});
   }
   throw Error('Unexpected external API; real payment endpoints are forbidden');
  });
@@ -97,4 +101,29 @@ test('bad HMAC is rejected before any external request',async t=>{
 test('sandbox disabled blocks simulation before accessing services',async t=>{
  const f=fixture(t);process.env.CJ_SANDBOX_ORDER_ENABLED='false';
  assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).code,503);assert.equal(f.calls.length,0);
+});
+
+test('competing tracking numbers for the same test order cannot create two fulfillments',async t=>{
+ const f=fixture(t);
+ assert.equal((await f.paidWebhook()).data.ok,true);
+ assert.equal((await call(simulate,{orderId:'123',phase:'payment'})).data.ok,true);
+ assert.equal((await call(simulate,{orderId:'123',phase:'tracking'})).data.ok,true);
+ const track=await call(tracking,{shopifyOrderId:'123'},'GET');
+ const p={orderId:'gid://shopify/Order/123',trackingNumber:track.data.trackingNumber};
+ assert.ok(p.trackingNumber);
+ const pre=await call(sync,{...p,dryRun:true});assert.equal(pre.data.eligible,true);
+ const other={...p,trackingNumber:'SBXABCDEF0123456789ABCDEF01'};
+ assert.notEqual(other.trackingNumber,p.trackingNumber);
+ f.cjOrder.trackNumber=other.trackingNumber;
+ const otherPre=await call(sync,{...other,dryRun:true});assert.equal(otherPre.data.eligible,true);
+ // Both preflights are valid and both tracking sources are recognized.
+ // Race two requests before either can observe a closed fulfillment order.
+ const results=await Promise.all([
+  call(sync,{...p,preflightToken:pre.data.preflightToken}),
+  call(sync,{...other,preflightToken:otherPre.data.preflightToken})
+ ]);
+ assert.equal(results.filter(r=>r.data.ok===true).length,1);
+ assert.equal(results.filter(r=>r.code===409&&r.data.automaticRetry===false).length,1);
+ assert.equal(f.fulfillments,1);
+ assert.equal([...f.store.keys()].filter(k=>k.startsWith('ai-buyer:fulfillment-order:')).length,1);
 });

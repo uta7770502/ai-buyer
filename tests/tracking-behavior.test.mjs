@@ -34,7 +34,7 @@ async function invoke({authorization='Bearer test-admin',enabled='true',sandbox=
       if(cmd[0]==='SET'){locks++;return json({result:locks===1?lockClaim:'OK'});}
       throw Error('unexpected redis operation');
     }
-    if(url.includes('getOrderDetail'))return json({result:true,data:{isSandbox:sandbox,orderStatus:shipped?'SHIPPED':'CREATED',trackNumber:trackingNumber}});
+    if(url.includes('getOrderDetail'))return json({result:true,data:{orderId:'CJTEST123',isSandbox:sandbox,orderStatus:shipped?'SHIPPED':'CREATED',trackNumber:trackingNumber}});
     if(url.includes('graphql.json')){
       if(shopifyApiError)return json({errors:[{message:'API unavailable'}]});
       const body=JSON.parse(opts.body);

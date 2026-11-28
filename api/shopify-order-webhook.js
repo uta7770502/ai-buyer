@@ -1,4 +1,6 @@
+import { redisConnection } from '../lib/redis-connection.js';
 import crypto from 'crypto';
+import {verifyOrderStock} from '../lib/cj-order-stock-preflight.js';
 const BASE='https://developers.cjdropshipping.com/api2.0/v1';
 export const config={api:{bodyParser:false}};
 let tokenCache={token:'',expiresAt:0};
@@ -9,8 +11,8 @@ function str(v,n=200){return String(v||'').trim().slice(0,n)}
 // Persistent, atomic order reservation. Never expire automatically: uncertain CJ outcomes
 // must be reconciled manually instead of allowing a duplicate purchase.
 async function reserveOrder(shop,orderId){
-  const url=process.env.UPSTASH_REDIS_REST_URL;
-  const token=process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url=redisConnection().url;
+  const token=redisConnection().token;
   if(!url||!token)throw Error('Durable idempotency storage is not configured');
   const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
   const r=await fetch(url.replace(/\/$/,'')+'/',{
@@ -23,8 +25,8 @@ async function reserveOrder(shop,orderId){
   return j.result==='OK';
 }
 async function markOrder(shop,orderId,status){
-  const url=process.env.UPSTASH_REDIS_REST_URL;
-  const token=process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url=redisConnection().url;
+  const token=redisConnection().token;
   const key='ai-buyer:cj-sandbox:'+crypto.createHash('sha256').update(shop+':'+orderId).digest('hex');
   const r=await fetch(url.replace(/\/$/,'')+'/',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(['SET',key,status])});
   if(!r.ok)throw Error('Failed to persist order state');const j=await r.json();if(j.error||j.result!=='OK')throw Error('Failed to persist order state');
@@ -70,7 +72,7 @@ export default async function handler(req,res){
     // Fail closed: sandbox CJ order creation is opt-in until durable idempotency is configured.
     if(process.env.CJ_SANDBOX_ORDER_ENABLED!=='true')return res.status(503).json({ok:false,error:'CJ sandbox order automation is disabled'});
     // Refuse processing before any CJ API call if durable deduplication is unavailable.
-    if(!process.env.UPSTASH_REDIS_REST_URL||!process.env.UPSTASH_REDIS_REST_TOKEN)
+    if(!redisConnection().url||!redisConnection().token)
       return res.status(503).json({ok:false,error:'Durable order deduplication is not configured'});
     if(!process.env.CJ_ACCESS_TOKEN&&!process.env.CJ_API_KEY)
       return res.status(503).json({ok:false,error:'CJ authentication is not configured'});
@@ -120,16 +122,23 @@ export default async function handler(req,res){
       let data={};
       try{data=await response.json()}catch{return res.status(503).json({ok:false,needsReview:true,error:'Shopify catalog verification response was invalid'})}
       const variant=data.data?.node;
-      if(!response.ok||data.errors?.length||!variant||variant.id!==gid||variant.sku!==String(line.sku)||variant.product?.vendor!=='AI BUYER'||variant.product?.id!=='gid://shopify/Product/'+String(line.product_id))
+      if(!response.ok||data.errors?.length||!variant||variant.id!==gid||variant.sku!==String(line.sku)||!['ODDLY','AI BUYER'].includes(variant.product?.vendor)||variant.product?.id!=='gid://shopify/Product/'+String(line.product_id))
         return res.status(422).json({ok:false,needsReview:true,error:'CJ variant SKU could not be verified against Shopify catalog'});
       verifiedProducts.push({vid:variant.sku,quantity:Number(line.quantity),storeLineItemId:str(line.id,125)});
     }
     const products=verifiedProducts;
     const access=await cjToken(),headers={'CJ-Access-Token':access,'Content-Type':'application/json'};
+    const stock=await verifyOrderStock(products,{base:BASE,headers});
+    if(!stock.ok)return res.status(stock.reason==='stock-unverified'?503:422).json({ok:false,needsReview:true,stockReason:stock.reason,orderCreated:false,error:'CJ inventory unavailable or insufficient'});
+    if(!stock.immediateEligible)return res.status(409).json({ok:false,needsReview:true,requiresFactoryReplenishment:true,dispatchPlanningWindow:{minBusinessDays:3,maxBusinessDays:7,guaranteed:false},stockRows:stock.rows,orderCreated:false,error:'Factory replenishment required; sandbox dispatch held'});
     const freight=await fetch(BASE+'/logistic/freightCalculate',{method:'POST',headers,body:JSON.stringify({startCountryCode:'CN',endCountryCode:countryCode,products:products.map(x=>({quantity:x.quantity,vid:x.vid}))})});
     const fq=await freight.json();
     if(!freight.ok||fq.result!==true)throw Error(fq.message||'CJ freight quote failed');
-    const opts=(Array.isArray(fq.data)?fq.data:[]).map(x=>({name:str(x.logisticName,50),usd:x.totalPostageFee==null&&x.logisticPrice==null?NaN:Number(x.totalPostageFee??x.logisticPrice),days:str(x.logisticAging,50)})).filter(x=>x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
+    const opts=(Array.isArray(fq.data)?fq.data:[]).filter(x=>x&&typeof x==='object').map(x=>{
+      const raw=x.totalPostageFee??x.logisticPrice;
+      const currency=String(x.currency||x.currencyCode||x.priceCurrency||'').trim().toUpperCase();
+      return {name:str(x.logisticName,50),usd:raw===undefined||raw===null||typeof raw==='boolean'||String(raw).trim()===''?NaN:Number(raw),days:str(x.logisticAging,50),currencyCompatible:!currency||currency==='USD'};
+    }).filter(x=>x.currencyCompatible&&x.name&&Number.isFinite(x.usd)&&x.usd>=0).sort((a,b)=>a.usd-b.usd);
     if(!opts.length)throw Error('CJ配送方法が見つかりません');
     // Shipping cost is USD; never compare it against an unconverted Shopify total.
     const maxFreightUsd=Number(process.env.CJ_MAX_FREIGHT_USD);
@@ -148,7 +157,7 @@ export default async function handler(req,res){
       shippingAddress:str(addr.address1,200),
       shippingAddress2:str(addr.address2,200),
       email:str(order.email,50),
-      remark:'AI BUYER Shopify order '+str(order.name,50),
+      remark:'ADPS Shopify order '+str(order.name,50),
       payType:3,
       isSandbox:1,
       logisticName:chosen.name,

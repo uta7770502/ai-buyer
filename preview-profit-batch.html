@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADPS Preview Profit Audit</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#f6f8fc;color:#0d2f5f}
+main{max-width:920px;margin:auto;padding:20px}.card{background:white;border:1px solid #dbe3ef;border-radius:18px;padding:18px;margin:12px 0}
+h1{font-size:24px;margin:0 0 8px}.muted{color:#64748b;font-size:13px}.bar{height:10px;background:#e5eaf2;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:#174a8b;width:0}
+table{width:100%;min-width:980px;border-collapse:collapse;font-size:13px}th,td{padding:10px 6px;border-bottom:1px solid #edf1f6;text-align:left;vertical-align:top}
+.pass{color:#147a3d;font-weight:700}.hold{color:#a05a00;font-weight:700}.bad{color:#b42318;font-weight:700}
+button{width:100%;padding:14px;border:0;border-radius:12px;background:#174a8b;color:white;font-weight:700;font-size:16px}
+code{font-size:11px;word-break:normal;overflow-wrap:anywhere}th:nth-child(1),td:nth-child(1){min-width:170px;max-width:220px}th:nth-child(2),td:nth-child(2){min-width:95px}th:nth-child(3),td:nth-child(3){min-width:155px}th:nth-child(4),td:nth-child(4){min-width:105px}th:nth-child(n+5),td:nth-child(n+5){white-space:nowrap}.audit-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}.audit-table-scroll:focus-visible{outline:2px solid #174a8b;outline-offset:-2px}@media(max-width:600px){main{padding:12px}.card{padding:14px}.audit-table-scroll{padding:12px}}
+input[type=password]{box-sizing:border-box;width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:12px;font:inherit;color:inherit;margin:8px 0}button:disabled{opacity:.55}button.secondary{background:#eef3fa;color:#174a8b;font-size:13px;margin-top:8px}
+</style>
+</head>
+<body><main>
+<div class="card">
+<h1>ADPS 下書き商品 利益監査</h1>
+<div class="muted">Preview専用・読み取り専用。登録済みの決済手数料・広告費・返品引当を使った試算。未設定の費用は保留します。商品公開・価格変更・注文処理は行いません。</div>
+<div class="bar" style="margin-top:14px"><i id="bar"></i></div>
+<div id="status" class="muted" style="margin-top:8px">開始前</div>
+</div>
+<div class="card"><label for="batchAdminKey"><b>管理者キー</b></label><input id="batchAdminKey" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="管理者キーを入力"><div id="authStatus" class="muted" role="status" aria-live="polite">この画面で認証できます。キーは監査時の認証にのみ使用します。</div><button class="secondary" type="button" id="clearKey">キーを消去</button><button type="button" id="run" style="margin-top:12px">現在の下書き商品を順番に監査</button><button class="secondary" type="button" id="retry" hidden>未確認商品だけ再監査</button><div id="scopeStatus" class="muted" role="status" style="margin-top:8px"></div></div>
+<div class="card"><div id="summary" class="muted">結果集計：未実行</div><div id="decision" class="muted" style="margin-top:8px"></div></div>
+<p class="muted">商品監査表は左右にスクロールすると、送料・利益率・最低売価まで確認できます。</p>
+<div class="card audit-table-scroll" role="region" aria-label="商品監査結果（横スクロール）" tabindex="0">
+<table><thead><tr><th>商品／SKU</th><th>利益判定</th><th>在庫判定</th><th>CJ倉庫／工場在庫</th><th>売価</th><th>原価</th><th>送料</th><th>利益率</th><th>25/20/15最低売価</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<div class="card" id="factoryInquiryCard" hidden><b>工場取り寄せ・補充納期の確認</b><p class="muted">利益率15%以上の取り寄せ候補を保持します。発送準備3〜7営業日は店舗の運用目安で、CJのSKU別保証ではありません。例外・遅延時のみ必要に応じて問い合わせ文を使用してください。</p><textarea id="factoryInquiry" readonly rows="10" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button class="secondary" type="button" id="copyFactoryInquiry">問い合わせ文をコピー</button><p class="muted" id="factoryCopyStatus" role="status"></p><a href="https://chat.cjdropshipping.com/" target="_blank" rel="noopener noreferrer">CJサポートを開く</a></div>
+<div class="card"><b>公開前の在庫・最終準備監査</b><p class="muted">現在の下書き全件のCJ在庫とShopifyロケーション別在庫を再取得し、成功時のみサーバー発行の確認証跡を公開前チェックへ引き継ぎます。書き込み・注文・公開は行いません。</p><button class="secondary" type="button" id="stockAndReady">在庫同期計画・公開前準備を確認</button><button class="secondary" type="button" id="authOnly">Shopify接続・権限だけ確認</button><pre id="authOnlyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">接続確認：未実行</pre><pre id="stockReadyResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
+<div class="card"><b>承認済み2商品の在庫同期試験（再更新禁止）</b><p class="muted">猫の肉球デザイン マグカップ・犬用 ボールおもちゃのみ。確認済み在庫の再書き込みは禁止されています。現在の在庫照合は上の読み取り専用監査を使用してください。工場在庫・公開・決済・注文は対象外です。</p><button class="secondary" type="button" id="stockTrial">再更新禁止の確認</button><pre id="stockTrialResult" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">未実行</pre></div>
+<div class="card muted">※「25% PASS」は販売前の想定判定です。実決済手数料は販売後に別監査で照合します。</div>
+<script>
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const tbody=document.getElementById('rows'),statusEl=document.getElementById('status'),bar=document.getElementById('bar'),btn=document.getElementById('run');
+const keyInput=document.getElementById('batchAdminKey'),authStatus=document.getElementById('authStatus'),clearKey=document.getElementById('clearKey');
+const retryBtn=document.getElementById('retry'),scopeStatus=document.getElementById('scopeStatus');
+let retryVids=[];
+const requested=new URLSearchParams(location.search).get('vids');
+const initialVids=requested===null?[]:requested.split(',').map(s=>s.trim());
+if(initialVids.length){retryBtn.hidden=false;retryBtn.textContent='指定 '+initialVids.length+' 商品だけ再監査';scopeStatus.textContent='指定商品のみの再監査が可能です。全商品監査とは別の結果になります。';}
+try{keyInput.value=sessionStorage.getItem('aiBuyerAdminKey')||''}catch{}
+if(keyInput.value)authStatus.textContent='同じタブの管理者キーを引き継ぎました。監査開始時に認証します。';
+clearKey.addEventListener('click',()=>{keyInput.value='';try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者キーを消去しました。';});
+const stockReadyBtn=document.getElementById('stockAndReady'),stockReadyResult=document.getElementById('stockReadyResult');
+const authOnlyBtn=document.getElementById('authOnly'),authOnlyResult=document.getElementById('authOnlyResult');
+const stockTrialBtn=document.getElementById('stockTrial'),stockTrialResult=document.getElementById('stockTrialResult');
+let trialAttempted=false;
+function setBusy(busy){stockTrialBtn.disabled=busy||trialAttempted;btn.disabled=busy;retryBtn.disabled=busy;stockReadyBtn.disabled=busy;authOnlyBtn.disabled=busy;keyInput.disabled=busy;clearKey.disabled=busy;}
+function yen(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?'¥'+Math.round(Number(v)).toLocaleString():'—'}
+function buildFactoryInquiry(rows){
+ const vids=[...new Set(rows.filter(r=>r?.ok===true&&r.cjStockVerified===true&&r.stockCandidateEligible===true&&r.requiresFactoryReplenishment===true&&r.supplierQuoteVerified===true&&r.cjFreightVerified===true&&r.assumptionsReady===true&&[25,20,15].includes(r.estimatedMarginTier)&&/^\d{10,25}$/.test(r.sku)).map(r=>r.sku))];
+ if(!vids.length)return '';
+ return 'Hello CJ team, we are preparing a dropshipping store for customers in Japan. Could you please confirm the following for each variant ID?\n\n'+vids.map(v=>'- '+v).join('\n')+'\n\n1. Is factory stock available for dropshipping to Japan?\n2. How many business days are needed to replenish CJ warehouse stock after receiving an order? Is 2–3 business days realistic for each variant?\n3. What is the total estimated processing time before dispatch, including quality inspection and packaging?\n4. Are there any order quantity restrictions, and can you confirm the current replenishment estimate in writing?\n\nThis is a pre-launch inquiry only, not an order. Thank you.';
+}
+const inquiryCard=document.getElementById('factoryInquiryCard'),inquiry=document.getElementById('factoryInquiry'),copyStatus=document.getElementById('factoryCopyStatus');
+document.getElementById('copyFactoryInquiry').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(inquiry.value);copyStatus.textContent='コピーしました。';}catch{inquiry.focus();inquiry.select();copyStatus.textContent='選択された文章を手動でコピーしてください。';}});
+async function run(onlyPending=false){
+ if(btn.disabled)return;
+ const key=keyInput.value.trim();
+ if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return}
+ authStatus.textContent='管理者認証を確認中…';
+ setBusy(true);inquiryCard.hidden=true;inquiry.value='';copyStatus.textContent='';const successfulRows=[];tbody.innerHTML='';bar.style.width='0%';let completed=0,pass=0,exception20=0,exception15=0,excluded=0,unknown=0,stockHold=0;
+ const headers={Authorization:'Bearer '+key};
+ let vids;
+ try{
+  const r=await fetch('/api/cj-profit-audit?catalogOnly=1',{headers,cache:'no-store',signal:AbortSignal.timeout(15000)});
+  if(r.status===401||r.status===403){try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者認証に失敗しました。キーを確認して再実行してください。';statusEl.textContent='監査未実行';setBusy(false);keyInput.focus();return;}
+  const j=await r.json();
+  if(!r.ok||j.ok!==true||j.readOnly!==true||j.catalogComplete!==true||!Number.isSafeInteger(j.targetCount)||j.targetCount<1||!Array.isArray(j.rows)||j.rows.length!==j.targetCount||!j.rows.every(x=>/^\d{10,25}$/.test(String(x?.sku||'')))||new Set(j.rows.map(x=>x.sku)).size!==j.targetCount)throw Error('下書きSKU一覧の取得に失敗しました');
+  vids=j.rows.map(x=>x.sku);
+  try{sessionStorage.setItem('aiBuyerAdminKey',key)}catch{}
+  authStatus.textContent='認証済み・現在の下書き '+vids.length+' 件を確認しました。';
+  if(onlyPending){
+   const selection=retryVids.length?retryVids:initialVids;
+   if(!selection.length||selection.length>vids.length||new Set(selection).size!==selection.length||!selection.every(s=>/^\d{10,25}$/.test(s)&&vids.includes(s)))throw Error('再監査対象が現在の下書きと一致しません');
+   vids=vids.filter(vid=>selection.includes(vid));
+  }
+  scopeStatus.textContent=onlyPending?'指定 '+vids.length+' 商品のみの監査結果（全商品監査ではありません）':'現在の全 '+vids.length+' 商品の監査結果';
+  retryVids=[];retryBtn.hidden=true;
+ }catch{authStatus.textContent='認証・下書き一覧を確認できませんでした。';statusEl.textContent='監査停止：現在の下書き一覧を確認できません。';setBusy(false);return;}
+ for(const vid of vids){
+  statusEl.textContent=(completed+1)+' / '+vids.length+' を監査中…';
+  try{
+   const qs=new URLSearchParams({vid});
+   const controller=new AbortController();
+   const timeout=setTimeout(()=>controller.abort(),60000);
+   let r,j;
+   try{
+     r=await fetch('/api/cj-profit-audit?'+qs.toString(),{headers,cache:'no-store',signal:controller.signal});
+     j=await r.json();
+   }finally{
+     clearTimeout(timeout);
+   }
+   const x=Array.isArray(j.rows)?j.rows[0]:null;
+   const tr=document.createElement('tr');
+   if(!r.ok||j.ok!==true||j.readOnly!==true||!x||x.ok!==true||x.sku!==vid||j.rows.length!==1){
+    unknown++;retryVids.push(vid);
+    const labels={'cj-cost-unverified':'CJ仕入原価・SKU・通貨を確認できません','shopify-product-unverified':'Shopify商品情報を確認できません','duplicate-cj-variant-id':'CJ SKU重複','price-or-variant-unverified':'販売価格またはSKU未確認'};
+    tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">ERROR</td><td colspan="7"></td>';
+    tr.lastElementChild.textContent=r.status===401||r.status===403?'管理者認証を確認してください':r.status===429?'アクセス集中・再監査対象':Object.hasOwn(labels,x?.reason)?labels[x.reason]:'監査失敗（HTTP '+r.status+'）・確認が必要';
+   }else{
+    successfulRows.push(x);
+    const tier=x.estimatedMarginTier;
+    const costReady=x.supplierQuoteVerified===true&&x.cjFreightVerified===true&&x.assumptionsReady===true;
+    const stockOk=x.cjStockVerified===true&&x.cjStockAvailable===true&&Number.isSafeInteger(x.cjStockQuantity)&&x.cjStockQuantity>=5;
+    let cls='hold',label='利益未確認';
+    if(costReady&&tier===25){cls='pass';label='25% PASS（試算）';pass++;}
+    else if(costReady&&tier===20){label=x.marginExceptionApproved===true?'20% 承認記録あり':'20% 要例外承認';exception20++;}
+    else if(costReady&&tier===15){label=x.marginExceptionApproved===true?'15% 承認記録あり':'15% 要例外承認';exception15++;}
+    else if(costReady&&tier===null){cls='bad';label='利益率15%未満：候補除外';excluded++;}
+    else unknown++;
+    if(!costReady||x.cjStockVerified!==true)retryVids.push(vid);
+    const stockLabel=stockOk?'CJ倉庫在庫あり':x.cjStockVerified===true&&x.stockCandidateEligible===true&&x.requiresFactoryReplenishment===true?'工場取り寄せ候補・発送準備3〜7営業日目安':x.cjStockVerified===true?'在庫不足':'在庫未確認';
+    if(!stockOk)stockHold++;
+    const p=x.requiredSalePriceByMargin||{};
+    const values=[x.title||vid,label,stockLabel,String(x.cjStockQuantity??'—')+' / '+String(x.factoryStockQuantity??'—'),yen(x.salePriceJpy),yen(x.productCostJpy),yen(x.cjFreightJpy),Number.isFinite(x.finalMarginPercent)?x.finalMarginPercent+'%':'—',yen(p['25'])+' / '+yen(p['20'])+' / '+yen(p['15'])];
+    for(let i=0;i<values.length;i++){const td=document.createElement('td');td.textContent=values[i];if(i===1)td.className=cls;if(i===2)td.className=stockOk?'pass':'hold';if(i===0){const sku=document.createElement('code');sku.textContent=vid;td.appendChild(document.createElement('br'));td.appendChild(sku);}tr.appendChild(td);}
+   }
+   tbody.appendChild(tr);
+  }catch(e){
+   const tr=document.createElement('tr');
+   unknown++;retryVids.push(vid);
+   const timeout=e&&(e.name==='AbortError'||e.name==='TimeoutError');
+   tr.innerHTML='<td><code>'+vid+'</code></td><td class="bad">'+(timeout?'60秒超過':'通信失敗')+'</td><td colspan="7">'+(timeout?'この商品を保留して次の商品へ進みました':'再試行対象')+'</td>';
+   tbody.appendChild(tr);
+  }
+  completed++;bar.style.width=(completed/vids.length*100)+'%';
+  statusEl.textContent='完了 '+completed+' / '+vids.length+(completed<vids.length?'、次へ進みます…':'');
+  if(completed<vids.length)await sleep(1800);
+ }
+ statusEl.textContent='完了：'+completed+' / '+vids.length;
+ document.getElementById('summary').textContent='利益判定：25%以上 '+pass+'件 / 20%例外 '+exception20+'件 / 15%例外 '+exception15+'件 / 15%未満 '+excluded+'件 / 未確認 '+unknown+'件。別集計：在庫・納期保留 '+stockHold+'件（取得成功行）';
+ document.getElementById('decision').textContent='運用判断：25% PASSは利益試算の条件達成のみ。20%・15%は明示承認が必要。15%未満は除外。CJ倉庫・工場合計5未満は候補除外。工場取り寄せは候補として保持し、発送準備3〜7営業日を目安に管理。即納在庫には加算せず、公開は別審査。';
+ inquiry.value=buildFactoryInquiry(successfulRows);inquiryCard.hidden=!inquiry.value;
+ retryVids=[...new Set(retryVids)];
+ retryBtn.hidden=retryVids.length===0;
+ retryBtn.textContent='未確認 '+retryVids.length+' 商品だけ再監査';
+ setBusy(false);
+}
+async function runStockAndReady(){
+ if(stockReadyBtn.disabled)return;
+ const key=keyInput.value.trim();
+ if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return;}
+ const headers={Authorization:'Bearer '+key};
+ setBusy(true);stockReadyResult.textContent='現在の全下書き商品を読み取り専用で確認中…';
+ const lines=[];
+ try{
+  const response=await fetch('/api/cj-stock-sync',{method:'GET',headers,cache:'no-store',signal:AbortSignal.timeout(60000)});
+  const data=await response.json();
+  if(response.status===401||response.status===403){try{sessionStorage.removeItem('aiBuyerAdminKey')}catch{}authStatus.textContent='管理者認証に失敗しました。';}
+  lines.push('在庫監査 HTTP '+response.status);
+  if(data.diagnosticStage)lines.push('診断段階：'+String(data.diagnosticStage));
+  if(typeof data.detail==='string'&&/^SHOPIFY_GRAPHQL_[A-Z_]+_HTTP_\d{3}$/.test(data.detail))lines.push('Shopify診断：'+data.detail);
+  if(Array.isArray(data.productQueryProbes))for(const probe of data.productQueryProbes)lines.push('項目別検査：'+String(probe.name)+' / '+(probe.ok===true?'PASS':String(probe.code||'FAIL')));
+  if(Array.isArray(data.rows)){
+   for(const row of data.rows){
+    lines.push(String(row.title||row.vid||'商品')+'：'+(row.ok===true?'CJ倉庫 '+String(row.cjStock??'未確認')+' / 工場 '+String(row.factoryStock??'未確認')+' / Shopify '+String(row.shopifyStock??'未確認'):String(row.reason||'未確認')));
+   }
+  }
+  const complete=response.ok&&data.ok===true&&data.readOnly===true&&data.allVerified===true&&Number.isSafeInteger(data.variants)&&data.variants>0&&Array.isArray(data.rows)&&data.rows.length===data.variants&&data.syncPlan?.ready===true&&data.syncPlan?.writeLocked===true&&data.syncPlan?.mutationPerformed===false&&typeof data.stockEvidence==='string';
+  if(!complete){lines.push('在庫監査保留：'+String(data.diagnosticCode||data.code||data.error||'全件の確認証跡がありません'));return;}
+  lines.push('同期計画：'+data.syncPlan.changeCount+'件の変更予定（書き込みなし）');
+  stockReadyResult.textContent=lines.join('\n')+'\n公開前の残項目を確認中…';
+  const rr=await fetch('/api/prelaunch-one-action',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({stockEvidence:data.stockEvidence}),cache:'no-store',signal:AbortSignal.timeout(60000)});
+  const result=await rr.json();
+  if(!rr.ok||result.ok!==true||result.safetyContract!=='prelaunch-read-only-v1'){lines.push('公開前監査を確認できません（HTTP '+rr.status+'）');return;}
+  lines.push('実在庫証跡：'+(result.readiness?.variantLevelInventoryVerified===true?'確認済み':'未確認'));
+  const stages=result.verificationStages;
+  if(stages&&typeof stages==='object'){
+   const labels={supplierInventoryReadOnly:'CJ実在庫取得',inventoryWrite:'在庫更新実行',draftAudit:'下書き商品監査',orderReconciliation:'注文照合キュー',policyRetrieval:'法務情報取得',deliveryRetrieval:'配送設定取得',marketRetrieval:'販売市場取得',orderFulfillmentEndToEnd:'注文・発送・追跡の実連携',returnEndToEnd:'返品の実連携'};
+   lines.push('── 検証内訳 ──');
+   for(const [stage,label] of Object.entries(labels))lines.push(label+'：'+(stages[stage]?.verified===true?'確認済み':'未検証'));
+   lines.push('※ 法務・配送設定の取得成功は、内容の適法性や海外配送の保証ではありません。');
+   lines.push('※ 注文照合キューの確認は、実注文の連携成功を意味しません。');
+  }
+  lines.push('公開直前準備：'+(result.readyToFinalManualStep===true?'READY（手動承認が必要）':'保留'));
+  for(const b of Array.isArray(result.blockers)?result.blockers:[])lines.push('残項目：'+String(b));
+  for(const w of Array.isArray(result.warnings)?result.warnings:[])lines.push('注意：'+String(w));
+ }catch(e){lines.push('監査通信エラー：'+(e?.name==='TimeoutError'||e?.name==='AbortError'?'時間切れ':'通信失敗'));}
+ finally{lines.push('商品公開・在庫更新・実注文：実行なし');stockReadyResult.textContent=lines.join('\n');setBusy(false);}
+}
+async function runAuthOnly(){
+ if(authOnlyBtn.disabled)return;
+ const key=keyInput.value.trim();
+ if(!key){authStatus.textContent='管理者キーを入力してください。';keyInput.focus();return;}
+ setBusy(true);authOnlyResult.textContent='Shopify接続と監査権限を確認中…';
+ const lines=[];
+ try{
+  const r=await fetch('/api/release-readiness',{method:'GET',headers:{Authorization:'Bearer '+key},cache:'no-store',signal:AbortSignal.timeout(60000)});
+  const j=await r.json();
+  if(!r.ok||j.ok!==true||j.safetyContract!=='sandbox-v1'){lines.push('接続監査失敗：HTTP '+r.status);return;}
+  const a=j.auditScopeStatus||{};
+  lines.push('Admin API：'+(j.externalChecks?.shopifyAdminVerified===true?'接続済み':'未確認'));
+  lines.push('Storefrontトークン：'+(j.checks?.shopifyStorefrontToken===true?'設定済み':'未設定'));
+  lines.push('Storefront API：'+(j.shopifyStorefrontVerified===true?'接続済み':'未確認'));
+  lines.push('認証方式：'+(a.credentialSource||'未確認'));
+  lines.push('監査権限：'+(a.verified===true?(Array.isArray(a.missing)&&a.missing.length?a.missing.join(', ')+' 不足':'不足なし'):'未確認'));
+  lines.push('代替OAuthセッション：'+(a.alternateSessionStatus||'未確認'));
+  lines.push('規約：'+(j.shopifyPolicyAudit?.verified===true?'取得成功':'未確認'));
+  lines.push('配送：'+(j.shopifyDeliveryAudit?.verified===true?'取得成功':'未確認'));
+  lines.push('販売市場：'+(j.shopifyMarketsAudit?.verified===true?'取得成功':'未確認'));
+  lines.push('在庫監査・在庫書き込み・商品公開は実行していません。');
+ }catch(e){lines.push('接続確認失敗：通信または時間制限');}
+ finally{authOnlyResult.textContent=lines.join('\n');setBusy(false);}
+}
+async function runStockTrial(){
+ stockTrialResult.textContent='承認済み2商品の再更新は禁止されています。在庫同期計画・公開前準備を確認してください。';
+}
+stockTrialBtn.addEventListener('click',runStockTrial);
+authOnlyBtn.addEventListener('click',runAuthOnly);
+stockReadyBtn.addEventListener('click',runStockAndReady);
+btn.addEventListener('click',()=>run(false));
+retryBtn.addEventListener('click',()=>run(true));
+keyInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();run();}});
+</script>
+</main></body></html>

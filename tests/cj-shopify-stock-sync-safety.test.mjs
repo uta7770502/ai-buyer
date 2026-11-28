@@ -1,0 +1,219 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import './stock-audit-summary.test.mjs';
+import {readFileSync} from 'node:fs';
+
+const source=readFileSync(new URL('../lib/routes/cj-shopify-stock-sync.js',import.meta.url),'utf8');
+const summarySource=readFileSync(new URL('../lib/stock-audit-summary.js',import.meta.url),'utf8');
+
+test('stock sync is dry-run by default and requires an explicit feature flag to apply',()=>{
+  assert.match(source,/const apply=req\.method==='POST'&&String\(req\.query\?\.apply\|\|''\)==='true'/);
+  assert.match(source,/CJ_SHOPIFY_STOCK_SYNC_ENABLED!=='true'/);
+  assert.match(source,/mode:apply\?'apply':'dry-run'/);
+  assert.match(source,/readOnly:!apply/);
+});
+
+test('inventory apply stays fail-closed until location-specific available CAS is verified',()=>{
+  assert.match(source,/code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'/);
+  assert.match(source,/mutationPerformed:false/);
+  const lock=source.indexOf("code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'");
+  const mutation=source.indexOf("if(apply&&pending.length){");
+  assert.ok(lock>0&&mutation>lock);
+  assert.match(source,/if\(apply\)\s*\{\s*return res\.status\(409\)\.json\(\{[\s\S]*?LOCATION_AVAILABLE_QUANTITY_UNVERIFIED/);
+});
+
+test('stock sync requires admin authorization',()=>{
+  assert.match(source,/AI_BUYER_ADMIN_KEY/);
+  assert.match(source,/authorization!=='Bearer '\+admin/);
+});
+
+test('read-only stock audit does not require write_inventory permission',()=>{
+  assert.match(source,/const requiredInventoryScopes=apply\?\['read_inventory','write_inventory'\]:\['read_inventory'\]/);
+  assert.match(source,/const missingInventoryScopes=requiredInventoryScopes\.filter/);
+  assert.match(source,/CJ_SHOPIFY_STOCK_SYNC_ENABLED!=='true'/);
+  assert.match(source,/code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'/);
+});
+
+test('Shopify stock audit reads location-specific available quantity',()=>{
+  assert.match(source,/quantities\(names:\["available"\]\)\{name quantity\}/);
+  assert.match(source,/level\.quantities\.filter\(x=>x\?\.name==='available'\)/);
+  assert.match(source,/available\?\.length===1\?available\[0\]\?\.quantity:null/);
+  assert.match(source,/Number\.isSafeInteger\(rawCurrent\)/);
+  assert.match(source,/changeFromQuantity:current/);
+  assert.match(source,/code:'LOCATION_AVAILABLE_QUANTITY_UNVERIFIED'/);
+});
+
+test('stock sync uses verified CJ warehouse inventory only',()=>{
+  assert.match(source,/validateCJStockResponse\(j\)/);
+  assert.match(source,/cj-stock-validation\.js/);
+});
+
+test('stock sync refuses ambiguous or missing Shopify inventory locations',()=>{
+  assert.match(source,/levels\.length!==1/);
+  assert.match(source,/multiple-inventory-locations/);
+  assert.match(source,/inventory-location-missing/);
+});
+
+test('inventory writes use compare-and-swap protection and stay on available quantity',()=>{
+  assert.match(source,/name:'available'/);
+  assert.match(source,/changeFromQuantity:current/);
+  assert.match(source,/quantity:stock\.total/);
+  assert.match(source,/inventorySetQuantities/);
+});
+
+test('supplier stock failures never write a zero to Shopify',()=>{
+  assert.match(source,/if\(!stock\.ok\)\s*\{[\s\S]*?cj-stock-unavailable/);
+  assert.match(source,/if\(stock\.reason==='cj-rate-limited'\)cjRateLimited=true/);
+  assert.match(source,/if\(cjRateLimited\)/);
+  const failureIndex=source.indexOf("cj-stock-unavailable");
+  const mutationIndex=source.indexOf("inventorySetQuantities(input:$input)");
+  assert.ok(failureIndex>-1&&mutationIndex>-1);
+});
+
+test('only draft ODDLY or AI BUYER products are targeted',()=>{
+  assert.match(source,/status:draft/);
+  assert.match(source,/p\?\.status==='DRAFT'/);
+  assert.match(source,/\['ODDLY','AI BUYER'\]\.includes\(String\(p\?\.vendor\|\|''\)\)/);
+  assert.match(source,/AI BUYER/);
+});
+
+test('stock sync refuses unsafe inventory policy and unverified current quantities',()=>{
+  assert.match(source,/v\.inventoryPolicy!=='DENY'/);
+  assert.match(source,/inventory-policy-not-deny/);
+  assert.match(source,/Number\.isSafeInteger\(rawCurrent\)/);
+  assert.match(source,/shopify-stock-unverified/);
+  assert.doesNotMatch(source,/quantity\|\|0/);
+});
+
+test('stock sync stops before writes if product, variant or location pagination is incomplete',()=>{
+  assert.match(source,/pageInfo\{hasNextPage\}/);
+  assert.match(source,/data\?\.products\?\.pageInfo\?\.hasNextPage/);
+  assert.match(source,/p\.variants\?\.pageInfo\?\.hasNextPage/);
+  assert.match(source,/v\.inventoryItem\.inventoryLevels\.pageInfo\.hasNextPage/);
+  assert.match(source,/Inventory audit incomplete: pagination required before stock sync/);
+  assert.ok(source.indexOf('const incomplete=')<source.indexOf('for(const p of products)'));
+});
+
+test('stock sync never reports applied when Shopify mutation response is missing',()=>{
+  assert.match(source,/const result=out\?\.inventorySetQuantities/);
+  assert.match(source,/!result\|\|!Array\.isArray\(errors\)/);
+  assert.match(source,/result\.inventoryAdjustmentGroup\?\.createdAt/);
+  assert.match(source,/shopify-inventory-result-unverified/);
+  assert.doesNotMatch(source,/const errors=out\?\.inventorySetQuantities\?\.userErrors\|\|\[\]/);
+});
+
+test('stock sync requires complete Shopify connection metadata before mutation',()=>{
+  assert.match(source,/!Array\.isArray\(data\?\.products\?\.nodes\)/);
+  assert.match(source,/typeof data\?\.products\?\.pageInfo\?\.hasNextPage!=='boolean'/);
+  assert.match(source,/!Array\.isArray\(p\.variants\?\.nodes\)/);
+  assert.match(source,/!Array\.isArray\(v\.inventoryItem\?\.inventoryLevels\?\.nodes\)/);
+  assert.match(source,/typeof v\.inventoryItem\.inventoryLevels\.pageInfo\?\.hasNextPage!=='boolean'/);
+});
+
+test('stock sync summary counts confirmed applied stock as synchronized',()=>{
+  assert.match(source,/effectiveShopifyStock:applied\?stock\.total:current/);
+  assert.match(source,/summarizeStockAudit\(rows\)/);
+  assert.match(summarySource,/row\.cjStock===row\.effectiveShopifyStock/);
+  assert.match(summarySource,/row\.cjStock!==row\.effectiveShopifyStock/);
+});
+
+test('stock sync refuses inventory targets without Shopify resource identifiers',()=>{
+  assert.match(source,/InventoryItem/);
+  assert.match(source,/Location/);
+  assert.match(source,/inventory-target-unverified/);
+  assert.ok(source.indexOf('inventory-target-unverified')<source.indexOf('const rawCurrent='));
+});
+
+test('stock mutation prioritizes Shopify user errors over missing success metadata',()=>{
+  const errorBranch=source.indexOf('if(Array.isArray(errors)&&errors.length)');
+  const missingBranch=source.indexOf('}else if(!result||!Array.isArray(errors)');
+  assert.ok(errorBranch>=0&&missingBranch>errorBranch);
+  assert.match(source,/errors\.map\(x=>x\?\.message\)\.filter\(Boolean\)/);
+});
+
+test('stock sync verifies returned draft status and approved vendor before any supplier lookup',()=>{
+  assert.match(source,/id title status vendor/);
+  assert.match(source,/p\.status!=='DRAFT'/);
+  assert.match(source,/\['ODDLY','AI BUYER'\]\.includes\(p\.vendor\)/);
+  assert.match(source,/product-not-approved-draft/);
+  const guard=source.indexOf("p.status!=='DRAFT'");
+  const lookup=source.search(/\b(?:let|const) stock=await cjStock\(/);
+  assert.ok(guard>=0&&lookup>guard,'draft/vendor guard must precede the first stock lookup');
+});
+
+test('stock sync rejects malformed Shopify GraphQL envelopes before trusting inventory data',()=>{
+  assert.match(source,/Object\.hasOwn\(j,'errors'\)/);
+  assert.match(source,/!Array\.isArray\(j\.errors\)\|\|j\.errors\.length>0/);
+  assert.match(source,/!j\.data\|\|typeof j\.data!=='object'\|\|Array\.isArray\(j\.data\)/);
+  assert.ok(source.indexOf('Shopify GraphQL failed')<source.indexOf('const productsQuery='));
+});
+
+test('stock sync refuses missing or duplicate available inventory quantities',()=>{
+  assert.match(source,/Array\.isArray\(level\.quantities\)/);
+  assert.match(source,/level\.quantities\.filter\(x=>x\?\.name==='available'\)/);
+  assert.match(source,/available\?\.length===1/);
+  assert.match(source,/const rawCurrent=available\?\.length===1\?available\[0\]\?\.quantity:null/);
+});
+
+test('stock sync exposes incomplete row audits explicitly',()=>{
+  assert.match(source,/summarizeStockAudit\(rows\)/);
+  assert.match(summarySource,/partial:blocked>0/);
+  assert.match(summarySource,/noAuditableVariants:rows\.length===0/);
+  assert.match(summarySource,/allVerified:rows\.length>0&&blocked===0/);
+});
+
+test('empty Shopify stock audit returns without requesting a CJ token',()=>{
+  assert.match(source,/if\(products\.length===0\)/);
+  assert.match(source,/\.\.\.summarizeStockAudit\(\[\]\),rows:\[\]/);
+  assert.ok(source.indexOf('if(products.length===0)')<source.indexOf('const token=await cjToken();'));
+});
+
+test('stock sync excludes other vendors and non-draft products before supplier calls',()=>{
+  assert.match(source,/const products=fetchedProducts\.filter\(p=>p\?\.status==='DRAFT'&&\['ODDLY','AI BUYER'\]\.includes\(String\(p\?\.vendor\|\|''\)\)\)/);
+  assert.ok(source.indexOf('const products=fetchedProducts.filter(')<source.indexOf('const token=await cjToken();'));
+  assert.match(source,/if\(p\.status!=='DRAFT'\|\|!\['ODDLY','AI BUYER'\]\.includes\(p\.vendor\)\)/);
+});
+
+test('apply mode preflights every variant SKU and inventory policy before supplier calls',()=>{
+  assert.match(source,/const invalidVariants=products\.flatMap\(p=>p\.variants\.nodes\)/);
+  assert.match(source,/Inventory audit contains unsafe variants/);
+  assert.match(source,/blockedVariants:invalidVariants\.length/);
+  assert.ok(source.indexOf('const invalidVariants=')<source.indexOf('const token=await cjToken();'));
+});
+
+test('apply mode validates every inventory target before requesting supplier stock',()=>{
+  assert.match(source,/const invalidTargets=products\.flatMap\(p=>p\.variants\.nodes\)/);
+  assert.match(source,/Inventory audit contains unverified inventory targets/);
+  assert.match(source,/blockedVariants:invalidTargets\.length/);
+  assert.ok(source.indexOf('const invalidTargets=')<source.indexOf('const token=await cjToken();'));
+});
+
+test('apply mode rejects duplicate supplier variants and duplicate inventory item targets',()=>{
+  assert.match(source,/variants\.length===0/);
+  assert.match(source,/new Set\(vids\)\.size!==vids\.length/);
+  assert.match(source,/new Set\(inventoryIds\)\.size!==inventoryIds\.length/);
+  assert.match(source,/DUPLICATE_OR_EMPTY_STOCK_IDENTIFIERS/);
+  assert.ok(source.indexOf('new Set(vids)')<source.indexOf('const token=await cjToken();'));
+});
+
+test('preview stock readback detects concurrent changes, missing locations and incomplete responses',async()=>{
+ const {verifyStockReadback}=await import('../lib/routes/cj-shopify-stock-sync.js');
+ const expected=[{inventoryItemId:'gid://shopify/InventoryItem/1',locationId:'gid://shopify/Location/2',quantity:0},{inventoryItemId:'gid://shopify/InventoryItem/3',locationId:'gid://shopify/Location/2',quantity:15}];
+ const nodes=expected.map(x=>({id:x.inventoryItemId,inventoryLevels:{pageInfo:{hasNextPage:false},nodes:[{location:{id:x.locationId},quantities:[{name:'available',quantity:x.quantity}]}]}}));
+ assert.equal(verifyStockReadback(expected,nodes),true);
+ for(const mutate of [
+  n=>{n[0].inventoryLevels.nodes[0].quantities[0].quantity=1},
+  n=>{n[1].inventoryLevels.nodes[0].location.id='gid://shopify/Location/9'},
+  n=>{n[0].inventoryLevels.pageInfo.hasNextPage=true},
+  n=>{n[0].inventoryLevels.nodes[0].quantities.push({name:'available',quantity:0})},
+  n=>{n.pop()},
+  n=>{n[1].id=n[0].id}
+ ]){const copy=structuredClone(nodes);mutate(copy);assert.equal(verifyStockReadback(expected,copy),false);}
+});
+test('preview evidence and executable quantities require a fresh successful location readback',()=>{
+ assert.ok(source.indexOf('query StockSyncPreviewReadback')>source.indexOf('const planReady='));
+ assert.match(source,/locationReadbackVerified=verifyStockReadback\(expected,readback\?\.nodes\)/);
+ assert.match(source,/ready:planReady&&locationReadbackVerified/);
+ assert.match(source,/quantities:planReady&&locationReadbackVerified\?/);
+ assert.match(source,/stockEvidence:!apply&&locationReadbackVerified&&/);
+});

@@ -19,10 +19,10 @@ function order(overrides={}) {
     ...overrides
   };
 }
-async function request(payload, {signature=true,topic='orders/paid',origin=shop}={}) {
+async function request(payload, {signature=true,topic='orders/paid',origin=shop,enabled=false}={}) {
   process.env.SHOPIFY_CLIENT_SECRET=secret;
   process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN=shop;
-  process.env.CJ_SANDBOX_ORDER_ENABLED='false';
+  process.env.CJ_SANDBOX_ORDER_ENABLED=enabled?'true':'false';
   const raw=Buffer.from(JSON.stringify(payload));
   const hmac=crypto.createHmac('sha256',secret).update(raw).digest('base64');
   const req=Readable.from([raw]);
@@ -118,4 +118,20 @@ test('sandbox opt-in without durable Redis refuses dispatch', async()=>{
       if(value===undefined)delete process.env[key];else process.env[key]=value;
     }
   }
+});
+
+test('ODDLY webhook verifies latest factory stock before freight or reservation and never creates an order when immediate stock is absent',async t=>{
+ const env={UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'test',CJ_ACCESS_TOKEN:'test',SHOPIFY_ADMIN_ACCESS_TOKEN:'test',CJ_MAX_ITEMS_PER_ORDER:'5',CJ_MAX_ORDER_VALUE:'5000',CJ_ORDER_LIMIT_CURRENCY:'JPY',CJ_ALLOWED_DESTINATION_COUNTRY:'JP',CJ_MAX_FREIGHT_USD:'25'};
+ const old=Object.fromEntries(Object.keys(env).map(k=>[k,process.env[k]]));Object.assign(process.env,env);
+ t.after(()=>{for(const [k,v] of Object.entries(old)){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
+ const calls=[];
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{
+  calls.push(String(url));
+  if(String(url).includes('graphql.json'))return {ok:true,json:async()=>({data:{node:{id:'gid://shopify/ProductVariant/2',sku:'1234567890123',product:{id:'gid://shopify/Product/1',vendor:'ODDLY'}}}})};
+  if(String(url).includes('/product/stock/queryByVid?'))return {ok:true,json:async()=>({result:true,data:[{cjInventoryNum:0,factoryInventoryNum:10,totalInventoryNum:10}]})};
+  throw Error('Unexpected request '+url);
+ });
+ const r=await request(order({line_items:[{id:3,variant_id:2,product_id:1,sku:'1234567890123',quantity:1,fulfillable_quantity:1}]}),{enabled:true});
+ assert.equal(r.statusCode,409);assert.equal(r.body.requiresFactoryReplenishment,true);assert.equal(r.body.orderCreated,false);assert.equal(r.body.dispatchPlanningWindow.guaranteed,false);
+ assert.equal(calls.length,2);assert.ok(!calls.some(x=>x.includes('freightCalculate')||x.includes('createOrder')||x.includes('redis.invalid')));
 });
